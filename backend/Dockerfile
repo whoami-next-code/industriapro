@@ -1,14 +1,17 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Build context esperado: carpeta backend/
-COPY package*.json ./
+# Soporta build context en raíz del repo o en carpeta backend/
+COPY . .
+RUN if [ -d backend ]; then \
+  cp backend/package*.json ./; \
+  cp backend/nest-cli.json ./; \
+  cp backend/tsconfig*.json ./; \
+  cp -r backend/src ./src; \
+  cp -r backend/public ./public; \
+fi
+
 RUN npm ci
-
-COPY nest-cli.json tsconfig*.json ./
-COPY src ./src
-COPY public ./public
-
 RUN npm run build
 
 FROM node:20-alpine AS runner
