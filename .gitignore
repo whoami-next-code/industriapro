@@ -19,6 +19,9 @@ coverage/
 backend/.env
 frontend/.env.local
 backend/dev.sqlite
+backend/data.sqlite
+backend/*.sqlite-wal
+backend/*.sqlite-shm
 
 # Logs & temp
 *.log
