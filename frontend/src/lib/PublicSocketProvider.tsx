@@ -31,6 +31,7 @@ export function PublicSocketProvider({ children }: { children: React.ReactNode }
     s.on("connect_error", () => setStatus("error"));
     s.on("productos.updated", (d) => setLastEvent({ name: "productos.updated", data: d }));
     s.on("pedidos.updated", (d) => setLastEvent({ name: "pedidos.updated", data: d }));
+    s.on("cotizaciones.updated", (d) => setLastEvent({ name: "cotizaciones.updated", data: d }));
     return () => {
       s.disconnect();
     };

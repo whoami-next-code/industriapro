@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, Eye, EyeOff, User, Building, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/api';
 
 export default function RegisterPage() {
@@ -24,8 +23,16 @@ export default function RegisterPage() {
   const [emailStatus, setEmailStatus] = useState<{ exists: boolean; verified: boolean } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [acceptPolicy, setAcceptPolicy] = useState<boolean>(false);
+  const [emailCheckError, setEmailCheckError] = useState<string | null>(null);
+
+  const addLog = (message: string) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] ${message}`;
+    // Logs para diagnóstico (Terminal#151-177)
+    console.log('Terminal#151-177:', logEntry);
+  };
+
   const router = useRouter();
-  const { signUp } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -95,20 +102,34 @@ export default function RegisterPage() {
     if (!email || fieldErrors.email) return;
     const ctrl = new AbortController();
     const id = setTimeout(async () => {
+      addLog(`Iniciando verificación de correo: ${email}`);
       try {
+        setEmailCheckError(null);
         const res = await apiFetch('/auth/check-email', {
           method: 'POST',
           body: JSON.stringify({ email }),
           signal: ctrl.signal as any,
         });
         setEmailStatus(res);
-      } catch {
+        addLog(`Verificación de correo exitosa: ${email} (existe: ${res.exists})`);
+      } catch (err: unknown) {
         setEmailStatus(null);
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : 'Error de conexión al validar el correo';
+        setEmailCheckError(message);
+        addLog(`Error en verificación de correo: ${message}`);
+        console.error('RegisterPage email check error', {
+          email,
+          error: err,
+        });
       }
     }, 400);
     return () => {
       clearTimeout(id);
       ctrl.abort();
+      addLog(`Limpiando verificación de correo: ${email}`);
     };
   }, [formData.email, fieldErrors.email]);
 
@@ -116,24 +137,31 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    addLog('Iniciando proceso de registro');
     
     if (!validateForm()) {
+      addLog('Formulario inválido');
       return;
     }
     if (emailStatus?.exists) {
+      addLog('Correo ya registrado');
       setError('El correo ya está registrado');
       return;
     }
     if (!acceptPolicy) {
+      addLog('Política de privacidad no aceptada');
       setError('Debes aceptar la política de protección de datos');
       return;
     }
     
+    addLog(`Registro iniciado para: ${formData.email}`);
     setIsLoading(true);
 
     try {
-      // Usar backend para registro con service key y correo propio (evita fallo de Supabase al enviar email)
-      await apiFetch('/auth/register', {
+      console.log('RegisterPage submit start', {
+        email: formData.email,
+      });
+      const registerResult = await apiFetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           email: formData.email,
@@ -142,32 +170,66 @@ export default function RegisterPage() {
           phone: formData.phone,
         }),
       });
-
-      setSuccess('Cuenta creada. Revisa tu correo para verificar y luego inicia sesión.');
+      addLog(`Registro exitoso para: ${formData.email} (ya existía: ${registerResult?.alreadyExists})`);
+      if (registerResult?.alreadyExists) {
+        setSuccess(
+          registerResult?.emailSent
+            ? 'Este correo ya estaba registrado. Reenviamos la verificación; revisa tu bandeja.'
+            : 'Este correo ya estaba registrado. Intenta iniciar sesión o solicita reenvío.',
+        );
+      } else {
+        setSuccess('Cuenta creada. Revisa tu correo para verificar y luego inicia sesión.');
+      }
+      addLog('Redirigiendo a página de inicio de sesión');
       setTimeout(() => {
         router.push('/auth/login');
       }, 2500);
     } catch (error: any) {
+      addLog(`Error en registro: ${error.message}`);
+      console.error('RegisterPage submit error', {
+        email: formData.email,
+        error,
+      });
       let errorMessage = 'Error al crear la cuenta';
       if (typeof error?.message === 'string') {
-        try {
-          const parsed = JSON.parse(error.message);
-          errorMessage = parsed?.message || parsed?.error || errorMessage;
-        } catch {
-          errorMessage = error.message;
+        const lower = error.message.toLowerCase();
+        if (
+          lower.includes('failed to fetch') ||
+          lower.includes('networkerror') ||
+          lower.includes('econnrefused') ||
+          lower.includes('enotfound') ||
+          lower.includes('falloconsultando') ||
+          lower.includes('timeout') ||
+          lower.includes('fallo consultando')
+        ) {
+          errorMessage =
+            'No se pudo conectar con el servidor. Verifica tu conexión o inténtalo más tarde.';
+        } else {
+          try {
+            const parsed = JSON.parse(error.message);
+            errorMessage = parsed?.message || parsed?.error || errorMessage;
+          } catch {
+            errorMessage = error.message;
+          }
         }
       }
-      if (errorMessage.toLowerCase().includes('correo') || 
-          errorMessage.toLowerCase().includes('email') ||
-          errorMessage.toLowerCase().includes('mail') ||
-          errorMessage.toLowerCase().includes('confirmación')) {
+      if (
+        errorMessage.toLowerCase().includes('correo') ||
+        errorMessage.toLowerCase().includes('email') ||
+        errorMessage.toLowerCase().includes('mail') ||
+        errorMessage.toLowerCase().includes('confirmación')
+      ) {
         errorMessage = 'Error al enviar el correo electrónico de confirmación';
       }
-      if (errorMessage.toLowerCase().includes('ya está registrado') || errorMessage.toLowerCase().includes('already')) {
+      if (
+        errorMessage.toLowerCase().includes('ya está registrado') ||
+        errorMessage.toLowerCase().includes('already')
+      ) {
         errorMessage = 'Este correo ya está registrado';
       }
       setError(errorMessage);
     } finally {
+      addLog('Proceso de registro completado');
       setIsLoading(false);
     }
   };
@@ -244,11 +306,22 @@ export default function RegisterPage() {
                   className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="tu@empresa.com"
                 />
-                {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
+                {fieldErrors.email && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>
+                )}
                 {emailStatus && (
-                  <p className={`mt-1 text-xs ${emailStatus.exists ? 'text-red-600' : 'text-green-700'}`}>
-                    {emailStatus.exists ? 'Este correo ya está registrado' : 'Correo disponible'}
+                  <p
+                    className={`mt-1 text-xs ${
+                      emailStatus.exists ? 'text-red-600' : 'text-green-700'
+                    }`}
+                  >
+                    {emailStatus.exists
+                      ? 'Este correo ya está registrado'
+                      : 'Correo disponible'}
                   </p>
+                )}
+                {emailCheckError && !emailStatus && (
+                  <p className="mt-1 text-xs text-red-600">{emailCheckError}</p>
                 )}
               </div>
             </div>

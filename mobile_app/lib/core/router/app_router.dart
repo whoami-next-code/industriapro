@@ -13,6 +13,7 @@ import '../../features/pedidos_detalle/presentation/pedido_detalle_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/request/presentation/request_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
+import '../../features/workflow/presentation/workflow_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -37,6 +38,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/home',
                 name: 'home',
                 builder: (context, state) => const HomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/workflow',
+                name: 'workflow',
+                builder: (context, state) => const WorkflowPage(),
               ),
             ],
           ),

@@ -8,28 +8,35 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 async function run() {
   console.log('🔌 Conectando a la base de datos remota de Supabase...');
-  console.log(`Host: ${process.env.DB_HOST}`);
+  console.log(`Host: ${process.env.DB_HOST || 'Usando DATABASE_URL'}`);
   
-  const client = new Client({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432'),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME,
-    ssl: { rejectUnauthorized: false },
-  });
+  const clientConfig = process.env.DATABASE_URL 
+    ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+    : {
+        host: process.env.DB_HOST,
+        port: parseInt(process.env.DB_PORT || '5432'),
+        user: process.env.DB_USER,
+        password: process.env.DB_PASS,
+        database: process.env.DB_NAME,
+        ssl: { rejectUnauthorized: false },
+      };
+
+  const client = new Client(clientConfig);
 
   try {
     await client.connect();
     console.log('✅ Conectado exitosamente.');
 
-    const sqlPath = path.join(__dirname, 'sql/setup_supabase_sync.sql');
+    const defaultSqlPath = path.join(__dirname, 'sql/setup_supabase_sync.sql');
+    const inputPath = process.argv[2];
+    const sqlPath = inputPath ? path.resolve(process.cwd(), inputPath) : defaultSqlPath;
+
     if (!fs.existsSync(sqlPath)) {
         throw new Error(`Archivo SQL no encontrado: ${sqlPath}`);
     }
     
+    console.log(`📜 Ejecutando script: ${sqlPath}`);
     const sql = fs.readFileSync(sqlPath, 'utf8');
-    console.log('📜 Ejecutando script de migración (Triggers y RLS)...');
     
     await client.query(sql);
     

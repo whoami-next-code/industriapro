@@ -127,8 +127,8 @@ export default function ContactSection() {
           <div className="space-y-4">
             <div className="rounded-xl overflow-hidden border">
               <iframe 
-                title="Mapa de ubicación de Industrias SP en Lima, Perú" 
-                src="https://maps.google.com/maps?width=100%25&height=300&hl=es&q=Lima%20Peru&ie=UTF8&t=&z=12&iwloc=B&output=embed" 
+                title="Mapa de ubicación de Industrias SP en Huancayo, Perú" 
+                src="https://maps.google.com/maps?width=100%25&height=300&hl=es&q=Jiron%20Nemesio%20Raez%2C%20El%20Tampo%2C%20Huancayo%2C%20Peru&ie=UTF8&t=&z=14&iwloc=B&output=embed" 
                 className="w-full h-64"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
@@ -137,12 +137,12 @@ export default function ContactSection() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border bg-white p-4">
-                <div className="font-semibold">+51 987 654 321</div>
-                <div className="text-sm text-gray-600 mt-2">Lun–Vie 9:00–18:00</div>
+                <div className="font-semibold">+51 916 695 927</div>
+                <div className="text-sm text-gray-600 mt-2">Lun–Vie 8:00–18:00</div>
               </div>
               <div className="rounded-xl border bg-white p-4">
                 <div className="font-semibold">info@industriasp.com</div>
-                <div className="text-sm text-gray-600 mt-2">Av. Industrial 123, Lima</div>
+                <div className="text-sm text-gray-600 mt-2">Jirón Nemesio Raez, El Tampo</div>
               </div>
             </div>
           </div>

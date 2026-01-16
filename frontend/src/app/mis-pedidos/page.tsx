@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePublicSocket } from "@/lib/PublicSocketProvider";
 
 function computeTotal(o: { total?: any; items?: Array<{ price?: any; quantity?: any }> }) {
   const coerced = Number(o?.total);
@@ -41,6 +42,7 @@ type Quote = {
   status: "PENDIENTE" | "NUEVA" | "EN_PROCESO" | "ENVIADA" | "COMPLETADA" | "CERRADA" | "RECHAZADA" | string;
   notes?: string;
   createdAt: string | Date;
+  progressUpdates?: Array<{ materialList?: Array<{ name: string; quantity: number; unit: string }> }>;
 };
 type Product = { id: number; name: string; price: number };
 
@@ -144,11 +146,19 @@ function printQuote(q: Quote, products: Product[]) {
 
 export default function MisPedidosPage() {
   const { loading: authLoading, user } = useAuth();
+  const { lastEvent } = usePublicSocket();
   const [orders, setOrders] = useState<Order[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (lastEvent && (lastEvent.name === "cotizaciones.updated" || lastEvent.name === "pedidos.updated")) {
+      setRefreshKey((k) => k + 1);
+    }
+  }, [lastEvent]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -195,7 +205,7 @@ export default function MisPedidosPage() {
       }
     }
     load();
-  }, [authLoading, user]);
+  }, [authLoading, user, refreshKey]);
 
   if (authLoading || loading) {
     return (
@@ -327,6 +337,16 @@ export default function MisPedidosPage() {
                       <p className="text-xs text-zinc-500 line-clamp-2">{q.notes}</p>
                     </div>
                   )}
+
+                  <div className="mb-4">
+                    <p className="text-sm text-zinc-600 mb-1">Materiales Recientes:</p>
+                    <ul className="text-xs text-zinc-500 list-disc list-inside">
+                      {q.progressUpdates?.[0]?.materialList?.map((mat, i) => (
+                        <li key={i}>{mat.name} ({mat.quantity} {mat.unit})</li>
+                      ))}
+                      {!q.progressUpdates?.[0]?.materialList?.length && <li>No hay materiales registrados.</li>}
+                    </ul>
+                  </div>
 
                   <div className="flex gap-2 pt-3 border-t">
                     <Link 

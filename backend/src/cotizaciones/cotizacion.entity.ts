@@ -4,7 +4,19 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { QuotationImage } from './quotation-image.entity';
+import { User } from '../users/user.entity';
+
+export type MaterialUsage = {
+  name: string;
+  quantity: number;
+  unit: string;
+  provider?: string;
+};
 
 export type ProgressUpdate = {
   message: string;
@@ -12,6 +24,7 @@ export type ProgressUpdate = {
   estimatedDate?: string;
   attachmentUrls?: string[];
   materials?: string;
+  materialList?: MaterialUsage[];
   createdAt: string;
   author?: string;
   channel?: string;
@@ -25,6 +38,11 @@ export type ProgressUpdate = {
     | 'CIERRE';
   technician?: string;
   highlighted?: boolean;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewedBy?: string;
+  reviewDate?: string;
+  rejectionReason?: string;
+  isPublic?: boolean;
 };
 
 export type QuoteItem = {
@@ -76,6 +94,9 @@ export class Cotizacion {
   @Column({ type: 'json' })
   items: QuoteItem[];
 
+  @OneToMany(() => QuotationImage, (image) => image.quotation)
+  images: QuotationImage[];
+
   @Column({ nullable: true })
   customerAddress?: string;
 
@@ -122,7 +143,20 @@ export class Cotizacion {
   technicianEmail?: string;
 
   @Column({ nullable: true })
+  technicianId?: number;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'technicianId' })
+  technicianUser?: User;
+
+  @Column({ default: 'APPROVED' })
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+
+  @Column({ nullable: true })
   installationTechnician?: string;
+
+  @Column({ type: 'text', nullable: true })
+  technicianSignature?: string;
 
   @Column({ type: 'text', nullable: true })
   notes?: string;

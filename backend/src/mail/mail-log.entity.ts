@@ -9,7 +9,8 @@ export type MailType =
   | 'ACCOUNT_CREATION'
   | 'PASSWORD_RESET'
   | 'ORDER_REGISTERED'
-  | 'PROMOTIONAL';
+  | 'PROMOTIONAL'
+  | 'QUOTATION_UPDATE';
 
 @Entity('mail_logs')
 export class MailLog {

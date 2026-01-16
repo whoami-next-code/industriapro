@@ -9,6 +9,7 @@ import {
 export enum UserRole {
   ADMIN = 'ADMIN',
   VENDEDOR = 'VENDEDOR',
+  TECNICO = 'TECNICO',
   CLIENTE = 'CLIENTE',
 }
 

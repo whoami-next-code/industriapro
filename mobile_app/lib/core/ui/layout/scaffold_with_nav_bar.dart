@@ -46,6 +46,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
               label: 'Inicio',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.map_outlined),
+              activeIcon: Icon(Icons.map_rounded),
+              label: 'Seguimiento',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.assignment_outlined),
               activeIcon: Icon(Icons.assignment),
               label: 'Pedidos',

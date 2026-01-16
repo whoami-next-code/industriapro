@@ -2,14 +2,118 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/ui/layout/responsive_layout.dart';
 import '../../../domain/entities/cotizacion_detalle.dart';
 import '../providers/cotizaciones_providers.dart';
 
 class CotizacionDetallePage extends ConsumerWidget {
+  final String id;
+
   const CotizacionDetallePage({super.key, required this.id});
 
-  final String id;
+  Widget _buildImages(BuildContext context, CotizacionDetalle c) {
+    if (c.images.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Imágenes Adjuntas',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 140,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: c.images.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final image = c.images[index];
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: GestureDetector(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => Dialog(
+                                  insetPadding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Image.network(
+                                          AppConfig.buildImageUrl(image.imageUrl),
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      if (!image.isApproved)
+                                        Container(
+                                          padding: const EdgeInsets.all(8.0),
+                                          color: Colors.orange.shade50,
+                                          width: double.infinity,
+                                          child: const Text(
+                                            'Pendiente de aprobación',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Image.network(
+                              AppConfig.buildImageUrl(image.imageUrl),
+                              fit: BoxFit.cover,
+                              width: 120,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 120,
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            image.isApproved ? Icons.check_circle : Icons.access_time,
+                            size: 16,
+                            color: image.isApproved ? Colors.green : Colors.orange,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            image.isApproved ? 'Aprobada' : 'Pendiente',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: image.isApproved ? Colors.green : Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   String _formatDate(String? iso) {
     if (iso == null || iso.isEmpty) return '—';
@@ -390,7 +494,7 @@ class CotizacionDetallePage extends ConsumerWidget {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  p.attachmentUrls[index],
+                                  AppConfig.buildImageUrl(p.attachmentUrls[index]),
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => const Icon(
                                     Icons.broken_image,

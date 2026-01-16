@@ -21,7 +21,7 @@ class App extends ConsumerWidget {
       message: 'app_build',
       data: {
         'routerHash': router.hashCode,
-        'themeMode': themeState.themeMode.toString(),
+        'themeSeed': themeState.seedColor.value.toRadixString(16),
       },
       hypothesisId: 'H4',
       runId: 'pre-fix-2',
@@ -30,15 +30,10 @@ class App extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Industria SP - Producción',
-      theme: AppTheme.getTheme(
-        brightness: Brightness.light,
+      theme: AppTheme.lightTheme(
         seedColor: themeState.seedColor,
       ),
-      darkTheme: AppTheme.getTheme(
-        brightness: Brightness.dark,
-        seedColor: themeState.seedColor,
-      ),
-      themeMode: themeState.themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

@@ -11,6 +11,7 @@ import {
   promotionalTemplate,
   verifyEmailTemplate,
   renderBaseTemplate,
+  quotationUpdateTemplate,
 } from './templates';
 import { promises as dns } from 'dns';
 
@@ -498,23 +499,44 @@ export class MailService {
         <tbody>${itemsRows}</tbody>
       </table>
     `;
-    const htmlTpl = orderRegisteredTemplate();
-    const html = this.render(htmlTpl, {
-      user_full_name: params.fullName ?? 'Usuario',
-      order_number: params.orderNumber,
-      tracking_number: params.trackingNumber,
-      items_summary_html: itemsSummaryHtml,
-      total: `$${params.total.toFixed(2)}`,
-      details_url: detailsUrl,
-    });
-    const subject = primaryMode
-      ? `Tu orden #${params.orderNumber}`
-      : `Orden registrada #${params.orderNumber}`;
+    const htmlTpl = orderRegisteredTemplate(
+      params.orderNumber,
+      itemsSummaryHtml,
+      params.total,
+    );
+    const html = this.render(htmlTpl, {}); // Template already rendered in helper, but kept consistent if we used raw template strings
+    // Helper function returns full HTML, so no need to render again unless it had variables.
+    // The helpers in templates.ts return fully rendered strings.
+    // So we just pass it.
+    
     return this._send({
       to: params.to,
-      subject,
-      html,
+      subject: `Pedido #${params.orderNumber} confirmado`,
+      html: htmlTpl,
       type: 'ORDER_REGISTERED',
+    });
+  }
+
+  async sendQuotationUpdate(params: {
+    to: string;
+    fullName: string;
+    quotationId: number;
+    status: string;
+    message?: string;
+  }) {
+    const url = `${this.webUrl}/mis-pedidos`; // Or specific quotation URL
+    const html = quotationUpdateTemplate(
+      params.fullName,
+      params.quotationId,
+      params.status,
+      params.message || '',
+      url
+    );
+    return this._send({
+      to: params.to,
+      subject: `Actualización de Cotización #${params.quotationId}`,
+      html,
+      type: 'QUOTATION_UPDATE',
     });
   }
 
@@ -525,13 +547,14 @@ export class MailService {
     ctaUrl?: string;
     ctaText?: string;
   }) {
-    const htmlTpl = promotionalTemplate();
-    const html = this.render(htmlTpl, {
-      promo_title: params.title,
-      promo_body_html: params.bodyHtml,
-      promo_cta_url: params.ctaUrl ?? `${this.webUrl}`,
-      promo_cta_text: params.ctaText ?? 'Ver más',
-    });
+    const content = `
+      <h2>${params.title}</h2>
+      <div>${params.bodyHtml}</div>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${params.ctaUrl ?? this.webUrl}" class="btn">${params.ctaText ?? 'Ver más'}</a>
+      </div>
+    `;
+    const html = promotionalTemplate(content);
     return this._send({
       to: params.to,
       subject: params.title,

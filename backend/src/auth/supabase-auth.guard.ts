@@ -21,6 +21,25 @@ export class SupabaseAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const authHeader = req.headers['authorization'] as string | undefined;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/638fba18-ebc9-4dbf-9020-8d680af003ce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H2',
+        location: 'supabase-auth.guard.ts:canActivate',
+        message: 'Auth header check',
+        data: {
+          hasAuth: !!authHeader,
+          tokenPrefix: authHeader ? authHeader.slice(0, 12) : null,
+          url: req.url,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       throw new UnauthorizedException('Token ausente');
@@ -121,6 +140,21 @@ export class SupabaseAuthGuard implements CanActivate {
         email: localUser.email,
         role: localUser.role,
       };
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/638fba18-ebc9-4dbf-9020-8d680af003ce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H2',
+          location: 'supabase-auth.guard.ts:canActivate',
+          message: 'SupabaseAuthGuard user attached',
+          data: { userId: localUser.id, email: localUser.email, role: localUser.role, url: req.url },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
 
       // #region agent log
       fetch(
@@ -149,6 +183,21 @@ export class SupabaseAuthGuard implements CanActivate {
     } catch (e) {
       if (e instanceof UnauthorizedException) throw e;
       this.logger.error(`Auth error: ${e.message}`, e.stack);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/638fba18-ebc9-4dbf-9020-8d680af003ce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H2',
+          location: 'supabase-auth.guard.ts:canActivate',
+          message: 'Auth error',
+          data: { error: e?.message, url: req.url },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       // #region agent log
       fetch(
         'http://127.0.0.1:7242/ingest/638fba18-ebc9-4dbf-9020-8d680af003ce',

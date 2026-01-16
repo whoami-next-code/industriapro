@@ -48,8 +48,8 @@ async function verifyEmailSystem() {
   const templates = [
     { name: 'Bienvenida', fn: () => accountCreationTemplate('Juan Pérez') },
     { name: 'Reset Password', fn: () => passwordResetTemplate() },
-    { name: 'Orden Confirmada', fn: () => orderRegisteredTemplate() },
-    { name: 'Promocional', fn: () => promotionalTemplate() }
+    { name: 'Orden Confirmada', fn: () => orderRegisteredTemplate('ORD-123', '<li>Item 1 - $50</li><li>Item 2 - $50</li>', 100.00) },
+    { name: 'Promocional', fn: () => promotionalTemplate('<p>Contenido promocional de prueba</p>') }
   ];
 
   const dummyData = {

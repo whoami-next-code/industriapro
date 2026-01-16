@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
+import { usePublicSocket } from "@/lib/PublicSocketProvider";
 
 type ProgressUpdate = {
   message: string;
@@ -41,6 +42,15 @@ export default function QuoteStatusPage() {
   const [item, setItem] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { lastEvent } = usePublicSocket();
+
+  useEffect(() => {
+    if (lastEvent?.name === "cotizaciones.updated" && lastEvent.data?.id === id) {
+       apiFetchAuth(`/cotizaciones/${id}/reporte`)
+         .then((data) => setItem(data))
+         .catch((e: any) => console.error("Error reloading quote", e));
+    }
+  }, [lastEvent, id]);
 
   useEffect(() => {
     const token = requireAuthOrRedirect(`/cotizacion/${id}`);

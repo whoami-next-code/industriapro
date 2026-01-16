@@ -3,24 +3,20 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../debug/debug_logger.dart';
 
-/// AppTheme manages the application's visual style.
-/// It supports Material 3, Light/Dark modes, and custom color seeds.
+/// Tema único en modo claro inspirado en la UI de referencia.
 class AppTheme {
-  /// The default seed color for the application.
-  /// Updated to match the "Smart Construction" Dark Blue brand color.
-  static const Color defaultSeedColor = Color(0xFF03053D);
+  /// Color semilla alineado a la paleta turquesa del mock.
+  static const Color defaultSeedColor = Color(0xFF14C9CB);
 
-  /// Generates the ThemeData for the application.
-  static ThemeData getTheme({
-    required Brightness brightness,
+  /// Genera el tema claro de la aplicación.
+  static ThemeData lightTheme({
     Color seedColor = defaultSeedColor,
   }) {
     // #region agent log
     debugLog(
-      location: 'app_theme.dart:getTheme',
-      message: 'theme_generated',
+      location: 'app_theme.dart:lightTheme',
+      message: 'theme_generated_light_only',
       data: {
-        'brightness': brightness.toString(),
         'seedColor': seedColor.value.toRadixString(16),
         'font': 'DM Sans',
       },
@@ -29,26 +25,24 @@ class AppTheme {
     );
     // #endregion
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
-      brightness: brightness,
-      primary: seedColor, // Ensure primary matches seed exactly
+    final colorScheme = ColorScheme.fromSeed(seedColor: seedColor).copyWith(
+      primary: seedColor,
+      secondary: const Color(0xFF5AD2D4),
+      surface: const Color(0xFFF6F8FB),
     );
 
     final baseTheme = ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor:
-          brightness == Brightness.light ? const Color(0xFFF3F4F4) : Colors.grey[900], // Match light bg
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF3F7F9),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
-        backgroundColor:
-            brightness == Brightness.light ? Colors.white : Colors.grey[900],
-        foregroundColor:
-            brightness == Brightness.light ? const Color(0xFF03053D) : Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0E2433),
         titleTextStyle: GoogleFonts.dmSans(
-          color: brightness == Brightness.light ? const Color(0xFF03053D) : Colors.white,
+          color: const Color(0xFF0E2433),
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
@@ -56,17 +50,16 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
         ),
-        color: brightness == Brightness.light ? Colors.white : Colors.grey[850],
+        color: Colors.white,
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
         ),
         filled: true,
-        fillColor:
-            brightness == Brightness.light ? Colors.white : Colors.grey[800],
+        fillColor: Colors.white,
         labelStyle: GoogleFonts.dmSans(),
         hintStyle: GoogleFonts.dmSans(),
       ),
@@ -93,8 +86,7 @@ class AppTheme {
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor:
-            brightness == Brightness.light ? Colors.white : Colors.grey[900],
+        backgroundColor: Colors.white,
         selectedItemColor: colorScheme.primary,
         unselectedItemColor: Colors.grey,
         selectedLabelStyle: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
@@ -102,7 +94,7 @@ class AppTheme {
       ),
     );
 
-    // Apply DM Sans font to the entire text theme
+    // Aplica DM Sans a todo el texto
     return baseTheme.copyWith(
       textTheme: GoogleFonts.dmSansTextTheme(baseTheme.textTheme),
     );

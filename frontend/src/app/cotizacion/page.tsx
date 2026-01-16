@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { apiFetchAuth, requireAuthOrRedirect, getToken, API_URL } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getToken, API_URL, getImageUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { z } from "zod";
 
@@ -198,7 +198,7 @@ export default function Cotizacion() {
         .object({
           name: z.string().min(1, "Nombre requerido"),
           email: z.string().email("Correo inválido"),
-          phone: z.string().optional(),
+          phone: z.string().optional().refine((val) => !val || /^(?:\+51|51)?\s?9\d{2}[\s-]?\d{3}[\s-]?\d{3}$/.test(val), "Teléfono inválido (ej: +51 916 695 927)"),
           company: z.string().optional(),
           document: z.string().optional(),
           address: z.string().optional(),
@@ -379,16 +379,7 @@ export default function Cotizacion() {
     }
   }
 
-  const imageSrc =
-    product?.imageUrl?.startsWith("http")
-      ? product?.imageUrl
-      : product?.imageUrl
-      ? `${API_URL}${product.imageUrl}`
-      : product?.thumbnailUrl?.startsWith("http")
-      ? product.thumbnailUrl
-      : product?.thumbnailUrl
-      ? `${API_URL}${product.thumbnailUrl}`
-      : productImageParam || "/window.svg";
+  const imageSrc = getImageUrl(product?.imageUrl || product?.thumbnailUrl || productImageParam);
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 space-y-8">

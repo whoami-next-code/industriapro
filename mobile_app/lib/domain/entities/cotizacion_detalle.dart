@@ -1,3 +1,5 @@
+import 'quotation_image.dart';
+
 class CotizacionDetalle {
   const CotizacionDetalle({
     required this.id,
@@ -13,6 +15,7 @@ class CotizacionDetalle {
     this.totalAmount,
     this.notes,
     this.progressUpdates = const [],
+    this.images = const [],
   });
 
   final int id;
@@ -28,6 +31,7 @@ class CotizacionDetalle {
   final double? totalAmount;
   final String? notes;
   final List<ProgressUpdate> progressUpdates;
+  final List<QuotationImage> images;
 
   factory CotizacionDetalle.fromJson(Map<String, dynamic> json) {
     final items = (json['items'] as List<dynamic>? ?? [])
@@ -36,6 +40,10 @@ class CotizacionDetalle {
 
     final progress = (json['progressUpdates'] as List<dynamic>? ?? [])
         .map((e) => ProgressUpdate.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final images = (json['images'] as List<dynamic>? ?? [])
+        .map((e) => QuotationImage.fromJson(e as Map<String, dynamic>))
         .toList();
 
     int normalizeProgress(dynamic value) {
@@ -63,6 +71,7 @@ class CotizacionDetalle {
           (json['budget'] is num ? (json['budget'] as num).toDouble() : null),
       notes: json['notes']?.toString(),
       progressUpdates: progress,
+      images: images,
     );
   }
 }

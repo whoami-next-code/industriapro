@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2, Package, Tag, Heart, Share2, ExternalLink } from "lucide-react";
 import { useCart, CartItem } from "@/components/cart/CartContext";
-import { apiFetch, API_URL } from "@/lib/api";
+import { apiFetch, API_URL, getImageUrl } from "@/lib/api";
 
 type Product = {
   id: number;
@@ -114,12 +114,16 @@ export default function CartView({ onValidate, onRemoveFeedback, onQuantityFeedb
 
   const getImageSrc = (p?: Product) => {
     const url = p?.thumbnailUrl || p?.imageUrl;
-    if (!url) return "/vercel.svg";
-    const src = url.startsWith("http") ? url : `${API_URL}${url}`;
     const id = p?.id;
-    if (id && imgFailed[id]) return "/vercel.svg";
-    return src;
+    // Debug log
+    console.log(`[CartView] Product ${id}: url=${url}, fullUrl=${getImageUrl(url)}`);
+    
+    // Si no hay ID, o la imagen falló, o no hay URL, devolvemos null para que se renderice el fallback
+    if (id && imgFailed[id]) return null;
+    if (!url) return null;
+    return getImageUrl(url);
   };
+
 
   // Evitar parpadeo/mismatch durante la hidratación
   if (!isHydrated) {
@@ -208,19 +212,27 @@ export default function CartView({ onValidate, onRemoveFeedback, onQuantityFeedb
                   {/* Imagen */}
                   <div className="flex-shrink-0">
                     <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 group">
-                      <Image
-                        src={getImageSrc(p)}
-                        alt={`${it.name} - imagen del producto`}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                        sizes="(max-width: 640px) 96px, 128px"
-                        quality={80}
-                        onError={() => {
-                          const id = p?.id ?? it.productId;
-                          setImgFailed(prev => ({ ...prev, [id]: true }));
-                        }}
-                      />
+                      {getImageSrc(p) ? (
+                        <Image
+                          src={getImageSrc(p)!}
+                          alt={`${it.name} - imagen del producto`}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          sizes="(max-width: 640px) 96px, 128px"
+                          quality={80}
+                          unoptimized={true}
+                          onError={() => {
+                            const id = p?.id ?? it.productId;
+                            setImgFailed(prev => ({ ...prev, [id]: true }));
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center text-gray-400 bg-gray-100">
+                           <Package className="h-8 w-8 mb-1" />
+                           <span className="text-[10px] font-medium">Sin imagen</span>
+                        </div>
+                      )}
                       {stock <= 5 && stock > 0 && (
                         <div className="absolute bottom-0 left-0 right-0 bg-orange-500 text-white text-xs text-center py-1 font-semibold">
                           ¡Últimas {stock} unidades!

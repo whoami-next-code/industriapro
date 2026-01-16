@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Star, Heart, Eye, X } from 'lucide-react';
-import { API_URL } from '@/lib/api';
+import { API_URL, BACKEND_URL } from '@/lib/api';
 import AddToCartButton from '@/components/cart/AddToCartButton';
 
 type ProductCategory = 'featured' | 'latest' | 'bestseller';
@@ -16,9 +16,9 @@ type Product = { id: number; name: string; price: number; originalPrice?: number
 const imgSrc = (u?: string) => {
   if (!u) return 'https://trae-api-us.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20product%20on%20white%20background&image_size=square';
   if (u.startsWith('http')) return u;
-  // Si la URL empieza con /, usar el backend directamente (puerto 3001)
-  if (u.startsWith('/')) return `http://localhost:3001${u}`;
-  return `${API_URL}/${u}`;
+  // Usar BACKEND_URL para rutas relativas
+  if (u.startsWith('/')) return `${BACKEND_URL}${u}`;
+  return `${BACKEND_URL}/${u}`;
 };
 
 const toCard = (p: ApiProduct): Product => ({

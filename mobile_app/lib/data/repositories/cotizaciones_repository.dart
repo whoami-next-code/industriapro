@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,14 +142,42 @@ class CotizacionesRepository {
     }
 
     try {
-      final response = await _api.get('cotizaciones/stats');
-      final data = response.data as Map<String, dynamic>;
-      await _cache.save(cacheKey, data, expiration: _cacheDuration);
-      return CotizacionesStats.fromJson(data);
+      final response = await _api.get(
+        'cotizaciones',
+        queryParameters: const {'page': 1, 'limit': 1},
+      );
+      final raw = response.data;
+      if (raw is Map<String, dynamic> && raw['stats'] is Map) {
+        final stats = Map<String, dynamic>.from(raw['stats'] as Map);
+        final byStatus = Map<String, dynamic>.from(
+          stats['byStatus'] as Map? ?? const {},
+        );
+
+        int countFor(List<String> keys) {
+          return keys.fold<int>(0, (total, key) {
+            final value = byStatus[key] ?? byStatus[key.toLowerCase()];
+            if (value is num) return total + value.toInt();
+            if (value is String) return total + (int.tryParse(value) ?? 0);
+            return total;
+          });
+        }
+
+        final normalized = {
+          'total': stats['total'] ?? 0,
+          'pending': countFor(['PENDIENTE', 'NUEVA']),
+          'inProcess': countFor(['EN_PROCESO', 'PROCESANDO']),
+          'completed': countFor(['COMPLETADO', 'FINALIZADA', 'TERMINADO']),
+          'assignedToUser': 0,
+          'userReportsCount': 0,
+        };
+        await _cache.save(cacheKey, normalized, expiration: _cacheDuration);
+        return CotizacionesStats.fromJson(normalized);
+      }
     } catch (e) {
       // Fallback: return empty stats or handle error
       return const CotizacionesStats();
     }
+    return const CotizacionesStats();
   }
 }
 

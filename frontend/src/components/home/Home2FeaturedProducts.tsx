@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Star, ShoppingCart, Eye, Heart } from 'lucide-react';
-import { API_URL, apiFetch } from '@/lib/api';
+import { API_URL, apiFetch, BACKEND_URL } from '@/lib/api';
 import { useCart } from '@/components/cart/CartContext';
 import { useCartUI } from '@/components/cart/CartUIContext';
 import { useToast } from '@/components/ui/Toaster';
@@ -92,8 +92,8 @@ const buildImageUrl = (url?: string | null): string => {
     return 'https://trae-api-us.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20product%20on%20white%20background&image_size=square';
   }
   if (url.startsWith('http')) return url;
-  // Las imágenes estáticas se sirven desde http://localhost:3001/uploads/... (sin /api)
-  return `http://localhost:3001${url.startsWith('/') ? url : '/' + url}`;
+  // Las imágenes estáticas se sirven desde el backend
+  return `${BACKEND_URL}${url.startsWith('/') ? url : '/' + url}`;
 };
 
 // Función para determinar badge basado en el producto

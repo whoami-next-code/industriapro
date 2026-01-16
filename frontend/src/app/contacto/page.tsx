@@ -44,30 +44,30 @@ export default function ContactoPage() {
   const offices = [
     {
       id: '1',
-      name: 'Oficina Principal - Ciudad de México',
-      address: 'Av. Industrial #123, Col. Centro Industrial, CDMX, CP 01230',
-      phone: '+52 (55) 1234-5678',
-      email: 'cdmx@industriasp.com',
+      name: 'Oficina Principal - Huancayo',
+      address: 'Jirón Nemesio Raez, El Tampo',
+      phone: '+51 916 695 927',
+      email: 'info@industriasp.com',
       hours: 'Lunes a Viernes: 8:00 - 18:00 hrs',
-      coordinates: { lat: 19.4326, lng: -99.1332 }
+      coordinates: { lat: -12.0681, lng: -75.2106 }
     },
     {
       id: '2',
-      name: 'Sucursal Monterrey',
-      address: 'Calle Tecnología #456, Col. Industrial Norte, Monterrey, NL, CP 64000',
-      phone: '+52 (81) 2345-6789',
-      email: 'monterrey@industriasp.com',
+      name: 'Sucursal Centro',
+      address: 'Calle Mariscal Ramón Castilla 1609',
+      phone: '+51 916 695 927',
+      email: 'ventas@industriasp.com',
       hours: 'Lunes a Viernes: 8:00 - 18:00 hrs',
-      coordinates: { lat: 25.6866, lng: -100.3161 }
+      coordinates: { lat: -12.0651, lng: -75.2048 }
     },
     {
       id: '3',
-      name: 'Sucursal Guadalajara',
-      address: 'Av. Innovación #789, Col. Industrial Poniente, Guadalajara, Jal, CP 45000',
-      phone: '+52 (33) 3456-7890',
-      email: 'guadalajara@industriasp.com',
+      name: 'Sucursal Norte',
+      address: 'Jirón Libertad',
+      phone: '+51 916 695 927',
+      email: 'soporte@industriasp.com',
       hours: 'Lunes a Viernes: 8:00 - 18:00 hrs',
-      coordinates: { lat: 20.6597, lng: -103.3496 }
+      coordinates: { lat: -12.0700, lng: -75.2200 }
     }
   ];
 
@@ -86,8 +86,8 @@ export default function ContactoPage() {
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'El teléfono es requerido';
-    } else if (!/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phone)) {
-      newErrors.phone = 'Por favor ingrese un número de teléfono válido';
+    } else if (!/^(?:\+51|51)?\s?9\d{2}[\s-]?\d{3}[\s-]?\d{3}$/.test(formData.phone)) {
+      newErrors.phone = 'Por favor ingrese un número de teléfono válido (ej: +51 916 695 927)';
     }
 
     if (!formData.message.trim()) {
@@ -258,7 +258,7 @@ export default function ContactoPage() {
                         value={formData.phone}
                         onChange={handleInputChange}
                         className={`block w-full pl-10 pr-3 py-3 border ${errors.phone ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:ring-blue-500 focus:border-blue-500`}
-                        placeholder="+52 (55) 1234-5678"
+                        placeholder="+51 916 695 927"
                       />
                     </div>
                     {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
@@ -406,8 +406,8 @@ export default function ContactoPage() {
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <Phone className="h-4 w-4 text-red-600 mr-2" />
-                    <a href="tel:+525512345678" className="text-red-800 font-medium">
-                      +52 (55) 123-456-78
+                    <a href="tel:+51916695927" className="text-red-800 font-medium">
+                      +51 916 695 927
                     </a>
                   </div>
                   <div className="flex items-center">
@@ -489,7 +489,7 @@ export default function ContactoPage() {
                 ¿En qué zonas geográficas trabajan?
               </h3>
               <p className="text-gray-600">
-                Actualmente operamos en todo el territorio nacional con oficinas en Ciudad de México, Monterrey y Guadalajara. También realizamos proyectos en zonas remotas según los requerimientos.
+                Actualmente operamos principalmente en Huancayo y la región central del Perú. También realizamos proyectos en otras zonas según los requerimientos del cliente.
               </p>
             </div>
 

@@ -196,7 +196,7 @@ export const faqs: FAQ[] = [
   {
     id: '5',
     question: '¿Cómo puedo solicitar una cotización?',
-    answer: 'Puede solicitar su cotización a través de nuestro formulario web, por teléfono al +1 234-567-8900, o visitando nuestras oficinas. Respondemos en menos de 24 horas.',
+    answer: 'Puede solicitar su cotización a través de nuestro formulario web, por teléfono al +51 916 695 927, o visitando nuestras oficinas. Respondemos en menos de 24 horas.',
     category: 'Cotizaciones',
   },
 ];

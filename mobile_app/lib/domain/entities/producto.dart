@@ -15,22 +15,30 @@ class Producto {
   final String? imagen;
   final int? stock;
 
-  factory Producto.fromJson(Map<String, dynamic> json) => Producto(
-        id: (json['id'] as num).toInt(),
-        nombre: json['nombre']?.toString() ?? json['name']?.toString() ?? '',
-        precio: json['precio'] != null
-            ? (json['precio'] as num).toDouble()
-            : json['price'] != null
-                ? (json['price'] as num).toDouble()
-                : null,
-        descripcion: json['descripcion']?.toString() ??
-            json['description']?.toString(),
-        imagen: json['imagen']?.toString() ?? json['image']?.toString(),
-        stock: json['stock'] != null
-            ? (json['stock'] as num).toInt()
-            : json['quantity'] != null
-                ? (json['quantity'] as num).toInt()
-                : null,
-      );
+  factory Producto.fromJson(Map<String, dynamic> json) {
+    double? parsePrice(dynamic val) {
+      if (val == null) return null;
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val);
+      return null;
+    }
+
+    return Producto(
+      id: (json['id'] as num).toInt(),
+      nombre: json['nombre']?.toString() ?? json['name']?.toString() ?? '',
+      precio: parsePrice(json['precio']) ?? parsePrice(json['price']),
+      descripcion: json['descripcion']?.toString() ??
+          json['description']?.toString(),
+      imagen: json['imagen']?.toString() ?? 
+              json['image']?.toString() ?? 
+              json['imageUrl']?.toString() ??
+              json['thumbnailUrl']?.toString(),
+      stock: json['stock'] != null
+          ? (json['stock'] as num).toInt()
+          : json['quantity'] != null
+              ? (json['quantity'] as num).toInt()
+              : null,
+    );
+  }
 }
 

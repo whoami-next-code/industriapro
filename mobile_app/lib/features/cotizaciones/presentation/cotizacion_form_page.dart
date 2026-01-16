@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/ui/inputs/custom_text_field.dart';
 import '../../../core/ui/layout/responsive_layout.dart';
+import '../../../core/config/app_config.dart';
 import '../../../data/repositories/cotizaciones_repository.dart';
 import '../../../data/repositories/productos_repository.dart';
 import '../../../domain/entities/cotizacion.dart';
@@ -427,6 +428,19 @@ class _CotizacionFormPageState extends ConsumerState<CotizacionFormPage> {
                   .map((producto) => Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
+                          leading: producto.imagen != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.network(
+                                    AppConfig.buildImageUrl(producto.imagen),
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.image_not_supported),
+                                  ),
+                                )
+                              : const Icon(Icons.category),
                           title: Text(producto.nombre),
                           subtitle: producto.precio != null
                               ? Text(

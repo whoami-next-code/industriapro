@@ -5,7 +5,7 @@ import Image from "next/image";
 import { CheckCircle, X, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/components/cart/CartContext";
 import { useCartUI } from "@/components/cart/CartUIContext";
-import { API_URL } from "@/lib/api";
+import { API_URL, getImageUrl } from "@/lib/api";
 
 type Suggest = { id: number; name: string; price: number; thumbnailUrl?: string; imageUrl?: string; originalPrice?: number };
 type ProductDetail = { id: number; name: string; price: number; originalPrice?: number; thumbnailUrl?: string; imageUrl?: string; stock?: number };
@@ -54,8 +54,7 @@ export default function CartSidebar() {
   const lastItemQty = items.find(i => i.productId === lastAddedId)?.quantity ?? 1;
   const imgSrc = (id: number | undefined, u?: string) => {
     if (id && imgFailed[id]) return "/vercel.svg";
-    if (!u) return "/vercel.svg";
-    return u.startsWith("http") ? u : `${API_URL}${u}`;
+    return getImageUrl(u);
   };
 
   return (

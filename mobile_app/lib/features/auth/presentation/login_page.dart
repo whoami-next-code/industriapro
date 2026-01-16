@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/debug/debug_logger.dart';
-import '../../../core/providers/theme_provider.dart';
 import '../../../core/ui/buttons/custom_button.dart';
 import '../../../core/ui/inputs/custom_text_field.dart';
 import '../../../core/ui/layout/responsive_layout.dart';
@@ -34,6 +33,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final controller = ref.read(authControllerProvider.notifier);
     await controller.login(_userCtrl.text.trim(), _passCtrl.text);
 
+    if (!mounted) return;
     final authState = ref.read(authStateProvider);
 
     // Solo navegar si el login fue exitoso Y hay token válido
@@ -63,18 +63,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Theme.of(context).brightness == Brightness.light
-                  ? Icons.dark_mode_outlined
-                  : Icons.light_mode_outlined,
-            ),
-            onPressed: () {
-              ref.read(themeProvider.notifier).toggleTheme();
-            },
-          ),
-        ],
+        elevation: 0,
       ),
       body: SafeArea(
         child: ResponsiveLayout(

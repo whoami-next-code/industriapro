@@ -11,7 +11,7 @@ export default function SiteFooter() {
           <div className="text-lg font-semibold">Contacto</div>
           <ul className="mt-3 space-y-2 text-sm text-white/80">
             <li><a className="hover:text-white" href="mailto:info@industriasp.com">info@industriasp.com</a></li>
-            <li><a className="hover:text-white" href="tel:+51987654321">+51 987 654 321</a></li>
+            <li><a className="hover:text-white" href="tel:+51916695927">+51 916 695 927</a></li>
           </ul>
         </div>
         <div>

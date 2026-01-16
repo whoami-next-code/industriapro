@@ -112,14 +112,14 @@ export default function Footer() {
                 <MapPin className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
                 <div className="text-gray-300">
                   <p className="font-medium">Dirección:</p>
-                  <p>Av. Industrial 1234, Lima 03, Perú</p>
+                  <p>Jirón Nemesio Raez, El Tampo</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
                 <Phone className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
                 <div className="text-gray-300">
                   <p className="font-medium">Teléfono:</p>
-                  <p>+51 (01) 987-654-321</p>
+                  <p>+51 916 695 927</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">

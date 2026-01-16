@@ -130,7 +130,7 @@ class CotizacionCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               if (cotizacion.totalAmount != null) ...[
-                 Row(
+                Row(
                   children: [
                     Icon(Icons.attach_money,
                         size: 16, color: theme.colorScheme.onSurfaceVariant),
@@ -168,10 +168,10 @@ class CotizacionCard extends StatelessWidget {
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '--/--/----';
     try {
-        final date = DateTime.parse(dateStr);
-        return DateFormat('dd/MM/yyyy').format(date);
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd/MM/yyyy').format(date);
     } catch (e) {
-        return dateStr;
+      return dateStr;
     }
   }
 }

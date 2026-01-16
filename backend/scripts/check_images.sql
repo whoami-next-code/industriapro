@@ -1,0 +1,1 @@
+SELECT id, name, "imageUrl", "thumbnailUrl" FROM "products" LIMIT 5;

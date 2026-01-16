@@ -35,12 +35,30 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() body: RegisterDto, @Req() req: any) {
-    return this.auth.register({
-      email: body.email,
-      password: body.password,
-      fullName: body.fullName,
-      phone: body.phone,
-    });
+    const ip =
+      req?.ip ||
+      req?.headers?.['x-forwarded-for'] ||
+      req?.connection?.remoteAddress;
+    this.logger.log(
+      `register start email=${body.email} ip=${Array.isArray(ip) ? ip.join(',') : ip}`,
+    );
+    try {
+      const result = await this.auth.register({
+        email: body.email,
+        password: body.password,
+        fullName: body.fullName,
+        phone: body.phone,
+      });
+      this.logger.log(
+        `register success email=${body.email} id=${(result as any)?.id ?? 'unknown'}`,
+      );
+      return result;
+    } catch (err: any) {
+      this.logger.error(
+        `register error email=${body.email}: ${err?.message || err}`,
+      );
+      throw err;
+    }
   }
 
   @Post('register-custom')
@@ -123,11 +141,64 @@ export class AuthController {
 
   @Post('check-email')
   async checkEmail(@Body() body: CheckEmailDto) {
+    this.logger.log(`check-email start email=${body.email}`);
     const existing = await this.users.findByEmail(body.email);
-    return {
-      exists: !!existing,
-      verified: !!existing?.verified,
-    };
+    if (existing) {
+      this.logger.log(
+        `check-email local-hit email=${body.email} verified=${!!existing.verified}`,
+      );
+      return {
+        exists: true,
+        verified: !!existing.verified,
+      };
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      this.logger.warn(
+        `check-email missing-supabase-config email=${body.email}`,
+      );
+      return {
+        exists: false,
+        verified: false,
+      };
+    }
+
+    try {
+      const supabase = createClient(supabaseUrl, serviceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+      const { data, error } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 100,
+      });
+      if (error) {
+        this.logger.warn(
+          `check-email supabase error email=${body.email}: ${error.message}`,
+        );
+        return { exists: false, verified: false };
+      }
+      const user = data?.users?.find(
+        (u) => u.email?.toLowerCase() === body.email.toLowerCase(),
+      );
+      const emailConfirmed = !!user?.email_confirmed_at;
+      this.logger.log(
+        `check-email supabase-result email=${body.email} exists=${!!user} verified=${emailConfirmed}`,
+      );
+      return {
+        exists: !!user,
+        verified: emailConfirmed,
+      };
+    } catch (err: any) {
+      this.logger.warn(
+        `check-email supabase exception email=${body.email}: ${err?.message || err}`,
+      );
+      return { exists: false, verified: false };
+    }
   }
 
   @Get('fix-emails')

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import AddToCartButton from '@/components/cart/AddToCartButton';
-import { API_URL } from '@/lib/api';
+import { API_URL, getImageUrl } from '@/lib/api';
 
 type Product = {
   id: number;
@@ -190,7 +190,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={buildSrc(item.thumbnailUrl || item.imageUrl) ?? '/window.svg'}
+                  src={getImageUrl(item.thumbnailUrl || item.imageUrl)}
                   alt={item.name}
                   className="h-36 w-full object-cover rounded mb-2"
                   loading="lazy"
@@ -218,7 +218,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={buildSrc(item.thumbnailUrl || item.imageUrl) ?? '/window.svg'}
+                  src={getImageUrl(item.thumbnailUrl || item.imageUrl)}
                   alt={item.name}
                   className="h-20 w-20 object-cover rounded"
                   loading="lazy"

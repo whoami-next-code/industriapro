@@ -15,12 +15,7 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          imgSrc: [
-            "'self'",
-            'data:',
-            'http://localhost:3000',
-            'http://localhost:3002',
-          ],
+          imgSrc: ["'self'", 'data:', 'https:'],
           styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
           scriptSrc: ["'self'"],
           objectSrc: ["'none'"],
@@ -35,6 +30,7 @@ async function bootstrap() {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const isProd = (process.env.NODE_ENV ?? '').toLowerCase() === 'production';
   app.enableCors({
     origin: (
       origin: string | undefined,
@@ -46,12 +42,17 @@ async function bootstrap() {
 
       try {
         const url = new URL(origin);
-        const isLocalhost =
-          url.hostname === 'localhost' ||
-          url.hostname === '127.0.0.1' ||
-          url.hostname === '10.0.2.2';
+        const hostname = url.hostname;
+        
+        const isLocalNetwork = 
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          hostname === '10.0.2.2' ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('172.');
 
-        if (isLocalhost) {
+        if (!isProd && isLocalNetwork) {
           return cb(null, true);
         }
       } catch {}
@@ -76,10 +77,12 @@ async function bootstrap() {
   app.use('/api/pagos/webhook', express.raw({ type: 'application/json' }));
   
   // Servir archivos estáticos desde public/uploads
-  app.use('/uploads', express.static(join(process.cwd(), 'public', 'uploads')));
+  // NOTA: ServeStaticModule en AppModule ya maneja esto desde la raíz 'public'
+  // app.use('/uploads', express.static(join(process.cwd(), 'public', 'uploads')));
   
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  await app.listen(3001);
+  const port = Number(process.env.PORT ?? 3001);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();

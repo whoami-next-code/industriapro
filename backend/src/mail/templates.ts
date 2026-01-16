@@ -56,7 +56,7 @@ export function renderBaseTemplate(
               <tr>
                 <td class="header">
                   <span class="logo-text">INDUSTRIAS SP</span>
-                  <h1 class="welcome-text">Bienvenido</h1>
+                  <h1 class="welcome-text">${title}</h1>
                 </td>
               </tr>
               
@@ -99,7 +99,7 @@ export function accountCreationTemplate(name: string) {
     </div>
     <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
     `,
-    'Bienvenido a Industrias SP',
+    'Bienvenido'
   );
 }
 
@@ -107,88 +107,80 @@ export function verifyEmailTemplate(name: string, url: string) {
   return renderBaseTemplate(
     `
     <p>Hola <strong>${name}</strong>,</p>
-    <p>Gracias por registrarte en <strong>Industrias SP</strong>.</p>
-    <p>Para completar tu registro y activar tu cuenta, por favor verifica tu correo electrónico haciendo clic en el siguiente botón:</p>
+    <p>Gracias por registrarte. Por favor verifica tu dirección de correo electrónico para activar tu cuenta.</p>
     <div style="text-align: center; margin: 30px 0;">
       <a href="${url}" class="btn">Verificar Email</a>
     </div>
-    <p>O copia y pega el siguiente enlace en tu navegador:</p>
-    <p style="word-break: break-all; color: #2563eb;">${url}</p>
-    <p>Este enlace expirará en 24 horas.</p>
+    <p>Si no solicitaste esta cuenta, puedes ignorar este correo.</p>
     `,
-    'Verifica tu cuenta - Industrias SP',
+    'Verifica tu Email'
   );
 }
 
 export function passwordResetTemplate() {
-  const t = (n: string) => '${' + n + '}';
-  const content = `
-    <p style="margin-top: 0; font-size: 18px; color: #1e293b; font-weight: 500;">
-      Solicitud de cambio de contraseña
-    </p>
-    <p>Hola ${t('user_full_name')},</p>
-    <p>Hemos recibido una solicitud para restablecer tu contraseña. Haz clic en el botón de abajo para crear una nueva.</p>
-    
-    <div style="text-align: center; margin: 35px 0;">
-      <a class="btn" href="${t('reset_url')}" target="_blank">Restablecer Contraseña</a>
+  return `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Restablecer contraseña</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2>Restablecer contraseña</h2>
+      <p>Hola \${user_full_name},</p>
+      <p>Hemos recibido una solicitud para restablecer tu contraseña.</p>
+      <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+      <p><a href="\${reset_url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Restablecer contraseña</a></p>
+      <p>Este enlace expirará en \${expire_hours} horas.</p>
+      <p>Si no solicitaste esto, puedes ignorar este correo.</p>
     </div>
-
-    <p style="font-size: 14px; color: #64748b; text-align: center; background-color: #f1f5f9; padding: 15px; border-radius: 8px;">
-      Este enlace expirará en <strong>${t('expire_hours')} horas</strong>.
-    </p>
-  `;
-  return renderBaseTemplate(content, 'Restablecer Contraseña');
+  </body>
+  </html>`;
 }
 
-export function orderRegisteredTemplate() {
-  const t = (n: string) => '${' + n + '}';
-  const content = `
-    <p style="margin-top: 0; font-size: 18px; color: #1e293b; font-weight: 500;">
-      ¡Tu orden ha sido confirmada!
-    </p>
-    <p>Hola ${t('user_full_name')}, aquí tienes los detalles de tu compra.</p>
-    
-    <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #e2e8f0;">
-      <table width="100%" border="0">
-        <tr>
-          <td style="padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;"><strong>Orden:</strong></td>
-          <td style="padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${t('order_number')}</td>
-        </tr>
-        <tr>
-          <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;"><strong>Seguimiento:</strong></td>
-          <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">${t('tracking_number')}</td>
-        </tr>
-        <tr>
-          <td style="padding-top: 12px; font-size: 18px; font-weight: 700; color: #2563eb;">Total</td>
-          <td style="padding-top: 12px; font-size: 18px; font-weight: 700; color: #2563eb; text-align: right;">${t('total')}</td>
-        </tr>
-      </table>
-    </div>
-
-    <div style="margin-bottom: 30px;">
-      <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Resumen:</h3>
-      ${t('items_summary_html')}
-    </div>
-
+export function orderRegisteredTemplate(orderNumber: string, itemsHtml: string, total: number) {
+  return renderBaseTemplate(
+    `
+    <p>Tu pedido <strong>#${orderNumber}</strong> ha sido registrado correctamente.</p>
+    <p>Resumen del pedido:</p>
+    ${itemsHtml}
+    <p style="text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px;">Total: $${total.toFixed(2)}</p>
     <div style="text-align: center; margin: 30px 0;">
-      <a class="btn" href="${t('details_url')}" target="_blank">Ver Detalles</a>
+      <a href="${process.env.WEB_URL || 'http://localhost:3000'}/mi-cuenta/pedidos" class="btn">Ver Mis Pedidos</a>
     </div>
-  `;
-  return renderBaseTemplate(content, 'Orden Confirmada');
+    `,
+    'Pedido Confirmado'
+  );
 }
 
-export function promotionalTemplate() {
-  const t = (n: string) => '${' + n + '}';
-  const content = `
-    <h2 style="margin-top: 0; color: #1e293b;">${t('promo_title')}</h2>
-    
-    <div style="margin-bottom: 30px;">
-      ${t('promo_body_html')}
-    </div>
+export function promotionalTemplate(content: string) {
+  return renderBaseTemplate(content, 'Novedades');
+}
 
-    <div style="text-align: center; margin: 30px 0;">
-      <a class="btn" href="${t('promo_cta_url')}" target="_blank">${t('promo_cta_text')}</a>
+export function quotationUpdateTemplate(
+  name: string,
+  quotationId: number,
+  status: string,
+  message: string,
+  url: string
+) {
+  return renderBaseTemplate(
+    `
+    <p>Hola <strong>${name}</strong>,</p>
+    <p>Hay una actualización en tu cotización <strong>#${quotationId}</strong>.</p>
+    <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 20px 0;">
+      <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Estado Actual</p>
+      <p style="margin: 5px 0 0; font-size: 18px; font-weight: 700; color: #1e293b;">${status}</p>
     </div>
-  `;
-  return renderBaseTemplate(content, 'Novedades IndustriaSP');
+    ${
+      message
+        ? `<p><strong>Mensaje del técnico:</strong></p><p style="font-style: italic; color: #555;">"${message}"</p>`
+        : ''
+    }
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${url}" class="btn">Ver Detalles</a>
+    </div>
+    `,
+    'Actualización de Cotización'
+  );
 }

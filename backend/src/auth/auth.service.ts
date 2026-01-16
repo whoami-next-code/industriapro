@@ -70,7 +70,27 @@ export class AuthService {
 
     if (error) {
       if (error.message.includes('already registered')) {
-        throw new BadRequestException('El correo ya está registrado.');
+        // Si ya existe, intentar re-enviar verificación y devolver respuesta OK
+        let resendResult: { sent?: boolean } = {};
+        try {
+          resendResult = await this.resendVerificationByEmail(data.email);
+        } catch (resendErr: any) {
+          this.logger.warn(
+            `Error reenviando verificación a ${data.email}: ${resendErr?.message || resendErr}`,
+          );
+        }
+        await this.audit.log('user.register_already_exists', 0, {
+          email: data.email,
+          method: 'backend_admin_api',
+          resent: !!resendResult?.sent,
+        });
+        return {
+          ok: true,
+          alreadyExists: true,
+          emailSent: !!resendResult?.sent,
+          message:
+            'El correo ya estaba registrado. Se intentó reenviar la verificación.',
+        };
       }
       throw new BadRequestException(`Error de Supabase: ${error.message}`);
     }

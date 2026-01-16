@@ -21,7 +21,6 @@ class CotizacionAvancePage extends ConsumerStatefulWidget {
 class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
   final _formKey = GlobalKey<FormState>();
   final _mensajeCtrl = TextEditingController();
-  final _estadoCtrl = TextEditingController();
   final _porcentajeCtrl = TextEditingController(text: '0');
   final _materialCtrl = TextEditingController();
   final _cantidadCtrl = TextEditingController();
@@ -44,7 +43,6 @@ class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
   @override
   void dispose() {
     _mensajeCtrl.dispose();
-    _estadoCtrl.dispose();
     _porcentajeCtrl.dispose();
     _materialCtrl.dispose();
     _cantidadCtrl.dispose();
@@ -231,6 +229,8 @@ class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
                   _estadoSeleccionado = value;
                 });
               },
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Selecciona un estado' : null,
             ),
             const SizedBox(height: 16),
 

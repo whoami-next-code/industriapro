@@ -65,7 +65,7 @@ export default function Navigation() {
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4" />
-              <span>+1 234-567-8900</span>
+              <span>+51 916 695 927</span>
             </div>
             <div className="flex items-center space-x-2">
               <Mail className="w-4 h-4" />
@@ -73,7 +73,7 @@ export default function Navigation() {
             </div>
             <div className="flex items-center space-x-2">
               <MapPin className="w-4 h-4" />
-              <span>Caracas, Venezuela</span>
+              <span>Huancayo, Perú</span>
             </div>
           </div>
           <div className="flex items-center space-x-4">

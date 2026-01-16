@@ -101,6 +101,21 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
+        // Log detallado del error para diagnóstico de conexión
+        debugLog(
+          location: 'core/network/dio_client.dart:onError',
+          message: 'api_request_failed',
+          hypothesisId: 'H-network-debug',
+          data: {
+            'url': '${error.requestOptions.baseUrl}${error.requestOptions.path}',
+            'method': error.requestOptions.method,
+            'statusCode': error.response?.statusCode,
+            'errorType': error.type.toString(),
+            'message': error.message,
+            'response': error.response?.data,
+          },
+        );
+
         final statusCode = error.response?.statusCode;
         final isAuthError = statusCode == 401;
         final alreadyRetried = error.requestOptions.extra['retried'] == true;

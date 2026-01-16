@@ -75,9 +75,11 @@ class AuthRepository {
         throw Exception('Error del servidor. Por favor intenta más tarde.');
       } else if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
-        throw Exception('Tiempo de espera agotado. Verifica tu conexión a internet.');
+        final url = '${e.requestOptions.baseUrl}${e.requestOptions.path}';
+        throw Exception('Tiempo de espera agotado ($url). Verifica IP/Firewall.');
       } else if (e.type == DioExceptionType.connectionError) {
-        throw Exception('No se pudo conectar al servidor. Verifica tu conexión a internet.');
+        final url = '${e.requestOptions.baseUrl}${e.requestOptions.path}';
+        throw Exception('Error de conexión a $url. Verifica que el servidor esté corriendo y la IP sea accesible.');
       } else {
         throw Exception(errorMessage ?? 'Error al iniciar sesión. Por favor intenta nuevamente.');
       }
