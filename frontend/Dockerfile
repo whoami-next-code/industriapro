@@ -15,7 +15,8 @@ RUN if [ -d frontend ]; then \
 fi
 
 ENV NEXT_DISABLE_TURBOPACK=1
-RUN npm ci --legacy-peer-deps --include=optional
+RUN npm ci --legacy-peer-deps --include=optional \
+  && npm install lightningcss-linux-x64-gnu --no-save --legacy-peer-deps
 RUN npm run build
 
 FROM node:20-bullseye-slim AS runner
