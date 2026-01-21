@@ -20,11 +20,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 EXPOSE 3001
 
-COPY package*.json ./
+COPY --from=builder /app/package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 
 USER node
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
