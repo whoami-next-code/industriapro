@@ -31,9 +31,17 @@ Railway inyecta `PORT` automáticamente. Los Dockerfiles ya escuchan en `${PORT}
 ## Variables críticas
 
 - Backend: base de datos (PostgreSQL) y llaves de Supabase/Stripe/Correo.
+- Backend (eventos): `RABBITMQ_URL` o `RABBITMQ_HOST`/`RABBITMQ_PORT`/`RABBITMQ_USER`/`RABBITMQ_PASSWORD`.
 - Frontend/Admin: `NEXT_PUBLIC_API_URL` apuntando a `https://<backend>/api`.
+- Flutter (mobile_app): compilar con `--dart-define=API_BASE_URL=https://<backend>/api`.
+
+## RabbitMQ en Railway
+
+Agrega el servicio RabbitMQ desde el marketplace de Railway y vincúlalo al backend.
+Railway inyecta `RABBITMQ_URL` automáticamente; el backend lo detecta en `getRabbitMQConfig()`.
 
 ## Notas
 
 - Los archivos `.env` reales **no** se suben al repositorio.
 - SQLite es solo para desarrollo local en `backend/`.
+# industriapro
