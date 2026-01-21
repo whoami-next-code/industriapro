@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
 # Soporta build context en raíz del repo o en carpeta frontend/
@@ -17,7 +17,7 @@ fi
 RUN npm ci --legacy-peer-deps
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 EXPOSE 3000
