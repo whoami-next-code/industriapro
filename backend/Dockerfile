@@ -3,18 +3,21 @@ WORKDIR /app
 
 # Soporta build context en raíz del repo o en carpeta backend/
 COPY . .
-RUN if [ -d backend ]; then \
-  cd backend; \
-  npm ci; \
-  npm run build; \
-  cd /app; \
-  cp backend/package*.json ./; \
-  [ -d backend/dist ] && cp -r backend/dist ./dist || true; \
-  [ -d backend/public ] && cp -r backend/public ./public || true; \
-else \
-  npm ci; \
-  npm run build; \
-fi
+RUN set -e; \
+  if [ -d backend ]; then \
+    cd backend; \
+    npm ci; \
+    npm run build; \
+    test -d dist; \
+    cd /app; \
+    cp backend/package*.json ./; \
+    cp -r backend/dist ./dist; \
+    [ -d backend/public ] && cp -r backend/public ./public || true; \
+  else \
+    npm ci; \
+    npm run build; \
+    test -d dist; \
+  fi
 
 FROM node:20-alpine AS runner
 WORKDIR /app
