@@ -133,8 +133,9 @@ export class CotizacionesController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEDOR')
+  @Roles('ADMIN', 'VENDEDOR', 'TECNICO')
   findAll(
+    @Req() req: any,
     @Query('status') status?: string,
     @Query('q') search?: string,
     @Query('from') from?: string,
@@ -164,6 +165,8 @@ export class CotizacionesController {
     // #endregion
     const parsedPage = Number(page);
     const parsedLimit = Number(limit);
+    const role = req?.user?.role;
+    const isTechnician = role === 'TECNICO';
     return this.service.findAll({
       status: status || undefined,
       search: search || undefined,
@@ -171,10 +174,19 @@ export class CotizacionesController {
       to: to || undefined,
       customerEmail: email || undefined,
       technician: technician || undefined,
+      technicianId: isTechnician ? req?.user?.userId : undefined,
+      technicianEmail: isTechnician ? req?.user?.email : undefined,
     }, {
       page: Number.isFinite(parsedPage) ? parsedPage : undefined,
       limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
     });
+  }
+
+  @Get('workload')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  getWorkload() {
+    return this.service.getTechnicianWorkload();
   }
 
   @Get('mias')
@@ -266,7 +278,7 @@ export class CotizacionesController {
 
   @Post('adjuntos')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEDOR', 'CLIENTE')
+  @Roles('ADMIN', 'VENDEDOR', 'CLIENTE', 'TECNICO')
   @UseInterceptors(
     FilesInterceptor('files', 5, {
       storage: diskStorage({
@@ -307,7 +319,7 @@ export class CotizacionesController {
 
   @Post(':id/avances')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEDOR')
+  @Roles('ADMIN', 'VENDEDOR', 'TECNICO')
   async addProgress(@Param('id') id: string, @Body() body: AddProgressDto, @Req() req: any) {
     const numericId = this.parseId(id);
     const userId = req.user?.userId || req.user?.sub;

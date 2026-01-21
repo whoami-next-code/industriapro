@@ -10,6 +10,7 @@ export enum UserRole {
   ADMIN = 'ADMIN',
   VENDEDOR = 'VENDEDOR',
   TECNICO = 'TECNICO',
+  OPERARIO = 'OPERARIO',
   CLIENTE = 'CLIENTE',
 }
 
@@ -44,6 +45,12 @@ export class User {
 
   @Column({ type: 'boolean', default: false })
   verified: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  active: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  mustChangePassword: boolean;
 
   @Column({ nullable: true })
   resetToken?: string;

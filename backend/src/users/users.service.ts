@@ -20,6 +20,8 @@ export class UsersService {
     verified?: boolean;
     phone?: string;
     supabaseUid?: string;
+    active?: boolean;
+    mustChangePassword?: boolean;
   }) {
     const rawPassword = data.password ?? randomBytes(12).toString('hex');
     const passwordHash = await bcrypt.hash(rawPassword, 10);
@@ -31,6 +33,8 @@ export class UsersService {
       verified: data.verified ?? false,
       phone: data.phone,
       supabaseUid: data.supabaseUid,
+      active: data.active ?? true,
+      mustChangePassword: data.mustChangePassword ?? false,
     });
     return this.repo.save(entity);
   }

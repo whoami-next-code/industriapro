@@ -60,8 +60,13 @@ class AppConfig {
     // Si estás usando dispositivo físico, usa tu IP local (ej. 192.168.1.X)
     
     // TODO: Cambiar esto según tu entorno (Emulador vs Dispositivo Físico)
-    const bool usePhysicalDevice = true; 
     const String localIp = '192.168.18.36';
+    final String physicalDeviceEnv = const String.fromEnvironment(
+      'USE_PHYSICAL_DEVICE',
+      defaultValue: 'true',
+    );
+    final bool usePhysicalDevice =
+        physicalDeviceEnv.toLowerCase() == 'true';
     
     if (defaultTargetPlatform == TargetPlatform.android) {
        return _normalizeApiBaseUrl(
@@ -118,4 +123,3 @@ class AppConfig {
     return '$base$normalizedPath';
   }
 }
-

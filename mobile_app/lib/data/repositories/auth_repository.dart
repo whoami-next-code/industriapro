@@ -13,7 +13,7 @@ class AuthRepository {
   final ApiService _api;
   final FlutterSecureStorage _secureStorage;
 
-  Future<(User, String, String?)> login({
+  Future<(User, String, String?, bool)> login({
     required String username,
     required String password,
   }) async {
@@ -60,7 +60,9 @@ class AuthRepository {
         await _secureStorage.write(key: 'refresh_token', value: refreshToken);
       }
 
-      return (User.fromJson(userJson), token, refreshToken);
+      final mustChangePassword =
+          (data['mustChangePassword'] ?? data['must_change_password']) == true;
+      return (User.fromJson(userJson), token, refreshToken, mustChangePassword);
     } on DioException catch (e) {
       // Manejo diferenciado de errores HTTP
       final statusCode = e.response?.statusCode;
@@ -134,6 +136,13 @@ class AuthRepository {
     }
 
     return newToken;
+  }
+
+  Future<void> changePasswordFirst(String newPassword) async {
+    await _api.post(
+      'auth/change-password-first',
+      data: {'newPassword': newPassword},
+    );
   }
 
   Future<void> logout() async {

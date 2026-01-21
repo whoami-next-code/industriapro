@@ -68,7 +68,7 @@ final dioProvider = Provider<Dio>((ref) {
     QueuedInterceptorsWrapper(
       onRequest: (options, handler) async {
         // Lista de endpoints que NO requieren autenticación
-        final publicEndpoints = ['auth/login', 'auth/register', 'auth/refresh'];
+        final publicEndpoints = ['auth/login', 'auth/refresh'];
         final isPublicEndpoint = publicEndpoints.any(
           (endpoint) => options.path.contains(endpoint),
         );

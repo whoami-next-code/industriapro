@@ -22,6 +22,7 @@ export default function AdminLogin() {
         })
       });
       localStorage.setItem('token', data.access_token);
+      window.dispatchEvent(new Event('auth-token-changed'));
       router.push('/');
     } catch (err: unknown) {
       const msg = err instanceof Error && err.message.trim() ? err.message : 'Credenciales inválidas';
@@ -37,39 +38,41 @@ export default function AdminLogin() {
       style={{ backgroundImage: "url(/brand/oculux/images/login-img.png)" }}
       aria-label="Sección de inicio de sesión"
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg ring-1 ring-gray-200">
-        <h1 className="text-2xl font-bold mb-4 text-gray-900">Login Admin</h1>
+      <div className="w-full max-w-sm sp-card sp-card-static">
+        <div className="sp-card-body">
+          <h1 className="text-2xl font-bold mb-4">Login Admin</h1>
         <form onSubmit={submit} className="space-y-4" aria-label="Formulario de inicio de sesión">
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1" htmlFor="email">Email</label>
+            <label className="sp-form-label" htmlFor="email">Email</label>
             <input
               id="email"
               name="email"
               type="email"
               placeholder="email@dominio.com"
               required
-              className="w-full rounded-md bg-white text-gray-900 placeholder:text-gray-500 border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="sp-input"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1" htmlFor="password">Contraseña</label>
+            <label className="sp-form-label" htmlFor="password">Contraseña</label>
             <input
               id="password"
               name="password"
               type="password"
               placeholder="••••••••"
               required
-              className="w-full rounded-md bg-white text-gray-900 placeholder:text-gray-500 border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="sp-input"
             />
           </div>
           <button
             disabled={loading}
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
+            className="sp-button sp-button-primary w-full justify-center"
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
           {error && <div className="text-sm text-red-600" role="alert">{error}</div>}
         </form>
+        </div>
       </div>
     </section>
   );

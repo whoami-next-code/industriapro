@@ -102,8 +102,10 @@ export default function BarChart({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <Chart options={options} series={data} type="bar" height={height} />
+    <div className="sp-card sp-card-static">
+      <div className="sp-card-body">
+        <Chart options={options} series={data} type="bar" height={height} />
+      </div>
     </div>
   );
 }

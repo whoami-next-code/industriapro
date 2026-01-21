@@ -192,6 +192,21 @@ export default function Cotizacion() {
     return d.toISOString().split("T")[0];
   }, []);
 
+  const deliveryWarning = useMemo(() => {
+    if (!formState.delivery) return null;
+    const parsed = new Date(formState.delivery);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const limit = new Date(today);
+    limit.setDate(limit.getDate() + 7);
+    parsed.setHours(0, 0, 0, 0);
+    if (parsed < limit) {
+      return "Es probable que la entrega demore un poco mas.";
+    }
+    return null;
+  }, [formState.delivery]);
+
   const quoteSchema = useMemo(
     () =>
       z
@@ -612,6 +627,9 @@ export default function Cotizacion() {
               />
             </div>
             {errors.delivery && <p className="text-xs text-red-600">{errors.delivery}</p>}
+            {deliveryWarning && !errors.delivery && (
+              <p className="text-xs text-amber-600">{deliveryWarning}</p>
+            )}
             {errors.budget && <p className="text-xs text-red-600">{errors.budget}</p>}
             {basePrice > 0 && (
               <p className="text-xs text-zinc-500">
@@ -687,69 +705,6 @@ export default function Cotizacion() {
             )}
           </form>
 
-          {quote && (
-            <form onSubmit={submitProgress} className="space-y-3 bg-white shadow-sm rounded-lg p-4 border">
-              <div>
-                <h3 className="text-sm font-semibold mb-1">Enviar avance al cliente</h3>
-                <p className="text-xs text-zinc-500">Se notificará por WhatsApp si hay teléfono registrado.</p>
-              </div>
-              <textarea
-                required
-                placeholder="Mensaje para el cliente (avance, reporte o comentario)"
-                className="w-full border rounded px-3 py-2 text-sm"
-                rows={3}
-                value={progressForm.message}
-                onChange={(e) => setProgressForm((prev) => ({ ...prev, message: e.target.value }))}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={progressForm.status}
-                  onChange={(e) => setProgressForm((prev) => ({ ...prev, status: e.target.value }))}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  placeholder="Fecha estimada de entrega"
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={progressForm.estimatedDate}
-                  onChange={(e) => setProgressForm((prev) => ({ ...prev, estimatedDate: e.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Técnico a cargo"
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={progressForm.technicianName}
-                  onChange={(e) => setProgressForm((prev) => ({ ...prev, technicianName: e.target.value }))}
-                />
-                <input
-                  type="text"
-                  placeholder="Teléfono técnico"
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={progressForm.technicianPhone}
-                  onChange={(e) => setProgressForm((prev) => ({ ...prev, technicianPhone: e.target.value }))}
-                />
-                <input
-                  type="email"
-                  placeholder="Email técnico"
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={progressForm.technicianEmail}
-                  onChange={(e) => setProgressForm((prev) => ({ ...prev, technicianEmail: e.target.value }))}
-                />
-              </div>
-              <button
-                disabled={progressLoading}
-                className="w-full inline-flex items-center justify-center rounded-md bg-emerald-600 text-white px-4 py-2 text-sm disabled:opacity-50"
-              >
-                {progressLoading ? "Enviando..." : "Enviar avance"}
-              </button>
-            </form>
-          )}
         </div>
       </div>
     </section>

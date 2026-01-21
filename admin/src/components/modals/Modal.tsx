@@ -41,7 +41,7 @@ export default function Modal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25 dark:bg-opacity-50" />
+          <div className="fixed inset-0 bg-[rgba(15,23,42,0.2)] dark:bg-[rgba(15,23,42,0.45)] backdrop-blur-[1px]" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -55,18 +55,18 @@ export default function Modal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all`}>
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <Dialog.Panel className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-2xl sp-card sp-card-static text-left align-middle transition-all`}>
+                <div className="flex items-center justify-between sp-card-header">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 dark:text-white"
+                    className="text-lg font-medium leading-6"
                   >
                     {title}
                   </Dialog.Title>
                   {showClose && (
                     <button
                       type="button"
-                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition"
+                      className="sp-button sp-button-ghost h-9 w-9 !p-0"
                       onClick={onClose}
                     >
                       <XMarkIcon className="h-6 w-6" />
@@ -74,7 +74,7 @@ export default function Modal({
                   )}
                 </div>
                 
-                <div className="p-6">
+                <div className="sp-card-body">
                   {children}
                 </div>
               </Dialog.Panel>

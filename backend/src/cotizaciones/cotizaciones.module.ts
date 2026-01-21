@@ -11,6 +11,7 @@ import { MailModule } from '../mail/mail.module';
 import { WhatsappService } from './whatsapp.service';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { AuditModule } from '../audit/audit.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
@@ -19,8 +20,10 @@ import { AuditModule } from '../audit/audit.module';
     MailModule,
     RealtimeModule,
     AuditModule,
+    EventsModule,
   ],
   providers: [CotizacionesService, WhatsappService],
   controllers: [CotizacionesController],
+  exports: [CotizacionesService],
 })
 export class CotizacionesModule {}

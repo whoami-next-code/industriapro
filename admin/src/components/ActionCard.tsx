@@ -11,13 +11,13 @@ type ActionCardProps = {
 
 export default function ActionCard({ label, description, href, icon }: ActionCardProps) {
   return (
-    <Link href={href} prefetch className="card focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" aria-label={label}>
-      <div className="card-body">
+    <Link href={href} prefetch className="sp-card block focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--focus)]" aria-label={label}>
+      <div className="sp-card-body">
         <div className="flex items-center gap-3">
-          {icon && <Icon variant="fa" name={icon} size={18} />}
+          {icon && <Icon variant="hero" name={icon} size={18} className="text-[var(--text)]" />}
           <div className="font-semibold">{label}</div>
         </div>
-        {description && <p className="text-muted mt-1 text-sm">{description}</p>}
+        {description && <p className="sp-muted mt-1 text-sm">{description}</p>}
       </div>
     </Link>
   );

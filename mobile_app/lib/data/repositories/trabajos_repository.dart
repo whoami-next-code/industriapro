@@ -23,9 +23,8 @@ class TrabajosRepository {
       }
     }
 
-    // El backend no expone /trabajos/asignados; las cotizaciones del admin
-    // se obtienen desde /cotizaciones. Usamos ese endpoint para poblar la lista.
-    final response = await _api.get('cotizaciones');
+    // Endpoint correcto para técnicos (evita 403 por roles en /cotizaciones).
+    final response = await _api.get('trabajos/asignados');
     final data = response.data as List<dynamic>? ?? [];
     
     // Save to cache

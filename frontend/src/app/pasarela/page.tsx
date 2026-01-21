@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import DocumentInput from '@/components/DocumentInput';
 import OwnerAutocomplete from '@/components/OwnerAutocomplete';
+import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "");
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -46,7 +47,174 @@ function validarDNI(dni: string) {
   return clean.length === 8;
 }
 
-type PaymentMethod = 'card' | 'cash_on_delivery';
+type PaymentMethod = 'card' | 'cash_on_delivery' | 'fake';
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(
+    Number(value || 0)
+  );
+
+const formatDateTime = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("es-PE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const defaultComprobante = {
+  companyInfo: {
+    name: "IndustriaSP",
+    ruc: "20123456789",
+    address: "Av. Industrial 123, Lima, Perú",
+    phone: "+51 1 234-5678",
+    email: "ventas@industriasp.com",
+  },
+  paymentInfo: {
+    method: "Pago contra entrega",
+    status: "Pendiente",
+  },
+  totals: { subtotal: 0, shipping: 0, total: 0 },
+  items: [],
+};
+
+const renderComprobante = (doc: any, title: string) => {
+  const data = {
+    ...defaultComprobante,
+    ...(doc || {}),
+    companyInfo: { ...defaultComprobante.companyInfo, ...(doc?.companyInfo || {}) },
+    paymentInfo: { ...defaultComprobante.paymentInfo, ...(doc?.paymentInfo || {}) },
+    totals: { ...defaultComprobante.totals, ...(doc?.totals || {}) },
+  };
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-dashed border-gray-200 pb-4">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-gray-400">Comprobante electrónico</div>
+          <h4 className="text-lg font-semibold text-gray-900">{title}</h4>
+          <p className="text-xs text-gray-500">Documento generado automáticamente</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-right text-xs text-gray-600">
+          <div className="font-semibold text-gray-900">N° {data.id || "—"}</div>
+          <div>Orden: {data.orderNumber || "—"}</div>
+          <div>Emisión: {data.issueDate ? formatDateTime(data.issueDate) : "—"}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Empresa</div>
+          <div className="mt-2 text-sm font-semibold text-gray-900">{data.companyInfo?.name}</div>
+          <div className="mt-1 text-xs text-gray-600">RUC: {data.companyInfo?.ruc}</div>
+          <div className="text-xs text-gray-600">{data.companyInfo?.address}</div>
+          <div className="text-xs text-gray-600">{data.companyInfo?.phone}</div>
+          <div className="text-xs text-gray-600">{data.companyInfo?.email}</div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</div>
+          <div className="mt-2 text-sm font-semibold text-gray-900">{data.customerInfo?.name || "—"}</div>
+          <div className="mt-1 text-xs text-gray-600">
+            {data.customerInfo?.documentType || "DOC"}: {data.customerInfo?.document || "—"}
+          </div>
+          <div className="text-xs text-gray-600">{data.customerInfo?.email || ""}</div>
+          <div className="text-xs text-gray-600">{data.customerInfo?.phone || ""}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="grid grid-cols-[1.2fr_0.4fr_0.6fr_0.6fr] gap-2 bg-slate-100 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
+          <div>Descripción</div>
+          <div className="text-right">Cant.</div>
+          <div className="text-right">P. Unit</div>
+          <div className="text-right">Total</div>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {items.length === 0 && (
+            <div className="px-4 py-3 text-xs text-gray-500">Sin ítems registrados.</div>
+          )}
+          {items.map((item: any, idx: number) => (
+            <div
+              key={`${item?.description || item?.name || "item"}-${idx}`}
+              className="grid grid-cols-[1.2fr_0.4fr_0.6fr_0.6fr] gap-2 px-4 py-3 text-sm text-gray-700"
+            >
+              <div className="font-medium text-gray-900">
+                {item?.description || item?.name || "Producto"}
+              </div>
+              <div className="text-right text-gray-600">{item?.quantity ?? item?.cantidad ?? 0}</div>
+              <div className="text-right text-gray-600">
+                {formatCurrency(item?.unitPrice ?? item?.price ?? 0)}
+              </div>
+              <div className="text-right font-semibold text-gray-900">
+                {formatCurrency(item?.total ?? 0)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Pago</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-gray-700">
+              {data.paymentInfo?.method || "—"}
+            </span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              {data.paymentInfo?.status || "—"}
+            </span>
+          </div>
+          {data.hash && (
+            <div className="mt-3 text-[11px] text-gray-500">
+              Hash: <span className="font-mono">{data.hash}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Totales</div>
+          <div className="mt-2 space-y-2 text-sm text-gray-700">
+            <div className="flex items-center justify-between">
+              <span>Subtotal</span>
+              <span className="font-medium text-gray-900">{formatCurrency(data.totals?.subtotal ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Envío</span>
+              <span className="font-medium text-gray-900">{formatCurrency(data.totals?.shipping ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-dashed border-gray-200 pt-2 text-base font-semibold text-gray-900">
+              <span>Total</span>
+              <span>{formatCurrency(data.totals?.total ?? 0)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="text-xs text-gray-500">
+          Este comprobante es válido para fines informativos y puede verificarse con el código de seguridad.
+        </div>
+        {data.qrCode ? (
+          <img
+            src={data.qrCode}
+            alt="QR"
+            className="h-16 w-16 rounded border border-gray-200 bg-white p-1"
+          />
+        ) : (
+          <div className="h-16 w-16 rounded border border-dashed border-gray-300 bg-slate-50 text-[10px] text-gray-400 flex items-center justify-center">
+            QR
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 function CheckoutForm() {
   const stripe = useStripe();
@@ -80,7 +248,8 @@ function CheckoutForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [factura, setFactura] = useState<any | null>(null);
+  const [facturaDoc, setFacturaDoc] = useState<any | null>(null);
+  const [comprobanteDoc, setComprobanteDoc] = useState<any | null>(null);
   const [result, setResult] = useState<any | null>(null);
   
   // Estados de validación
@@ -95,7 +264,7 @@ function CheckoutForm() {
   const [autoData, setAutoData] = useState<any | null>(null);
   const cacheRef = React.useRef<Map<string, any>>(new Map());
 
-  const currentStep: 1 | 2 | 3 = success ? 3 : factura ? 2 : 1;
+  const currentStep: 1 | 2 | 3 = success ? 3 : (facturaDoc || comprobanteDoc) ? 2 : 1;
   const stepCircleClass = (n: number) =>
     `flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
       currentStep > n
@@ -111,6 +280,7 @@ function CheckoutForm() {
 
   // Recuperar datos del sessionStorage
   useEffect(() => {
+    requireAuthOrRedirect('/pasarela');
     const orderSummary = sessionStorage.getItem("last_order_summary");
     if (orderSummary) {
       try {
@@ -285,7 +455,7 @@ function CheckoutForm() {
         throw new Error(data?.error || "No se pudo iniciar el pago"); 
       }
       
-      setFactura(data.factura);
+      setFacturaDoc(data.factura);
 
       // 2) Confirmar el pago con Stripe Elements
       const card = elements.getElement(CardElement);
@@ -360,6 +530,58 @@ function CheckoutForm() {
       
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Error creando el pedido");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleFakePayment(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setFacturaDoc(null);
+    setComprobanteDoc(null);
+
+    if (items.length === 0) {
+      setError("Tu carrito está vacío.");
+      return;
+    }
+    if (!validateForm()) {
+      setError("Por favor corrige los errores en el formulario");
+      return;
+    }
+
+    const token = requireAuthOrRedirect('/pasarela');
+    if (!token) return;
+
+    setLoading(true);
+    try {
+      const document = documentType === 'dni' ? dni : ruc;
+      const response: any = await apiFetchAuth('/pedidos/pago-ficticio', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: items.map((it) => ({
+            productId: it.productId,
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity,
+          })),
+          customerData: {
+            name: customerName,
+            phone: customerPhone,
+            address: shippingAddress,
+            documentType,
+            document,
+          },
+          total,
+        }),
+      });
+
+      setComprobanteDoc(response?.comprobante || null);
+      setFacturaDoc(response?.factura || null);
+      setResult({ status: 'succeeded', id: response?.paymentId || response?.orderNumber });
+      clear();
+    } catch (err: any) {
+      setError(err?.message || "No se pudo registrar el pago ficticio");
     } finally {
       setLoading(false);
     }
@@ -476,6 +698,22 @@ function CheckoutForm() {
                     <h4 className="font-medium text-gray-900">Contra Entrega</h4>
                     <p className="text-sm text-gray-600 mt-1">Paga al recibir el producto</p>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('fake')}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      paymentMethod === 'fake'
+                        ? 'border-amber-500 bg-amber-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center mb-2">
+                      <FileText className="h-8 w-8 text-amber-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900">Pago Ficticio</h4>
+                    <p className="text-sm text-gray-600 mt-1">Solo para pruebas</p>
+                  </button>
                 </div>
               </div>
             </div>
@@ -535,10 +773,7 @@ function CheckoutForm() {
                     }}
                     onValidationChange={(isValid, detectedType) => {
                       setDocumentValidation({ isValid, documentType: detectedType });
-                      // Ajustar el tipo seleccionado automáticamente para reducir fricción
-                      if (detectedType === 'DNI' && documentType !== 'dni') {
-                        setDocumentType('dni');
-                      }
+                      // Ajustar automáticamente solo hacia RUC para evitar saltos molestos a DNI
                       if (detectedType === 'RUC' && documentType !== 'ruc') {
                         setDocumentType('ruc');
                       }
@@ -780,6 +1015,41 @@ function CheckoutForm() {
                 </div>
               </div>
             )}
+
+            {paymentMethod === 'fake' && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <FileText className="h-5 w-5 mr-2 text-amber-600" />
+                    Pago Ficticio (Pruebas)
+                  </h3>
+                </div>
+                <div className="p-6">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 text-sm text-amber-800">
+                    Este método genera un comprobante o factura de prueba y registra la venta en el admin.
+                  </div>
+                  <form onSubmit={handleFakePayment}>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Generando comprobante...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Confirmar pago ficticio
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar - Resumen */}
@@ -875,18 +1145,19 @@ function CheckoutForm() {
         </div>
 
         {/* Factura preliminar */}
-        {factura && (
+        {(facturaDoc || comprobanteDoc) && (
           <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                Factura Preliminar
+                Documento Generado
               </h3>
             </div>
             <div className="p-6">
-              <pre className="text-xs text-gray-700 whitespace-pre-wrap overflow-x-auto bg-gray-50 p-4 rounded-lg">
-                {JSON.stringify(factura, null, 2)}
-              </pre>
+              <div className="space-y-6">
+                {comprobanteDoc && renderComprobante(comprobanteDoc, "Comprobante")}
+                {facturaDoc && renderComprobante(facturaDoc, "Factura")}
+              </div>
             </div>
           </div>
         )}

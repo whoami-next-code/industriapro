@@ -1,18 +1,30 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pedido } from './pedido.entity';
+import { EventsPublisher } from '../events/events.publisher';
 
 @Injectable()
 export class PedidosService {
   constructor(
     @InjectRepository(Pedido)
     private readonly repo: Repository<Pedido>,
+    @Optional() private readonly eventsPublisher?: EventsPublisher,
   ) {}
 
-  create(data: Partial<Pedido>) {
+  async create(data: Partial<Pedido>) {
     const entity = this.repo.create(data);
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    
+    // Publicar evento en RabbitMQ para procesamiento asíncrono
+    if (this.eventsPublisher) {
+      await this.eventsPublisher.pedidoCreated(saved).catch((error) => {
+        console.error('Error publicando evento pedido.creado:', error);
+        // No lanzar error para no bloquear la creación del pedido
+      });
+    }
+    
+    return saved;
   }
 
   findAll() {
@@ -30,8 +42,30 @@ export class PedidosService {
   async update(id: number, data: Partial<Pedido>) {
     const found = await this.repo.findOneBy({ id });
     if (!found) throw new NotFoundException('Pedido no encontrado');
+    
+    const oldStatus = found.orderStatus;
     Object.assign(found, data);
-    return this.repo.save(found);
+    const saved = await this.repo.save(found);
+    
+    // Publicar evento si cambió el estado
+    if (this.eventsPublisher && oldStatus !== saved.orderStatus) {
+      await this.eventsPublisher.pedidoStatusChanged(
+        saved.id,
+        oldStatus,
+        saved.orderStatus,
+      ).catch((error) => {
+        console.error('Error publicando evento pedido.estado_cambiado:', error);
+      });
+    }
+    
+    // Publicar evento de actualización
+    if (this.eventsPublisher) {
+      await this.eventsPublisher.pedidoUpdated(saved).catch((error) => {
+        console.error('Error publicando evento pedido.actualizado:', error);
+      });
+    }
+    
+    return saved;
   }
 
   async remove(id: number) {
@@ -96,6 +130,7 @@ export class PedidosService {
       throw new NotFoundException('Pedido no encontrado');
     }
 
+    const oldStatus = order.orderStatus;
     order.orderStatus = status;
     order.updatedAt = new Date();
 
@@ -104,6 +139,26 @@ export class PedidosService {
       order.paymentStatus = 'COMPLETED';
     }
 
-    return this.repo.save(order);
+    const saved = await this.repo.save(order);
+    
+    // Publicar evento de cambio de estado
+    if (this.eventsPublisher && oldStatus !== saved.orderStatus) {
+      await this.eventsPublisher.pedidoStatusChanged(
+        saved.id,
+        oldStatus,
+        saved.orderStatus,
+      ).catch((error) => {
+        console.error('Error publicando evento pedido.estado_cambiado:', error);
+      });
+    }
+    
+    // Publicar evento de actualización
+    if (this.eventsPublisher) {
+      await this.eventsPublisher.pedidoUpdated(saved).catch((error) => {
+        console.error('Error publicando evento pedido.actualizado:', error);
+      });
+    }
+
+    return saved;
   }
 }

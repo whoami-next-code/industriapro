@@ -93,8 +93,10 @@ export default function DonutChart({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <Chart options={options} series={series} type="donut" height={height} />
+    <div className="sp-card sp-card-static">
+      <div className="sp-card-body">
+        <Chart options={options} series={series} type="donut" height={height} />
+      </div>
     </div>
   );
 }

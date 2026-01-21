@@ -8,6 +8,7 @@ import {
   Put,
   UseGuards,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UserRole } from './user.entity';
@@ -33,7 +34,9 @@ export class UsersController {
       fullName?: string;
     },
   ) {
-    return this.service.create(body);
+    throw new ForbiddenException(
+      'Use el endpoint /auth/admin/create-user para crear cuentas de personal.',
+    );
   }
 
   @Get()

@@ -41,7 +41,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         authState.isAuthenticated &&
         authState.token != null &&
         authState.token!.isNotEmpty) {
-      context.go('/home');
+      if (authState.mustChangePassword) {
+        context.go('/change-password');
+      } else {
+        context.go('/home');
+      }
     }
     // Si hay error, se mostrará automáticamente en la UI (authState.error)
   }
@@ -61,13 +65,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     // #endregion
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: SafeArea(
         child: ResponsiveLayout(
-          mobile: _buildForm(context, authState),
+          mobile: _buildMobile(context, authState),
           tablet: Center(
             child: SizedBox(
               width: 500,
@@ -86,7 +86,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               children: [
                 Expanded(
                   child: Container(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                          Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -127,6 +136,63 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMobile(BuildContext context, dynamic authState) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                  Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.construction,
+                  size: 70,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Industria SP',
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Acceso operativo y tecnico',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF5B6B7A),
+                      ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Card(
+              elevation: 1,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: _buildForm(context, authState, showHeader: false),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -210,18 +276,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               onPressed: _submit,
               isLoading: authState.isLoading,
               isFullWidth: true,
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () async {
-                await ref
-                    .read(authControllerProvider.notifier)
-                    .skipLoginDemo();
-                if (context.mounted) {
-                  context.go('/home');
-                }
-              },
-              child: const Text('Continuar sin iniciar sesión (Demo)'),
             ),
             if (authState.error != null) ...[
               const SizedBox(height: 16),

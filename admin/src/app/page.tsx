@@ -10,15 +10,17 @@ import BarChart from '@/components/charts/BarChart';
 import DonutChart from '@/components/charts/DonutChart';
 import { useAppStore } from '@/store/useAppStore';
 import toast from 'react-hot-toast';
-import { 
-  ShoppingCartIcon, 
-  CubeIcon, 
-  DocumentTextIcon, 
+import {
+  ShoppingCartIcon,
+  CubeIcon,
+  DocumentTextIcon,
   UserGroupIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   ClockIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ArrowPathIcon,
+  EnvelopeIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
 type Profile = { email: string; role: string; nombre?: string };
@@ -48,6 +50,7 @@ type Pedido = {
   estado: string;
   fechaCreacion: string;
   cliente?: { nombre: string };
+  paymentStatus?: string;
 };
 
 type Cotizacion = {
@@ -57,12 +60,23 @@ type Cotizacion = {
   fechaCreacion: string;
 };
 
+type Contacto = {
+  id: number;
+  mensaje: string;
+  creadoEn?: string;
+  createdAt?: string;
+  respondidoEn?: string;
+  respondidoPor?: string;
+  estado?: string;
+};
+
 export default function AdminDashboard() {
   const [me, setMe] = useState<Profile | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [contactos, setContactos] = useState<Contacto[]>([]);
   const [loading, setLoading] = useState(true);
   const { addNotification } = useAppStore();
 
@@ -107,9 +121,16 @@ export default function AdminDashboard() {
       setProductos(Array.isArray(prods) ? prods : []);
       setCotizaciones(Array.isArray(cots) ? cots.map(normalizeCotizacion) : []);
       setPedidos(Array.isArray(peds) ? peds.map(normalizePedido) : []);
+      setContactos(Array.isArray(contactos) ? contactos : []);
 
       const productosActivos = Array.isArray(prods) ? prods.filter((p: Producto) => p.stock > 0).length : 0;
-      const pedidosPendientes = Array.isArray(peds) ? peds.filter((p: Pedido) => p.estado !== 'COMPLETADO').length : 0;
+      const pedidosPendientes = Array.isArray(peds)
+        ? peds.filter((p: Pedido) => {
+            const estado = String((p as any)?.estado ?? (p as any)?.orderStatus ?? (p as any)?.status ?? '').toUpperCase();
+            const payment = String((p as any)?.paymentStatus ?? '').toUpperCase();
+            return !['COMPLETADO', 'DELIVERED'].includes(estado) && payment !== 'COMPLETED';
+          }).length
+        : 0;
       const cotizacionesAbiertas = Array.isArray(cots) ? cots.filter((c: Cotizacion) => c.estado !== 'CERRADA').length : 0;
 
       setStats({
@@ -158,9 +179,10 @@ export default function AdminDashboard() {
   const normalizePedido = (p: any): Pedido => ({
     id: Number(p?.id ?? 0),
     total: num(p?.total),
-    estado: String(p?.estado ?? p?.orderStatus ?? 'PENDIENTE'),
+    estado: String(p?.estado ?? p?.orderStatus ?? p?.status ?? 'PENDIENTE'),
     fechaCreacion: String(p?.fechaCreacion ?? p?.createdAt ?? new Date().toISOString()),
-    cliente: p?.cliente,
+    cliente: p?.cliente ?? (p?.customerName ? { nombre: p.customerName } : undefined),
+    paymentStatus: String(p?.paymentStatus ?? ''),
   });
 
   const normalizeCotizacion = (c: any): Cotizacion => ({
@@ -193,9 +215,12 @@ export default function AdminDashboard() {
       const totalVentas = pedidos
         .filter(p => {
           const pedidoDate = new Date(p.fechaCreacion);
-          return pedidoDate.getMonth() === monthDate.getMonth() && 
+          const estado = String(p.estado ?? '').toUpperCase();
+          const payment = String(p.paymentStatus ?? '').toUpperCase();
+          const isPaid = payment === 'COMPLETED' || estado === 'PAGADO' || estado === 'COMPLETADO';
+          return pedidoDate.getMonth() === monthDate.getMonth() &&
                  pedidoDate.getFullYear() === monthDate.getFullYear() &&
-                 p.estado === 'COMPLETADO';
+                 isPaid;
         })
         .reduce((sum, p) => sum + num(p.total), 0);
       
@@ -207,12 +232,38 @@ export default function AdminDashboard() {
 
   const getEstadosPedidos = () => {
     const estados = pedidos.reduce((acc: any, p) => {
-      acc[p.estado] = (acc[p.estado] || 0) + 1;
+      const key = String(p.estado ?? '').toUpperCase() || 'PENDIENTE';
+      acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
+
+    const statusLabel = (status: string) => {
+      switch (status) {
+        case 'PENDING':
+        case 'PENDIENTE':
+          return 'Pendiente';
+        case 'CONFIRMED':
+          return 'Confirmado';
+        case 'PROCESSING':
+          return 'En proceso';
+        case 'SHIPPED':
+        case 'ENVIADO':
+          return 'Enviado';
+        case 'DELIVERED':
+        case 'COMPLETADO':
+          return 'Completado';
+        case 'CANCELLED':
+        case 'CANCELADO':
+          return 'Cancelado';
+        case 'PAGADO':
+          return 'Pagado';
+        default:
+          return status;
+      }
+    };
     
     return {
-      labels: Object.keys(estados),
+      labels: Object.keys(estados).map(statusLabel),
       series: Object.values(estados) as number[],
     };
   };
@@ -242,13 +293,165 @@ export default function AdminDashboard() {
       .slice(0, 5);
   };
 
+  const getWeeklyContactInsights = () => {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekly = contactos.filter((c) => {
+      const raw = c.creadoEn || c.createdAt;
+      const d = raw ? new Date(raw) : null;
+      return d instanceof Date && !isNaN(d.getTime()) && d >= weekAgo;
+    });
+
+    const textFor = (c: Contacto) => `${c.mensaje ?? ""}`.toLowerCase();
+    const categoryMap: Record<string, string[]> = {
+      reclamos: ["reclamo", "queja", "malo", "defecto", "problema", "falla", "no funciona"],
+      soporte: ["soporte", "ayuda", "asistencia", "error", "urgente", "parado"],
+      instalacion: ["instalación", "instalacion", "instalar", "montaje"],
+      mantenimiento: ["mantenimiento", "revisión", "revision", "calibrar", "limpieza"],
+      cotizacion: ["cotización", "cotizacion", "precio", "presupuesto"],
+      pagos: ["pago", "factura", "boleta", "ruc", "dni"],
+      envios: ["envío", "envio", "delivery", "entrega"],
+      garantia: ["garantía", "garantia", "devolución", "devolucion"],
+    };
+
+    const categorize = (msg: string) => {
+      for (const [category, words] of Object.entries(categoryMap)) {
+        if (words.some((w) => msg.includes(w))) return category;
+      }
+      return "otros";
+    };
+
+    const counts = weekly.reduce<Record<string, number>>((acc, c) => {
+      const category = categorize(textFor(c));
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+
+    const total = weekly.length || 1;
+    const topCategories = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([category, count]) => ({
+        category,
+        count,
+        percent: Math.round((count / total) * 100),
+      }));
+
+    const responseTimes = weekly
+      .map((c) => {
+        const created = c.creadoEn || c.createdAt;
+        if (!created || !c.respondidoEn) return null;
+        const start = new Date(created).getTime();
+        const end = new Date(c.respondidoEn).getTime();
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+        return (end - start) / (1000 * 60 * 60); // hours
+      })
+      .filter((n): n is number => n !== null);
+
+    const avgHours = responseTimes.length
+      ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+      : 0;
+    const within24 = responseTimes.filter((h) => h <= 24).length;
+    const slaPercent = responseTimes.length
+      ? Math.round((within24 / responseTimes.length) * 100)
+      : 0;
+
+    const top = topCategories[0];
+    const suggestions: string[] = [];
+    if (top && top.percent >= 30) {
+      const label = top.category.replace("_", " ");
+      suggestions.push(`Hay ${top.percent}% de contactos por ${label}. Considera reforzar procesos o guías internas.`);
+    }
+    if (slaPercent > 0 && slaPercent < 70) {
+      suggestions.push("El SLA de respuesta en 24h está bajo. Prioriza la bandeja de contactos urgentes.");
+    }
+    if (weekly.length === 0) {
+      suggestions.push("No hay suficientes contactos esta semana para generar tendencias.");
+    }
+
+    return {
+      totalWeekly: weekly.length,
+      avgHours,
+      slaPercent,
+      topCategories,
+      suggestions,
+    };
+  };
+
+  const getContactTrends = () => {
+    const now = new Date();
+    const days: string[] = [];
+    const dayKeys: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      dayKeys.push(key);
+      days.push(d.toLocaleDateString('es-PE', { weekday: 'short' }));
+    }
+
+    const normalizeMsg = (c: Contacto) => `${c.mensaje ?? ""}`.toLowerCase();
+    const categoryMap: Record<string, string[]> = {
+      reclamos: ["reclamo", "queja", "malo", "defecto", "problema", "falla", "no funciona"],
+      soporte: ["soporte", "ayuda", "asistencia", "error", "urgente", "parado"],
+      instalacion: ["instalación", "instalacion", "instalar", "montaje"],
+      mantenimiento: ["mantenimiento", "revisión", "revision", "calibrar", "limpieza"],
+      cotizacion: ["cotización", "cotizacion", "precio", "presupuesto"],
+      pagos: ["pago", "factura", "boleta", "ruc", "dni"],
+      envios: ["envío", "envio", "delivery", "entrega"],
+      garantia: ["garantía", "garantia", "devolución", "devolucion"],
+    };
+
+    const categorize = (msg: string) => {
+      for (const [category, words] of Object.entries(categoryMap)) {
+        if (words.some((w) => msg.includes(w))) return category;
+      }
+      return "otros";
+    };
+
+    const weekly = contactos.filter((c) => {
+      const raw = c.creadoEn || c.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return false;
+      const key = d.toISOString().slice(0, 10);
+      return dayKeys.includes(key);
+    });
+
+    const countsByCategory: Record<string, number[]> = {};
+    weekly.forEach((c) => {
+      const raw = c.creadoEn || c.createdAt;
+      if (!raw) return;
+      const d = new Date(raw);
+      const key = d.toISOString().slice(0, 10);
+      const idx = dayKeys.indexOf(key);
+      if (idx === -1) return;
+      const cat = categorize(normalizeMsg(c));
+      if (!countsByCategory[cat]) {
+        countsByCategory[cat] = Array(dayKeys.length).fill(0);
+      }
+      countsByCategory[cat][idx] += 1;
+    });
+
+    const totals = Object.entries(countsByCategory)
+      .map(([cat, arr]) => ({ cat, total: arr.reduce((a, b) => a + b, 0) }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 4);
+
+    const series = totals.map((t) => ({
+      name: t.cat.replace("_", " "),
+      data: countsByCategory[t.cat] || Array(dayKeys.length).fill(0),
+    }));
+
+    return { categories: days, series };
+  };
+
   if (loading) {
     return (
       <Protected>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Cargando dashboard...</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="sp-card sp-card-static px-10 py-8 text-center">
+            <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-[var(--brand-primary)] mx-auto mb-4"></div>
+            <p className="sp-muted">Cargando dashboard...</p>
           </div>
         </div>
       </Protected>
@@ -258,87 +461,56 @@ export default function AdminDashboard() {
   return (
     <Protected>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="sp-muted mt-1">
               Bienvenido, {me?.nombre || me?.email || 'Administrador'}
             </p>
           </div>
           <button
             onClick={loadDashboardData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+            className="sp-button sp-button-primary"
           >
-            <i className="fa fa-refresh" />
+            <ArrowPathIcon className="h-4 w-4" />
             Actualizar
           </button>
         </div>
 
         {/* Métricas principales */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Productos</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{stats?.productos ?? 0}</p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
-                  {stats?.productosActivos ?? 0} activos
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <CubeIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Pedidos</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{stats?.pedidos ?? 0}</p>
-                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
-                  <ClockIcon className="h-4 w-4" />
-                  {stats?.pedidosPendientes ?? 0} pendientes
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                <ShoppingCartIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Cotizaciones</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{stats?.cotizaciones ?? 0}</p>
-                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
-                  <DocumentTextIcon className="h-4 w-4" />
-                  {stats?.cotizacionesAbiertas ?? 0} abiertas
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
-                <DocumentTextIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Clientes</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{stats?.clientes ?? 0}</p>
-                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 flex items-center gap-1">
-                  <UserGroupIcon className="h-4 w-4" />
-                  Total registrados
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                <UserGroupIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <Stat
+            label="Productos"
+            value={stats?.productos ?? 0}
+            icon={<CubeIcon className="h-6 w-6" />}
+            tone="primary"
+            helper={`${stats?.productosActivos ?? 0} activos`}
+            helperIcon={<ArrowTrendingUpIcon className="h-3 w-3" />}
+          />
+          <Stat
+            label="Pedidos"
+            value={stats?.pedidos ?? 0}
+            icon={<ShoppingCartIcon className="h-6 w-6" />}
+            tone="secondary"
+            helper={`${stats?.pedidosPendientes ?? 0} pendientes`}
+            helperIcon={<ClockIcon className="h-3 w-3" />}
+          />
+          <Stat
+            label="Cotizaciones"
+            value={stats?.cotizaciones ?? 0}
+            icon={<DocumentTextIcon className="h-6 w-6" />}
+            tone="accent"
+            helper={`${stats?.cotizacionesAbiertas ?? 0} abiertas`}
+            helperIcon={<DocumentTextIcon className="h-3 w-3" />}
+          />
+          <Stat
+            label="Clientes"
+            value={stats?.clientes ?? 0}
+            icon={<UserGroupIcon className="h-6 w-6" />}
+            tone="primary"
+            helper="Total registrados"
+            helperIcon={<UserGroupIcon className="h-3 w-3" />}
+          />
         </div>
 
         {/* Gráficos */}
@@ -347,14 +519,14 @@ export default function AdminDashboard() {
             title="Tendencia de Pedidos (Últimos 6 meses)"
             data={getPedidosPorMes()}
             categories={getLast6MonthsData()}
-            colors={['#3b82f6']}
+            colors={['#7ba7ff']}
           />
           
           <BarChart
             title="Ventas Mensuales (S/)"
             data={getVentasPorMes()}
             categories={getLast6MonthsData()}
-            colors={['#10b981']}
+            colors={['#7fd1c8']}
           />
         </div>
 
@@ -370,45 +542,120 @@ export default function AdminDashboard() {
             data={getProductosMasVendidos().data}
             categories={getProductosMasVendidos().categories}
             horizontal={true}
-            colors={['#f59e0b']}
+            colors={['#c9b8ff']}
           />
         </div>
+
+        {/* Insights IA - Contactos */}
+        <Card title="Insights IA (últimos 7 días)">
+          {(() => {
+            const insights = getWeeklyContactInsights();
+            const avgLabel = insights.avgHours >= 24
+              ? `${Math.round(insights.avgHours / 24)} días`
+              : `${Math.round(insights.avgHours)} h`;
+            const trends = getContactTrends();
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="sp-panel">
+                    <div className="text-xs sp-muted">Contactos semanales</div>
+                    <div className="text-2xl font-semibold">{insights.totalWeekly}</div>
+                  </div>
+                  <div className="sp-panel">
+                    <div className="text-xs sp-muted">Tiempo promedio de respuesta</div>
+                    <div className="text-2xl font-semibold">{avgLabel}</div>
+                  </div>
+                  <div className="sp-panel">
+                    <div className="text-xs sp-muted">SLA &lt; 24h</div>
+                    <div className="text-2xl font-semibold">{insights.slaPercent}%</div>
+                  </div>
+                </div>
+
+                <div className="sp-card sp-card-static">
+                  <div className="sp-card-body">
+                    <BarChart
+                      title="Picos por categoría (últimos 7 días)"
+                      data={trends.series}
+                      categories={trends.categories}
+                      colors={['#7ba7ff', '#7fd1c8', '#c9b8ff', '#f7c58e']}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="sp-card sp-card-static">
+                    <div className="sp-card-body">
+                      <div className="text-sm font-semibold mb-2">Motivos principales</div>
+                      {insights.topCategories.length === 0 ? (
+                        <div className="text-sm sp-muted">Sin datos suficientes.</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {insights.topCategories.map((c) => (
+                            <div key={c.category} className="flex items-center justify-between text-sm">
+                              <span className="capitalize">{c.category.replace("_", " ")}</span>
+                              <span className="sp-badge sp-badge--primary">{c.percent}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="sp-card sp-card-static">
+                    <div className="sp-card-body">
+                      <div className="text-sm font-semibold mb-2">Sugerencias de mejora</div>
+                      {insights.suggestions.length === 0 ? (
+                        <div className="text-sm sp-muted">Sin sugerencias generadas.</div>
+                      ) : (
+                        <ul className="space-y-2 text-sm">
+                          {insights.suggestions.map((s, idx) => (
+                            <li key={idx} className="sp-panel">{s}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </Card>
 
         {/* Últimos pedidos */}
         <Card title="Últimos Pedidos">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-900">
+            <table className="sp-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cliente</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Estado</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Fecha</th>
+                  <th className="text-left">ID</th>
+                  <th className="text-left">Cliente</th>
+                  <th className="text-left">Total</th>
+                  <th className="text-left">Estado</th>
+                  <th className="text-left">Fecha</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody>
                 {getUltimosPedidos().map((pedido) => (
-                  <tr key={pedido.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">#{pedido.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                  <tr key={pedido.id}>
+                    <td className="text-sm font-medium">#{pedido.id}</td>
+                    <td className="text-sm">
                       {pedido.cliente?.nombre || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                    <td className="text-sm">
                       S/ {num(pedido.total).toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        pedido.estado === 'COMPLETADO' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    <td className="text-sm">
+                      <span className={`sp-badge ${
+                        pedido.estado === 'COMPLETADO'
+                          ? 'sp-badge--secondary'
                           : pedido.estado === 'ENVIADO'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                            ? 'sp-badge--primary'
+                            : 'sp-badge--accent'
                       }`}>
                         {pedido.estado}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="text-sm sp-muted">
                       {new Date(pedido.fechaCreacion).toLocaleDateString('es-PE')}
                     </td>
                   </tr>
@@ -423,30 +670,30 @@ export default function AdminDashboard() {
           <Card title="Información del Usuario">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                  <i className="fa fa-envelope text-blue-600 dark:text-blue-400" />
+                <div className="h-10 w-10 bg-[rgba(123,167,255,0.2)] rounded-2xl flex items-center justify-center">
+                  <EnvelopeIcon className="h-5 w-5 text-slate-900" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{me.email}</p>
+                  <p className="text-xs sp-muted">Email</p>
+                  <p className="text-sm font-medium">{me.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                  <i className="fa fa-shield text-purple-600 dark:text-purple-400" />
+                <div className="h-10 w-10 bg-[rgba(201,184,255,0.25)] rounded-2xl flex items-center justify-center">
+                  <ShieldCheckIcon className="h-5 w-5 text-slate-900" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Rol</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{me.role}</p>
+                  <p className="text-xs sp-muted">Rol</p>
+                  <p className="text-sm font-medium">{me.role}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <div className="h-10 w-10 bg-[rgba(127,209,200,0.25)] rounded-2xl flex items-center justify-center">
+                  <CheckCircleIcon className="h-5 w-5 text-slate-900" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Estado</p>
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">Autenticado</p>
+                  <p className="text-xs sp-muted">Estado</p>
+                  <p className="text-sm font-medium text-emerald-600">Autenticado</p>
                 </div>
               </div>
             </div>

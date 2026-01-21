@@ -97,10 +97,19 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(cotizacionesPaginationProvider);
+    final pending = state.items
+        .where((item) => item.status.toUpperCase() == 'PENDIENTE')
+        .length;
+    final inProcess = state.items
+        .where((item) => item.status.toUpperCase() == 'EN_PROCESO')
+        .length;
+    final finished = state.items
+        .where((item) => item.status.toUpperCase() == 'TERMINADO')
+        .length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cotizaciones y Pedidos'),
+        title: const Text('Pedidos y cotizaciones'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -121,19 +130,15 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar por número o cliente...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar por numero o cliente',
+                      prefixIcon: Icon(Icons.search),
                     ),
                     onChanged: _onSearchChanged,
                   ),
@@ -147,6 +152,37 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              children: [
+                _buildSummaryPill(
+                  context,
+                  label: 'Pendientes',
+                  value: pending.toString(),
+                  color: const Color(0xFFFFB54A),
+                ),
+                const SizedBox(width: 8),
+                _buildSummaryPill(
+                  context,
+                  label: 'En proceso',
+                  value: inProcess.toString(),
+                  color: const Color(0xFF5CC8FF),
+                ),
+                const SizedBox(width: 8),
+                _buildSummaryPill(
+                  context,
+                  label: 'Terminados',
+                  value: finished.toString(),
+                  color: const Color(0xFF56C98F),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: const SizedBox.shrink(),
+          ),
           if (state.error != null && state.items.isEmpty)
              Expanded(
                child: Center(
@@ -155,7 +191,9 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
                    children: [
                      Text('Error: ${state.error}'),
                      ElevatedButton(
-                       onPressed: () => ref.read(cotizacionesPaginationProvider.notifier).refresh(),
+                      onPressed: () => ref
+                          .read(cotizacionesPaginationProvider.notifier)
+                          .refresh(),
                        child: const Text('Reintentar'),
                      ),
                    ],
@@ -165,25 +203,32 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
           else 
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => ref.read(cotizacionesPaginationProvider.notifier).refresh(),
+                onRefresh: () => ref
+                    .read(cotizacionesPaginationProvider.notifier)
+                    .refresh(),
                 child: state.items.isEmpty && state.isLoading
                     ? ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: 6,
-                        itemBuilder: (context, index) => const CotizacionSkeletonCard(),
+                        itemBuilder: (context, index) =>
+                            const CotizacionSkeletonCard(),
                       )
                     : state.items.isEmpty
-                        ? const Center(child: Text('No se encontraron cotizaciones'))
+                        ? const Center(
+                            child: Text('No se encontraron cotizaciones'))
                         : ListView.builder(
                             controller: _scrollController,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: state.items.length + (state.isLoading ? 1 : 0),
+                            itemCount:
+                                state.items.length + (state.isLoading ? 1 : 0),
                             itemBuilder: (context, index) {
                               if (index == state.items.length) {
-                                return const Center(child: Padding(
+                                return const Center(
+                                  child: Padding(
                                   padding: EdgeInsets.all(16.0),
                                   child: CircularProgressIndicator(),
-                                ));
+                                  ),
+                                );
                               }
                               
                               final item = state.items[index];
@@ -201,6 +246,44 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryPill(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$label $value',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

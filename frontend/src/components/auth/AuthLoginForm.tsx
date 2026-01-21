@@ -45,7 +45,7 @@ export function AuthLoginForm() {
       </div>
       <button disabled={loading} className="inline-flex items-center justify-center rounded-md bg-black text-white px-3 py-2 text-sm disabled:opacity-50">{loading ? 'Ingresando...' : 'Ingresar'}</button>
       {error && <div className="text-sm text-red-600">{error}</div>}
-      <div className="text-sm text-zinc-600">¿No tienes cuenta? <a href="/auth/register" className="text-emerald-700 hover:underline">Regístrate</a></div>
+      <div className="text-sm text-zinc-600">Solicita tu acceso al administrador.</div>
     </form>
   );
 }

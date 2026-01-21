@@ -540,6 +540,75 @@ export class MailService {
     });
   }
 
+  async sendTechnicianAssigned(params: {
+    to: string;
+    technicianName: string;
+    quotationId: number;
+    customerName?: string;
+    status?: string;
+  }) {
+    const adminUrl = process.env.ADMIN_URL || this.webUrl;
+    const url = `${adminUrl}/cotizaciones`;
+    const content = `
+      <p>Hola <strong>${params.technicianName}</strong>,</p>
+      <p>Se te asignó una nueva cotización.</p>
+      <ul>
+        <li><strong>ID:</strong> ${params.quotationId}</li>
+        ${params.customerName ? `<li><strong>Cliente:</strong> ${params.customerName}</li>` : ''}
+        ${params.status ? `<li><strong>Estado:</strong> ${params.status}</li>` : ''}
+      </ul>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${url}" class="btn">Ver cotización</a>
+      </div>
+      <p>Gracias,</p>
+      <p>Equipo Industrias SP</p>
+    `;
+    const html = renderBaseTemplate(content, 'Nueva cotización asignada');
+    return this._send({
+      to: params.to,
+      subject: `Asignación de cotización #${params.quotationId}`,
+      html,
+      type: 'QUOTATION_UPDATE',
+    });
+  }
+
+  async sendContactoReporteTecnico(params: {
+    to: string;
+    cliente: string;
+    contactoId: number;
+    message: string;
+    found?: string;
+    resolved?: string;
+    evidenceUrls?: string[];
+  }) {
+    const evidenceList = (params.evidenceUrls || [])
+      .map((u) => `<li><a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a></li>`)
+      .join('') || '<li>Sin evidencias adjuntas</li>';
+
+    const content = `
+      <p>Hola <strong>${params.cliente}</strong>,</p>
+      <p>Hemos registrado el reporte técnico de tu solicitud.</p>
+      <div style="background-color:#f8fafc;padding:14px;border-radius:10px;border:1px solid #e2e8f0;margin:16px 0;">
+        <p style="margin:0 0 8px;"><strong>Reporte:</strong> ${params.message}</p>
+        ${params.found ? `<p style="margin:0 0 8px;"><strong>Cómo se encontró:</strong> ${params.found}</p>` : ''}
+        ${params.resolved ? `<p style="margin:0;"><strong>Cómo quedó:</strong> ${params.resolved}</p>` : ''}
+      </div>
+      <p><strong>Evidencias:</strong></p>
+      <ul>${evidenceList}</ul>
+      <div style="text-align:center;margin:30px 0;">
+        <a href="${this.webUrl}/mis-mensajes" class="btn">Ver detalles</a>
+      </div>
+      <p>Gracias por confiar en nosotros.</p>
+    `;
+    const html = renderBaseTemplate(content, 'Reporte técnico del servicio');
+    return this._send({
+      to: params.to,
+      subject: `Reporte técnico del servicio #${params.contactoId}`,
+      html,
+      type: 'QUOTATION_UPDATE',
+    });
+  }
+
   async sendPromotional(params: {
     to: string;
     title: string;
@@ -595,6 +664,49 @@ export class MailService {
 
   async sendTest(to: string, subject: string, html: string) {
     return this._send({ to, subject, html, type: 'PROMOTIONAL' });
+  }
+
+  async sendPedidoConfirmation(params: {
+    orderNumber: string;
+    customerEmail: string;
+    customerName?: string;
+    total: number;
+  }) {
+    // Usar sendOrderRegistered con datos adaptados
+    return this.sendOrderRegistered({
+      to: params.customerEmail,
+      fullName: params.customerName || 'Cliente',
+      orderNumber: params.orderNumber,
+      trackingNumber: params.orderNumber, // Usar orderNumber como tracking temporal
+      items: [], // Los items deberían venir en el evento, pero por ahora vacío
+      total: params.total,
+    });
+  }
+
+  async sendQuotationConfirmation(params: {
+    quotationId: number;
+    customerEmail: string;
+    customerName?: string;
+  }) {
+    // Usar sendQuotationUpdate para notificar la creación
+    return this.sendQuotationUpdate({
+      to: params.customerEmail,
+      fullName: params.customerName || 'Cliente',
+      quotationId: params.quotationId,
+      status: 'Creada',
+      message: 'Su cotización ha sido recibida y está siendo procesada.',
+    });
+  }
+
+  async sendWelcomeEmail(params: {
+    email: string;
+    name?: string;
+  }) {
+    // Usar sendAccountCreation para el email de bienvenida
+    return this.sendAccountCreation({
+      to: params.email,
+      fullName: params.name || 'Usuario',
+    });
   }
 
   async listLogs(limit = 20) {

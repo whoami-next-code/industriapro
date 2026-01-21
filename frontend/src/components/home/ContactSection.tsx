@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 
 export default function ContactSection() {
+  const whatsappNumber = '51931005970';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -19,8 +20,19 @@ export default function ContactSection() {
     setSubmitStatus('idle');
 
     try {
-      // Aquí iría la llamada a la API
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
+      const message = [
+        `Nombre: ${formData.name}`,
+        `Email: ${formData.email}`,
+        formData.phone ? `Teléfono: ${formData.phone}` : null,
+        `Asunto: ${formData.subject}`,
+        `Mensaje: ${formData.message}`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
       setSubmitStatus('success');
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (error) {

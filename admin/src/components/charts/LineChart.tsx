@@ -108,8 +108,10 @@ export default function LineChart({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <Chart options={options} series={data} type="line" height={height} />
+    <div className="sp-card sp-card-static">
+      <div className="sp-card-body">
+        <Chart options={options} series={data} type="line" height={height} />
+      </div>
     </div>
   );
 }

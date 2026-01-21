@@ -21,9 +21,12 @@ import { PagosModule } from './pagos/pagos.module';
 import { ComprobantesModule } from './comprobantes/comprobantes.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { MailModule } from './mail/mail.module';
+import { AiModule } from './ai/ai.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
+    AiModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ServeStaticModule.forRoot({
@@ -223,6 +226,7 @@ import { MailModule } from './mail/mail.module';
     ReportesModule,
     RealtimeModule,
     MailModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [

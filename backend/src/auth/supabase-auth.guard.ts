@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
@@ -91,39 +92,14 @@ export class SupabaseAuthGuard implements CanActivate {
       // Buscar usuario en DB local
       let localUser = await this.usersService.findBySupabaseUid(supabaseUid);
 
-      if (!localUser) {
-        // Intento de fallback por email si el trigger falló o es una cuenta antigua
-        if (decoded.email) {
-          localUser = await this.usersService.findByEmail(decoded.email);
-          if (localUser) {
-            // Vincular con supabaseUid
-            await this.usersService.update(localUser.id, {
-              supabaseUid,
-            } as any);
-            this.logger.log(
-              `Usuario sincronizado por email en guard: ${localUser.email}`,
-            );
-          }
-        }
-
-        // Si aún no existe, crear usuario local automáticamente
-        if (!localUser && decoded.email) {
-          const fullName =
-            decoded.user_metadata?.fullName ||
-            decoded.user_metadata?.name ||
-            decoded.email?.split('@')[0] ||
-            'Usuario';
-
-          localUser = await this.usersService.create({
-            email: decoded.email,
-            fullName,
-            role: decoded.user_metadata?.role || 'CLIENTE',
-            verified: decoded.email_confirmed_at ? true : false,
+      if (!localUser && decoded.email) {
+        localUser = await this.usersService.findByEmail(decoded.email);
+        if (localUser) {
+          await this.usersService.update(localUser.id, {
             supabaseUid,
-          });
-
+          } as any);
           this.logger.log(
-            `Usuario creado automáticamente en guard: ${localUser.email}`,
+            `Usuario sincronizado por email en guard: ${localUser.email}`,
           );
         }
       }
@@ -134,11 +110,48 @@ export class SupabaseAuthGuard implements CanActivate {
         );
       }
 
+      if (!localUser.active) {
+        throw new UnauthorizedException(
+          'Usuario inactivo. Por favor, contacte al administrador.',
+        );
+      }
+
+      if (localUser.mustChangePassword) {
+        const path = req?.originalUrl || '';
+        const method = (req?.method || 'GET').toUpperCase();
+        const allowlist = [
+          '/auth/change-password-first',
+          '/auth/profile',
+        ];
+        const allowReadonly =
+          method === 'GET' &&
+          (path.startsWith('/api/pedidos') ||
+            path.startsWith('/api/trabajos') ||
+            path.startsWith('/api/cotizaciones'));
+        const allowProgressReport =
+          method === 'POST' &&
+          path.startsWith('/api/cotizaciones/') &&
+          path.includes('/avances');
+        const allowQuoteAttachments =
+          method === 'POST' && path.startsWith('/api/cotizaciones/adjuntos');
+        const allowed =
+          allowlist.some((p) => path.includes(p)) ||
+          allowReadonly ||
+          allowProgressReport ||
+          allowQuoteAttachments;
+        if (!allowed) {
+          throw new ForbiddenException(
+            'Debe cambiar su contraseña antes de continuar.',
+          );
+        }
+      }
+
       req.user = {
         userId: localUser.id,
         supabaseId: supabaseUid,
         email: localUser.email,
         role: localUser.role,
+        mustChangePassword: !!localUser.mustChangePassword,
       };
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/638fba18-ebc9-4dbf-9020-8d680af003ce', {

@@ -4,16 +4,18 @@ import 'package:go_router/go_router.dart' show GoRoute, GoRouter, RouteBase, Sta
 
 import '../../core/ui/layout/scaffold_with_nav_bar.dart';
 import '../../features/auth/presentation/login_page.dart';
+import '../../features/auth/presentation/change_password_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/avances/presentation/avance_form_page.dart';
-import '../../features/cotizaciones/presentation/cotizacion_form_page.dart';
 import '../../features/cotizaciones/presentation/cotizacion_detalle_page.dart';
 import '../../features/cotizaciones/presentation/cotizacion_avance_page.dart';
 import '../../features/pedidos_detalle/presentation/pedido_detalle_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/request/presentation/request_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
-import '../../features/workflow/presentation/workflow_page.dart';
+import '../../features/trabajos/presentation/trabajos_page.dart';
+import '../../features/reportes_tecnicos/presentation/reportes_tecnicos_page.dart';
+import '../../features/reportes_tecnicos/presentation/reporte_tecnico_form_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -26,6 +28,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/change-password',
+        name: 'change-password',
+        builder: (context, state) => const ChangePasswordPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -46,7 +53,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/workflow',
                 name: 'workflow',
-                builder: (context, state) => const WorkflowPage(),
+                builder: (context, state) => const TrabajosPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/reportes-tecnicos',
+                name: 'reportes-tecnicos',
+                builder: (context, state) => const ReportesTecnicosPage(),
               ),
             ],
           ),
@@ -88,11 +104,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/cotizaciones/nueva',
-        name: 'cotizacion-form',
-        builder: (context, state) => const CotizacionFormPage(),
-      ),
-      GoRoute(
         path: '/cotizaciones/:id',
         name: 'cotizacion-detalle',
         builder: (context, state) {
@@ -108,12 +119,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return CotizacionAvancePage(id: id);
         },
       ),
+      GoRoute(
+        path: '/reportes-tecnicos/:id',
+        name: 'reporte-tecnico-form',
+        builder: (context, state) {
+          final String id = state.pathParameters['id']!;
+          return ReporteTecnicoFormPage(id: id);
+        },
+      ),
     ],
     redirect: (context, state) {
       final bool loggedIn = authState.isAuthenticated;
       final bool hasToken = authState.token != null && authState.token!.isNotEmpty;
       final bool isDemo = authState.user?.id == 'demo';
       final bool isLoggingIn = state.matchedLocation == '/login';
+      final bool isChangingPassword = state.matchedLocation == '/change-password';
       final bool isProtectedRoute = !isLoggingIn;
 
       // Si es modo demo, permitir acceso pero no hacer requests protegidas
@@ -123,6 +143,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Para rutas protegidas, verificar que haya token real (no demo)
       if (isProtectedRoute && (!loggedIn || !hasToken)) {
+        return '/login';
+      }
+
+      if (loggedIn && hasToken && authState.mustChangePassword) {
+        if (!isChangingPassword) {
+          return '/change-password';
+        }
+        return null;
+      }
+
+      if (isChangingPassword && (!loggedIn || !hasToken)) {
         return '/login';
       }
 

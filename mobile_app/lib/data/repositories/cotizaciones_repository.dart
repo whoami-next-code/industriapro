@@ -74,6 +74,29 @@ class CotizacionesRepository {
         .toList();
   }
 
+  Future<List<CotizacionDetalle>> obtenerMias({
+    bool forceRefresh = false,
+  }) async {
+    const cacheKey = 'cotizaciones_mias';
+    if (!forceRefresh) {
+      final cachedData = _cache.get(cacheKey);
+      if (cachedData != null) {
+        final List<dynamic> jsonList = cachedData;
+        return jsonList
+            .map((json) =>
+                CotizacionDetalle.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+    }
+
+    final response = await _api.get('cotizaciones/mias');
+    final data = response.data as List<dynamic>? ?? [];
+    await _cache.save(cacheKey, data, expiration: _cacheDuration);
+    return data
+        .map((json) => CotizacionDetalle.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<CotizacionDetalle> obtenerDetalle(String id, {bool forceRefresh = false}) async {
     final cacheKey = 'cotizacion_detail_$id';
     

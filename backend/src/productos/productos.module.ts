@@ -5,9 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Product } from './product.entity';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { AuthModule } from '../auth/auth.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product]), RealtimeModule, AuthModule],
+  imports: [TypeOrmModule.forFeature([Product]), RealtimeModule, AuthModule, EventsModule],
   providers: [ProductosService],
   controllers: [ProductosController],
 })

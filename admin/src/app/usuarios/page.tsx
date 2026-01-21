@@ -6,12 +6,36 @@ import Card from "@/components/ui/Card";
 import Table, { Th, Td } from "@/components/ui/Table";
 import { TrashIcon } from "@heroicons/react/24/outline";
 
-type User = { id: number; email: string; role: string; fullName?: string; verified: boolean };
+type User = {
+  id: number;
+  email: string;
+  role: string;
+  fullName?: string;
+  verified: boolean;
+  active: boolean;
+  mustChangePassword?: boolean;
+};
+
+type CreateUserForm = {
+  fullName: string;
+  email: string;
+  role: string;
+  active: boolean;
+};
 
 export default function AdminUsuarios() {
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [form, setForm] = useState<CreateUserForm>({
+    fullName: "",
+    email: "",
+    role: "TECNICO",
+    active: true,
+  });
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -32,6 +56,43 @@ export default function AdminUsuarios() {
     }
   }
 
+  async function changeActive(id: number, active: boolean) {
+    try {
+      const updated = await apiFetch<{ active: boolean }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify({ active }) });
+      setItems(prev => prev.map(u => u.id === id ? { ...u, active: updated.active } : u));
+    } catch {
+      alert('No se pudo actualizar el estado');
+    }
+  }
+
+  async function createUser(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError(null);
+    setTempPassword(null);
+    try {
+      const created = await apiFetch<{ user: User; tempPassword: string }>(
+        '/auth/admin/create-user',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: form.email,
+            fullName: form.fullName,
+            role: form.role,
+            active: form.active,
+          }),
+        },
+      );
+      setItems(prev => [created.user, ...prev]);
+      setTempPassword(created.tempPassword);
+      setForm({ fullName: "", email: "", role: "TECNICO", active: true });
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'Error creando usuario');
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function deleteUser(id: number) {
     if (!window.confirm('¿Estás seguro de eliminar este usuario? Esta acción es irreversible.')) return;
     try {
@@ -46,6 +107,71 @@ export default function AdminUsuarios() {
     <Protected>
       <div className="space-y-4">
         <h1 className="text-xl font-semibold">Usuarios</h1>
+        <Card>
+          <form onSubmit={createUser} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-1">
+              <label className="sp-form-label">Nombre completo</label>
+              <input
+                type="text"
+                className="sp-input"
+                value={form.fullName}
+                onChange={(e) => setForm(prev => ({ ...prev, fullName: e.target.value }))}
+                placeholder="Ej. Juan Pérez"
+                required
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="sp-form-label">Email</label>
+              <input
+                type="email"
+                className="sp-input"
+                value={form.email}
+                onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="usuario@empresa.com"
+                required
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="sp-form-label">Rol</label>
+              <select
+                className="sp-select"
+                value={form.role}
+                onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))}
+              >
+                <option value="ADMIN">ADMIN</option>
+                <option value="VENDEDOR">VENDEDOR</option>
+                <option value="TECNICO">TECNICO</option>
+                <option value="OPERARIO">OPERARIO</option>
+              </select>
+            </div>
+            <div className="md:col-span-1">
+              <label className="sp-form-label">Estado</label>
+              <select
+                className="sp-select"
+                value={form.active ? '1' : '0'}
+                onChange={(e) => setForm(prev => ({ ...prev, active: e.target.value === '1' }))}
+              >
+                <option value="1">Activo</option>
+                <option value="0">Inactivo</option>
+              </select>
+            </div>
+            <div className="md:col-span-4 flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={creating}
+                className="sp-button sp-button-primary"
+              >
+                {creating ? 'Creando...' : 'Crear usuario'}
+              </button>
+              {tempPassword && (
+                <div className="text-sm text-emerald-700">
+                  Contraseña temporal: <span className="font-semibold">{tempPassword}</span>
+                </div>
+              )}
+              {createError && <div className="text-sm text-red-600">{createError}</div>}
+            </div>
+          </form>
+        </Card>
         <Card>
           <div className="overflow-x-auto">
             <Table>
@@ -72,29 +198,43 @@ export default function AdminUsuarios() {
                     <Td>{u.fullName || '-'}</Td>
                     <Td>{u.email}</Td>
                     <Td>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        u.verified 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      }`}>
-                        {u.verified ? 'Verificado' : 'Pendiente'}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`sp-badge ${u.active ? 'sp-badge--secondary' : 'sp-badge--accent'}`}>
+                          {u.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                        <span className={`sp-badge ${u.verified ? 'sp-badge--secondary' : 'sp-badge--accent'}`}>
+                          {u.verified ? 'Verificado' : 'Pendiente'}
+                        </span>
+                        {u.mustChangePassword ? (
+                          <span className="sp-badge sp-badge--accent">Cambiar clave</span>
+                        ) : null}
+                      </div>
                     </Td>
                     <Td>{u.role}</Td>
                     <Td>
                       <div className="flex items-center gap-2">
                         <select 
-                          className="border rounded px-2 py-1 text-sm bg-white dark:bg-[#0f1115] text-gray-900 dark:text-white border-gray-300 dark:border-gray-700 focus:ring-blue-500 focus:border-blue-500" 
+                          className="sp-select text-sm" 
                           value={u.role} 
                           onChange={(e) => changeRole(u.id, e.target.value)}
                         >
                           <option value="ADMIN">ADMIN</option>
                           <option value="VENDEDOR">VENDEDOR</option>
+                          <option value="TECNICO">TECNICO</option>
+                          <option value="OPERARIO">OPERARIO</option>
                           <option value="CLIENTE">CLIENTE</option>
+                        </select>
+                        <select
+                          className="sp-select text-sm"
+                          value={u.active ? '1' : '0'}
+                          onChange={(e) => changeActive(u.id, e.target.value === '1')}
+                        >
+                          <option value="1">Activo</option>
+                          <option value="0">Inactivo</option>
                         </select>
                         <button 
                           onClick={() => deleteUser(u.id)}
-                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                          className="sp-button sp-button-ghost h-9 w-9 !p-0 text-rose-500 hover:text-rose-600"
                           title="Eliminar usuario"
                         >
                           <TrashIcon className="w-5 h-5" />

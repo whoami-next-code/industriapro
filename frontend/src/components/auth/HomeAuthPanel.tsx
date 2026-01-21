@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AuthLoginForm } from "@/components/auth/AuthLoginForm";
-import { AuthRegisterForm } from "@/components/auth/AuthRegisterForm";
 
 type Profile = { userId: number; email: string; role: string };
 
@@ -11,7 +10,6 @@ export function HomeAuthPanel() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     setIsClient(true);
@@ -82,26 +80,8 @@ export function HomeAuthPanel() {
   return (
     <section className="mt-8" aria-label="Acceso">
       <div className="border rounded-xl bg-white p-4">
-        <div className="flex gap-2 mb-4" role="tablist" aria-label="Login y registro">
-          <button
-            role="tab"
-            aria-selected={tab === 'login'}
-            className={`px-3 py-2 rounded border text-sm ${tab === 'login' ? 'bg-black text-white' : ''}`}
-            onClick={() => setTab('login')}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'register'}
-            className={`px-3 py-2 rounded border text-sm ${tab === 'register' ? 'bg-black text-white' : ''}`}
-            onClick={() => setTab('register')}
-          >
-            Crear cuenta
-          </button>
-        </div>
         <div role="tabpanel">
-          {tab === 'login' ? <AuthLoginForm /> : <AuthRegisterForm />}
+          <AuthLoginForm />
         </div>
         {error && <div className="text-sm text-red-600 mt-2">{error}</div>}
       </div>

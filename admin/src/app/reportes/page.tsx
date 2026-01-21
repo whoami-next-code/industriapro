@@ -29,6 +29,7 @@ type Pedido = {
   fechaCreacion: string;
   cliente?: { nombre: string; email: string };
   items?: { producto: { nombre: string }; cantidad: number; precioUnitario: number }[];
+  paymentStatus?: string;
 };
 
 type Cotizacion = {
@@ -56,6 +57,11 @@ export default function ReportesPage() {
     loadData();
   }, []);
 
+  const num = (v: unknown) => {
+    const n = typeof v === 'number' ? v : Number(String(v ?? 0));
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const loadData = async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) return;
@@ -69,7 +75,16 @@ export default function ReportesPage() {
       ]);
 
       setProductos(Array.isArray(prods) ? prods : []);
-      setPedidos(Array.isArray(peds) ? peds : []);
+      const normalizePedido = (p: any): Pedido => ({
+        id: Number(p?.id ?? 0),
+        total: num(p?.total),
+        estado: String(p?.estado ?? p?.orderStatus ?? p?.status ?? 'PENDIENTE'),
+        fechaCreacion: String(p?.fechaCreacion ?? p?.createdAt ?? new Date().toISOString()),
+        cliente: p?.cliente ?? (p?.customerName ? { nombre: p.customerName, email: p.customerEmail || '' } : undefined),
+        items: Array.isArray(p?.items) ? p.items : undefined,
+        paymentStatus: String(p?.paymentStatus ?? ''),
+      });
+      setPedidos(Array.isArray(peds) ? peds.map(normalizePedido) : []);
       setCotizaciones(Array.isArray(cots) ? cots : []);
     } catch (error) {
       toast.error('Error al cargar los datos');
@@ -115,7 +130,13 @@ export default function ReportesPage() {
   };
 
   const getVentasData = () => {
-    const filteredPedidos = filterByDateRange(pedidos.filter(p => p.estado === 'COMPLETADO'));
+    const filteredPedidos = filterByDateRange(
+      pedidos.filter(p => {
+        const estado = String(p.estado ?? '').toUpperCase();
+        const payment = String(p.paymentStatus ?? '').toUpperCase();
+        return payment === 'COMPLETED' || estado === 'PAGADO' || estado === 'COMPLETADO';
+      }),
+    );
     
     const ventasPorMes = filteredPedidos.reduce((acc: any, pedido) => {
       const month = new Date(pedido.fechaCreacion).toLocaleDateString('es-PE', { year: 'numeric', month: 'short' });
@@ -227,10 +248,10 @@ export default function ReportesPage() {
   if (loading) {
     return (
       <Protected>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Cargando reportes...</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="sp-card sp-card-static px-10 py-8 text-center">
+            <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-[var(--brand-primary)] mx-auto mb-4"></div>
+            <p className="sp-muted">Cargando reportes...</p>
           </div>
         </div>
       </Protected>
@@ -246,8 +267,8 @@ export default function ReportesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reportes</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Analiza el rendimiento de tu negocio</p>
+            <h1 className="text-3xl font-bold">Reportes</h1>
+            <p className="sp-muted mt-1">Analiza el rendimiento de tu negocio</p>
           </div>
         </div>
 
@@ -255,31 +276,27 @@ export default function ReportesPage() {
         <Card title="Filtros">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Fecha Inicio
-              </label>
+              <label className="sp-form-label">Fecha Inicio</label>
               <input
                 type="date"
                 value={dateRange.start}
                 onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="sp-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Fecha Fin
-              </label>
+              <label className="sp-form-label">Fecha Fin</label>
               <input
                 type="date"
                 value={dateRange.end}
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="sp-input"
               />
             </div>
             <div className="flex items-end">
               <button
                 onClick={loadData}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 w-full justify-center"
+                className="sp-button sp-button-primary w-full justify-center"
               >
                 <FunnelIcon className="h-5 w-5" />
                 Aplicar Filtros
@@ -289,7 +306,7 @@ export default function ReportesPage() {
         </Card>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
+        <div className="border-b border-[var(--border)]">
           <nav className="flex gap-8">
             {[
               { key: 'ventas', label: 'Ventas' },
@@ -299,10 +316,10 @@ export default function ReportesPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as ReportType)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition ${
                   activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    ? 'border-[var(--brand-primary)] text-[var(--text)]'
+                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
                 {tab.label}
@@ -315,23 +332,17 @@ export default function ReportesPage() {
         {activeTab === 'ventas' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Ventas</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  S/ {ventasData.stats.total.toFixed(2)}
-                </p>
+              <div className="sp-widget sp-widget-primary">
+                <p className="text-sm sp-muted">Total Ventas</p>
+                <p className="text-2xl font-bold mt-2">S/ {ventasData.stats.total.toFixed(2)}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Promedio por Venta</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  S/ {ventasData.stats.promedio.toFixed(2)}
-                </p>
+              <div className="sp-widget sp-widget-secondary">
+                <p className="text-sm sp-muted">Promedio por Venta</p>
+                <p className="text-2xl font-bold mt-2">S/ {ventasData.stats.promedio.toFixed(2)}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Cantidad de Ventas</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  {ventasData.stats.cantidad}
-                </p>
+              <div className="sp-widget sp-widget-accent">
+                <p className="text-sm sp-muted">Cantidad de Ventas</p>
+                <p className="text-2xl font-bold mt-2">{ventasData.stats.cantidad}</p>
               </div>
             </div>
 
@@ -339,42 +350,42 @@ export default function ReportesPage() {
               title="Ventas por Mes"
               data={ventasData.chart.data}
               categories={ventasData.chart.categories}
-              colors={['#10b981']}
+              colors={['#7fd1c8']}
             />
 
             <Card title="Detalle de Ventas">
               <div className="flex justify-end gap-2 mb-4">
                 <button
                   onClick={() => exportToExcel('Reporte_Ventas', ventasData.table)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                  className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   Excel
                 </button>
                 <button
                   onClick={() => exportToPDF('Reporte de Ventas', ventasData.table)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                  className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   PDF
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                <table className="sp-table">
+                  <thead>
                     <tr>
                       {Object.keys(ventasData.table[0] || {}).map((key) => (
-                        <th key={key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                        <th key={key} className="text-left">
                           {key}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody>
                     {ventasData.table.map((row, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={index}>
                         {Object.values(row).map((value, i) => (
-                          <td key={i} className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <td key={i} className="text-sm">
                             {value as string}
                           </td>
                         ))}
@@ -391,23 +402,17 @@ export default function ReportesPage() {
         {activeTab === 'productos' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Productos</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  {productosData.stats.total}
-                </p>
+              <div className="sp-widget sp-widget-primary">
+                <p className="text-sm sp-muted">Total Productos</p>
+                <p className="text-2xl font-bold mt-2">{productosData.stats.total}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Bajo Stock</p>
-                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
-                  {productosData.stats.bajoStock}
-                </p>
+              <div className="sp-widget sp-widget-accent">
+                <p className="text-sm sp-muted">Bajo Stock</p>
+                <p className="text-2xl font-bold mt-2">{productosData.stats.bajoStock}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Valor Inventario</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  S/ {productosData.stats.valorInventario.toFixed(2)}
-                </p>
+              <div className="sp-widget sp-widget-secondary">
+                <p className="text-sm sp-muted">Valor Inventario</p>
+                <p className="text-2xl font-bold mt-2">S/ {productosData.stats.valorInventario.toFixed(2)}</p>
               </div>
             </div>
 
@@ -422,7 +427,7 @@ export default function ReportesPage() {
                 title="Stock por Producto (Top 10)"
                 data={productosData.bar.data}
                 categories={productosData.bar.categories}
-                colors={['#3b82f6']}
+                colors={['#7ba7ff']}
               />
             </div>
 
@@ -430,35 +435,35 @@ export default function ReportesPage() {
               <div className="flex justify-end gap-2 mb-4">
                 <button
                   onClick={() => exportToExcel('Reporte_Productos', productosData.table)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                  className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   Excel
                 </button>
                 <button
                   onClick={() => exportToPDF('Reporte de Productos', productosData.table)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                  className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   PDF
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                <table className="sp-table">
+                  <thead>
                     <tr>
                       {Object.keys(productosData.table[0] || {}).map((key) => (
-                        <th key={key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                        <th key={key} className="text-left">
                           {key}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody>
                     {productosData.table.map((row, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={index}>
                         {Object.values(row).map((value, i) => (
-                          <td key={i} className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <td key={i} className="text-sm">
                             {value as string}
                           </td>
                         ))}
@@ -475,23 +480,17 @@ export default function ReportesPage() {
         {activeTab === 'cotizaciones' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Cotizaciones</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  {cotizacionesData.stats.total}
-                </p>
+              <div className="sp-widget sp-widget-primary">
+                <p className="text-sm sp-muted">Total Cotizaciones</p>
+                <p className="text-2xl font-bold mt-2">{cotizacionesData.stats.total}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Cotizaciones Abiertas</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">
-                  {cotizacionesData.stats.abiertas}
-                </p>
+              <div className="sp-widget sp-widget-accent">
+                <p className="text-sm sp-muted">Cotizaciones Abiertas</p>
+                <p className="text-2xl font-bold mt-2">{cotizacionesData.stats.abiertas}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Tasa de Conversión</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
-                  {cotizacionesData.stats.tasaConversion}%
-                </p>
+              <div className="sp-widget sp-widget-secondary">
+                <p className="text-sm sp-muted">Tasa de Conversión</p>
+                <p className="text-2xl font-bold mt-2">{cotizacionesData.stats.tasaConversion}%</p>
               </div>
             </div>
 
@@ -505,35 +504,35 @@ export default function ReportesPage() {
               <div className="flex justify-end gap-2 mb-4">
                 <button
                   onClick={() => exportToExcel('Reporte_Cotizaciones', cotizacionesData.table)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                  className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   Excel
                 </button>
                 <button
                   onClick={() => exportToPDF('Reporte de Cotizaciones', cotizacionesData.table)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                  className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   PDF
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                <table className="sp-table">
+                  <thead>
                     <tr>
                       {Object.keys(cotizacionesData.table[0] || {}).map((key) => (
-                        <th key={key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                        <th key={key} className="text-left">
                           {key}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody>
                     {cotizacionesData.table.map((row, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={index}>
                         {Object.values(row).map((value, i) => (
-                          <td key={i} className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <td key={i} className="text-sm">
                             {value as string}
                           </td>
                         ))}

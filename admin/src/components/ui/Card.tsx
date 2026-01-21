@@ -1,15 +1,25 @@
 import React from "react";
 
-export default function Card({ title, actions, children }: { title?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+export default function Card({
+  title,
+  actions,
+  children,
+  className = "",
+}: {
+  title?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="rounded-lg bg-white text-[#111827] shadow ring-1 ring-[#e5e7eb]">
+    <section className={`sp-card ${className}`}>
       {(title || actions) && (
-        <header className="px-4 py-3 border-b border-[#e5e7eb] flex items-center justify-between">
+        <header className="sp-card-header flex items-center justify-between">
           {title && <h2 className="text-sm font-semibold tracking-wide">{title}</h2>}
           {actions}
         </header>
       )}
-      <div className="p-4">
+      <div className="sp-card-body">
         {children}
       </div>
     </section>

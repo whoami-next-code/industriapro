@@ -12,10 +12,17 @@ type Order = {
   status: string; 
   total: number; 
   createdAt: string;
+  orderStatus?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  customerName?: string;
+  customerDni?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   userId?: number;
   notes?: string;
   cliente?: { nombre: string; email?: string };
-  items?: Array<{ producto: { nombre: string }; cantidad: number; precio: number }>;
+  items?: Array<{ producto?: { nombre: string }; cantidad: number; precio: number; name?: string; quantity?: number; price?: number }>;
 };
 
 type Avance = {
@@ -40,6 +47,31 @@ export default function AdminPedidos() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [avances, setAvances] = useState<Avance[]>([]);
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
+  const [comprobante, setComprobante] = useState<any | null>(null);
+  const [factura, setFactura] = useState<any | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<{ method?: string; id?: string } | null>(null);
+
+  const parseItems = (raw: Order['items'] | string | null | undefined) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const normalizeItems = (raw: ReturnType<typeof parseItems>) => {
+    return raw.map((item: any) => ({
+      nombre: item?.producto?.nombre || item?.name || item?.producto || 'N/A',
+      cantidad: Number(item?.cantidad ?? item?.quantity ?? 0),
+      precio: Number(item?.precio ?? item?.price ?? 0),
+    }));
+  };
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -68,10 +100,14 @@ export default function AdminPedidos() {
     setDetailLoading(true);
     setAvances([]);
     setEvidencias([]);
+    setComprobante(null);
+    setFactura(null);
+    setPaymentInfo(null);
     
     try {
       const detail = await apiFetch<Order>(`/pedidos/${order.id}`);
-      setSelected(detail);
+      const normalizedItems = normalizeItems(parseItems(detail.items));
+      setSelected({ ...detail, items: normalizedItems as any });
       
       // Parsear avances y evidencias desde notes
       if (detail.notes) {
@@ -82,6 +118,15 @@ export default function AdminPedidos() {
           }
           if (notes.evidencias && Array.isArray(notes.evidencias)) {
             setEvidencias(notes.evidencias);
+          }
+          if (notes.comprobante) {
+            setComprobante(notes.comprobante);
+          }
+          if (notes.factura) {
+            setFactura(notes.factura);
+          }
+          if (notes.payment) {
+            setPaymentInfo(notes.payment);
           }
         } catch (e) {
           console.warn('Error parsing notes:', e);
@@ -143,14 +188,14 @@ export default function AdminPedidos() {
                 ) : items.map(o => (
                   <tr key={o.id}>
                     <Td>#{o.id}</Td>
-                    <Td>{o.cliente?.nombre || 'N/A'}</Td>
+                    <Td>{o.cliente?.nombre || o.customerName || 'N/A'}</Td>
                     <Td>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        o.status === 'COMPLETADO' 
-                          ? 'bg-green-100 text-green-800'
+                      <span className={`sp-badge ${
+                        o.status === 'COMPLETADO'
+                          ? 'sp-badge--secondary'
                           : o.status === 'ENVIADO'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                            ? 'sp-badge--primary'
+                            : 'sp-badge--accent'
                       }`}>
                         {o.status}
                       </span>
@@ -165,7 +210,7 @@ export default function AdminPedidos() {
                         {o.status !== 'ENVIADO' && (
                           <button 
                             onClick={() => updateStatus(o.id, 'ENVIADO')} 
-                            className="text-xs text-blue-500 hover:text-blue-400"
+                            className="text-xs text-blue-600 hover:text-blue-500"
                           >
                             Enviado
                           </button>
@@ -173,7 +218,7 @@ export default function AdminPedidos() {
                         {o.status !== 'COMPLETADO' && (
                           <button 
                             onClick={() => updateStatus(o.id, 'COMPLETADO')} 
-                            className="text-xs text-green-500 hover:text-green-400"
+                            className="text-xs text-emerald-600 hover:text-emerald-500"
                           >
                             Completar
                           </button>
@@ -201,28 +246,28 @@ export default function AdminPedidos() {
               <Card title="Información del Pedido">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-semibold text-gray-600">Estado:</span>
-                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                      selected.status === 'COMPLETADO' 
-                        ? 'bg-green-100 text-green-800'
+                    <span className="font-semibold sp-muted">Estado:</span>
+                    <span className={`ml-2 sp-badge ${
+                      selected.status === 'COMPLETADO'
+                        ? 'sp-badge--secondary'
                         : selected.status === 'ENVIADO'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                          ? 'sp-badge--primary'
+                          : 'sp-badge--accent'
                     }`}>
                       {selected.status}
                     </span>
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-600">Total:</span>
+                    <span className="font-semibold sp-muted">Total:</span>
                     <span className="ml-2">{formatMoney(selected.total)}</span>
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-600">Fecha:</span>
+                    <span className="font-semibold sp-muted">Fecha:</span>
                     <span className="ml-2">{formatDate(selected.createdAt)}</span>
                   </div>
                   {selected.cliente && (
                     <div>
-                      <span className="font-semibold text-gray-600">Cliente:</span>
+                      <span className="font-semibold sp-muted">Cliente:</span>
                       <span className="ml-2">{selected.cliente.nombre}</span>
                     </div>
                   )}
@@ -230,29 +275,87 @@ export default function AdminPedidos() {
               </Card>
 
               {/* Items del pedido */}
-              {selected.items && selected.items.length > 0 && (
+              {Array.isArray(selected.items) && selected.items.length > 0 && (
                 <Card title="Productos">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="sp-table text-sm">
                       <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-2">Producto</th>
-                          <th className="text-right p-2">Cantidad</th>
-                          <th className="text-right p-2">Precio</th>
-                          <th className="text-right p-2">Subtotal</th>
+                        <tr>
+                          <th className="text-left">Producto</th>
+                          <th className="text-right">Cantidad</th>
+                          <th className="text-right">Precio</th>
+                          <th className="text-right">Subtotal</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selected.items.map((item, idx) => (
-                          <tr key={idx} className="border-b">
-                            <td className="p-2">{item.producto?.nombre || 'N/A'}</td>
-                            <td className="text-right p-2">{item.cantidad}</td>
-                            <td className="text-right p-2">{formatMoney(item.precio)}</td>
-                            <td className="text-right p-2">{formatMoney(item.cantidad * item.precio)}</td>
+                          <tr key={idx}>
+                            <td className="text-sm">{item.producto?.nombre || (item as any).nombre || item.name || 'N/A'}</td>
+                            <td className="text-right text-sm">{item.cantidad ?? (item as any).quantity ?? 0}</td>
+                            <td className="text-right text-sm">{formatMoney(item.precio ?? (item as any).price ?? 0)}</td>
+                            <td className="text-right text-sm">{formatMoney((item.cantidad ?? (item as any).quantity ?? 0) * (item.precio ?? (item as any).price ?? 0))}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </Card>
+              )}
+
+              <Card title="Detalles de la Venta">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold sp-muted">Método de pago:</span>
+                    <span className="ml-2">{selected.paymentMethod || paymentInfo?.method || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold sp-muted">Estado de pago:</span>
+                    <span className="ml-2">{selected.paymentStatus || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold sp-muted">Documento:</span>
+                    <span className="ml-2">{selected.customerDni || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold sp-muted">Cliente:</span>
+                    <span className="ml-2">{selected.customerName || selected.cliente?.nombre || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold sp-muted">Correo:</span>
+                    <span className="ml-2">{selected.customerEmail || selected.cliente?.email || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold sp-muted">Teléfono:</span>
+                    <span className="ml-2">{selected.customerPhone || 'N/A'}</span>
+                  </div>
+                </div>
+              </Card>
+
+              {(comprobante || factura) && (
+                <Card title="Comprobante / Factura">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {comprobante && (
+                      <div className="rounded-lg border border-[var(--border)] p-4 space-y-1">
+                        <div className="font-semibold">Comprobante</div>
+                        <div className="sp-muted">ID: {comprobante.id}</div>
+                        <div className="sp-muted">Tipo: {comprobante.type}</div>
+                        <div className="sp-muted">Total: {formatMoney(comprobante.totals?.total ?? selected.total)}</div>
+                        <div className="sp-muted">
+                          Documento: {comprobante.customerInfo?.documentType} {comprobante.customerInfo?.document}
+                        </div>
+                      </div>
+                    )}
+                    {factura && (
+                      <div className="rounded-lg border border-[var(--border)] p-4 space-y-1">
+                        <div className="font-semibold">Factura</div>
+                        <div className="sp-muted">ID: {factura.id}</div>
+                        <div className="sp-muted">Tipo: {factura.type}</div>
+                        <div className="sp-muted">Total: {formatMoney(factura.totals?.total ?? selected.total)}</div>
+                        <div className="sp-muted">
+                          Documento: {factura.customerInfo?.documentType} {factura.customerInfo?.document}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Card>
               )}
@@ -266,14 +369,14 @@ export default function AdminPedidos() {
                         <div className="mt-1 h-2 w-2 rounded-full bg-blue-600" />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="font-semibold text-gray-900">{avance.mensaje || avance.message || 'Sin mensaje'}</span>
+                            <span className="font-semibold">{avance.mensaje || avance.message || 'Sin mensaje'}</span>
                             {avance.estado && (
-                              <span className="text-xs px-2 py-1 rounded bg-gray-100 border border-gray-200 text-gray-700">
+                              <span className="sp-badge sp-badge--primary">
                                 {avance.estado}
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs sp-muted mt-1">
                             {formatDate(avance.fecha)}
                             {avance.tecnico && ` · Técnico: ${avance.tecnico}`}
                           </div>
@@ -282,7 +385,7 @@ export default function AdminPedidos() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-gray-600 text-sm">Sin avances registrados desde la app móvil.</p>
+                  <p className="sp-muted text-sm">Sin avances registrados desde la app móvil.</p>
                 )}
               </Card>
 
@@ -291,14 +394,14 @@ export default function AdminPedidos() {
                 {evidencias.length > 0 ? (
                   <div className="space-y-4">
                     {evidencias.map((evidencia, idx) => (
-                      <div key={idx} className="border rounded-lg p-4">
-                        <div className="text-xs text-gray-500 mb-2">
+                      <div key={idx} className="border border-[var(--border)] rounded-xl p-4">
+                        <div className="text-xs sp-muted mb-2">
                           {formatDate(evidencia.fecha)}
                         </div>
                         {evidencia.archivos && evidencia.archivos.length > 0 && (
                           <div className="mb-2">
-                            <span className="text-sm font-semibold text-gray-700">Archivos:</span>
-                            <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
+                            <span className="text-sm font-semibold sp-muted">Archivos:</span>
+                            <ul className="list-disc list-inside text-sm sp-muted ml-2">
                               {evidencia.archivos.map((archivo, aIdx) => (
                                 <li key={aIdx}>{archivo}</li>
                               ))}
@@ -307,10 +410,10 @@ export default function AdminPedidos() {
                         )}
                         {evidencia.tipos && evidencia.tipos.length > 0 && (
                           <div className="mb-2">
-                            <span className="text-sm font-semibold text-gray-700">Tipos:</span>
+                            <span className="text-sm font-semibold sp-muted">Tipos:</span>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {evidencia.tipos.map((tipo, tIdx) => (
-                                <span key={tIdx} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
+                                <span key={tIdx} className="sp-badge sp-badge--primary">
                                   {tipo}
                                 </span>
                               ))}
@@ -319,8 +422,8 @@ export default function AdminPedidos() {
                         )}
                         {evidencia.comentarios && evidencia.comentarios.length > 0 && (
                           <div>
-                            <span className="text-sm font-semibold text-gray-700">Comentarios:</span>
-                            <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
+                            <span className="text-sm font-semibold sp-muted">Comentarios:</span>
+                            <ul className="list-disc list-inside text-sm sp-muted ml-2">
                               {evidencia.comentarios.filter(c => c && c.trim()).map((comentario, cIdx) => (
                                 <li key={cIdx}>{comentario}</li>
                               ))}
@@ -331,7 +434,7 @@ export default function AdminPedidos() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-600 text-sm">Sin evidencias registradas desde la app móvil.</p>
+                  <p className="sp-muted text-sm">Sin evidencias registradas desde la app móvil.</p>
                 )}
               </Card>
 

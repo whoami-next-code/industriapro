@@ -21,7 +21,7 @@ class App extends ConsumerWidget {
       message: 'app_build',
       data: {
         'routerHash': router.hashCode,
-        'themeSeed': themeState.seedColor.value.toRadixString(16),
+        'themeSeed': themeState.seedColor.toARGB32().toRadixString(16),
       },
       hypothesisId: 'H4',
       runId: 'pre-fix-2',

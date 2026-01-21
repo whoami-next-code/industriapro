@@ -26,21 +26,21 @@ export default function ConfirmDialog({
   cancelText = 'Cancelar'
 }: ConfirmDialogProps) {
   const icons = {
-    danger: <XCircleIcon className="h-12 w-12 text-red-600" />,
-    warning: <ExclamationTriangleIcon className="h-12 w-12 text-yellow-600" />,
-    success: <CheckCircleIcon className="h-12 w-12 text-green-600" />,
-  };
-
-  const buttonColors = {
-    danger: 'bg-red-600 hover:bg-red-700',
-    warning: 'bg-yellow-600 hover:bg-yellow-700',
-    success: 'bg-green-600 hover:bg-green-700',
+    danger: <XCircleIcon className="h-12 w-12 text-rose-500" />,
+    warning: <ExclamationTriangleIcon className="h-12 w-12 text-amber-500" />,
+    success: <CheckCircleIcon className="h-12 w-12 text-emerald-500" />,
   };
 
   const handleConfirm = () => {
     onConfirm();
     onClose();
   };
+
+  const confirmClass = {
+    danger: "sp-button-danger",
+    warning: "sp-button-warning",
+    success: "sp-button-success",
+  }[type];
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -54,7 +54,7 @@ export default function ConfirmDialog({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25 dark:bg-opacity-50" />
+          <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px]" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -68,8 +68,8 @@ export default function ConfirmDialog({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
-                <div className="p-6">
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl sp-card sp-card-static text-left align-middle transition-all">
+                <div className="sp-card-body">
                   <div className="flex items-center gap-4">
                     <div className="flex-shrink-0">
                       {icons[type]}
@@ -77,28 +77,28 @@ export default function ConfirmDialog({
                     <div className="flex-1">
                       <Dialog.Title
                         as="h3"
-                        className="text-lg font-medium leading-6 text-gray-900 dark:text-white"
+                        className="text-lg font-medium leading-6"
                       >
                         {title}
                       </Dialog.Title>
-                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      <p className="mt-2 text-sm sp-muted">
                         {message}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 flex gap-3 justify-end">
+                <div className="px-6 py-4 flex gap-3 justify-end border-t border-[var(--border)]">
                   <button
                     type="button"
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                    className="sp-button sp-button-outline"
                     onClick={onClose}
                   >
                     {cancelText}
                   </button>
                   <button
                     type="button"
-                    className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition ${buttonColors[type]}`}
+                    className={`sp-button ${confirmClass}`}
                     onClick={handleConfirm}
                   >
                     {confirmText}

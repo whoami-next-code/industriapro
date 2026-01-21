@@ -125,6 +125,55 @@ class CotizacionDetallePage extends ConsumerWidget {
     }
   }
 
+  Color _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'PENDIENTE':
+      case 'NUEVA':
+        return Colors.orange;
+      case 'EN_PROCESO':
+      case 'PRODUCCION':
+      case 'EN_PRODUCCION':
+        return Colors.blue;
+      case 'INSTALACION':
+        return Colors.purple;
+      case 'FINALIZADA':
+      case 'FINALIZADO':
+      case 'COMPLETADA':
+      case 'COMPLETADO':
+        return Colors.green;
+      case 'CANCELADA':
+      case 'CANCELADO':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toUpperCase()) {
+      case 'EN_PROCESO':
+      case 'PROCESANDO':
+        return 'En Proceso';
+      case 'PRODUCCION':
+      case 'EN_PRODUCCION':
+        return 'En Producción';
+      case 'INSTALACION':
+        return 'Instalación';
+      case 'FINALIZADA':
+      case 'FINALIZADO':
+      case 'COMPLETADA':
+      case 'COMPLETADO':
+        return 'Finalizada';
+      case 'PENDIENTE':
+        return 'Pendiente';
+      case 'CANCELADA':
+      case 'CANCELADO':
+        return 'Cancelada';
+      default:
+        return status;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detalleAsync = ref.watch(cotizacionDetalleProvider(id));
@@ -211,6 +260,10 @@ class CotizacionDetallePage extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _buildItems(context, c),
                 const SizedBox(height: 12),
+                if (c.images.isNotEmpty) ...[
+                  _buildImages(context, c),
+                  const SizedBox(height: 12),
+                ],
                 if (c.need != null || c.notes != null) ...[
                   _buildDetails(context, c),
                   const SizedBox(height: 12),
@@ -233,6 +286,10 @@ class CotizacionDetallePage extends ConsumerWidget {
                           children: [
                             _buildItems(context, c),
                             const SizedBox(height: 24),
+                            if (c.images.isNotEmpty) ...[
+                              _buildImages(context, c),
+                              const SizedBox(height: 24),
+                            ],
                             if (c.need != null || c.notes != null)
                               _buildDetails(context, c),
                           ],
@@ -273,6 +330,10 @@ class CotizacionDetallePage extends ConsumerWidget {
                       children: [
                         _buildItems(context, c),
                         const SizedBox(height: 24),
+                        if (c.images.isNotEmpty) ...[
+                          _buildImages(context, c),
+                          const SizedBox(height: 24),
+                        ],
                         if (c.progressUpdates.isNotEmpty)
                           _buildAvances(context, c),
                       ],
@@ -288,41 +349,109 @@ class CotizacionDetallePage extends ConsumerWidget {
   }
 
   Widget _buildClientInfo(BuildContext context, CotizacionDetalle c) {
+    final statusColor = _statusColor(c.status);
+    final statusLabel = _statusLabel(c.status);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              c.code,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.description_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cotización',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(color: Colors.grey),
+                      ),
+                      Text(
+                        c.code,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.circle, size: 8, color: statusColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
             Text(
               c.customerName,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             if (c.customerPhone != null) ...[
-              const SizedBox(height: 4),
-              Text('Tel: ${c.customerPhone}'),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.phone, size: 16, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text('Tel: ${c.customerPhone}'),
+                ],
+              ),
             ],
             if (c.customerEmail != null) ...[
-              const SizedBox(height: 2),
-              Text('Email: ${c.customerEmail}'),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.email_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text('Email: ${c.customerEmail}'),
+                ],
+              ),
             ],
             const SizedBox(height: 12),
             Row(
               children: [
-                Chip(
-                  label: Text(c.status),
-                  backgroundColor: Colors.blue.shade50,
-                  labelStyle: const TextStyle(color: Colors.blue),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,9 +472,15 @@ class CotizacionDetallePage extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Entrega estimada: ${_formatDate(c.estimatedDeliveryDate)}',
-              style: Theme.of(context).textTheme.bodySmall,
+            Row(
+              children: [
+                const Icon(Icons.event, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Text(
+                  'Entrega estimada: ${_formatDate(c.estimatedDeliveryDate)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ],
         ),

@@ -1,60 +1,61 @@
-@import "font-awesome/css/font-awesome.min.css";
 @import "tailwindcss";
-/* Font Awesome se carga vía import CSS para evitar <link> manual */
 
-/* Mantener identidad visual consistente con el frontend (modo claro por defecto) */
 :root {
-  --brand-primary: #111827;
-  --brand-secondary: #2563eb;
-  --surface: #f7f7f8;
+  color-scheme: light;
+  --brand-primary: #7ba7ff;
+  --brand-secondary: #7fd1c8;
+  --brand-accent: #c9b8ff;
+  --surface: #f5f7fb;
+  --surface-2: #eef2fb;
   --surface-card: #ffffff;
-  --text: #111111;
-  --text-muted: #4b5563;
-  --border: #e5e7eb;
-  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+  --text: #1f2a37;
+  --text-muted: #5f6b7a;
+  --border: #e2e8f0;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 12px 30px rgba(15, 23, 42, 0.12);
+  --focus: #5a8df6;
 }
 
-@theme inline {
-  --color-background: var(--surface);
-  --color-foreground: var(--text);
-  --font-sans: var(--font-industrial-sans);
-  --font-heading: var(--font-industrial-condensed);
+.dark {
+  color-scheme: dark;
+  --surface: #0f172a;
+  --surface-2: #111c34;
+  --surface-card: #141f3b;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border: #233252;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.3);
+  --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.35);
+  --shadow-md: 0 12px 30px rgba(15, 23, 42, 0.4);
+  --focus: #93b4ff;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  /* Dejamos que el CSS de la plantilla (/assets/css/site.min.css) controle el layout y colores de componentes */
   background-color: var(--surface);
   color: var(--text);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-industrial-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
-/* Accesibilidad: resaltar enfoque por teclado */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-industrial-condensed), var(--font-industrial-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+::selection {
+  background: rgba(123, 167, 255, 0.25);
+}
+
 :focus-visible {
-  outline: 3px solid var(--brand-secondary);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
-/* Mejoras de accesibilidad para el tema Ultra Admin */
-.sidebar_toggle:focus-visible,
-.toggle:focus-visible {
-  outline: 3px solid var(--brand-secondary) !important;
-  outline-offset: 2px;
-  background-color: rgba(37, 99, 235, 0.1) !important;
-}
-
-/* Mejorar contraste en enlaces del sidebar */
-.page-sidebar .wraplist a {
-  color: #ffffff !important;
-  transition: all 0.2s ease;
-}
-
-.page-sidebar .wraplist a:hover,
-.page-sidebar .wraplist a:focus {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-}
-
-/* Texto oculto para lectores de pantalla */
 .sr-only {
   position: absolute !important;
   width: 1px !important;
@@ -67,168 +68,299 @@ body {
   border: 0 !important;
 }
 
-/* Mejorar contraste en botones */
-.sidebar_toggle,
-.toggle {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+.sp-admin {
+  background: var(--surface);
+  color: var(--text);
 }
 
-.sidebar_toggle:hover,
-.toggle:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* --- Contraste en áreas oscuras del tema Ultra Admin --- */
-/* Las secciones oscuras del template usan fondos #1f1f1f/#23262b; aseguramos texto claro. */
-.wrapper.main-wrapper,
-.box .content-body,
-.page-topbar,
-.page-sidebar,
-#main-content {
-  color: #e5e7eb; /* zinc-200: suficiente contraste sobre fondos oscuros */
-}
-
-/* Enlaces en zonas oscuras: azul claro con buen contraste */
-.box .content-body a,
-.wrapper.main-wrapper a {
-  color: #93c5fd; /* sky-300 */
-}
-.box .content-body a:hover,
-.wrapper.main-wrapper a:hover {
-  color: #bfdbfe; /* sky-200 */
-}
-
-/* Asegurar que las tablas dentro de áreas oscuras conserven fondo claro para legibilidad */
-.box .content-body .table-basic,
-.wrapper.main-wrapper .table-basic,
-#main-content .table-basic {
-  background: #ffffff !important;
-  color: #111827 !important;
-}
-.box .content-body .table-basic thead th,
-.wrapper.main-wrapper .table-basic thead th,
-#main-content .table-basic thead th {
-  background: #f3f4f6 !important; /* gris claro */
-  color: #111827 !important; /* texto oscuro legible */
-}
-.box .content-body .table-basic tbody td,
-.wrapper.main-wrapper .table-basic tbody td,
-#main-content .table-basic tbody td {
-  color: #111827 !important;
-}
-
-/* Modo oscuro del sistema: asegurar que el contraste se mantenga */
-@media (prefers-color-scheme: dark) {
-  .wrapper.main-wrapper,
-  .box .content-body,
-  .page-topbar,
-  .page-sidebar,
-  #main-content {
-    color: #e5e7eb;
-  }
-  .box .content-body .table-basic,
-  .wrapper.main-wrapper .table-basic,
-  #main-content .table-basic {
-    background: #0f172a !important; /* slate-900 para modo oscuro */
-    color: #f8fafc !important; /* texto muy claro */
-  }
-  .box .content-body .table-basic thead th,
-  .wrapper.main-wrapper .table-basic thead th,
-  #main-content .table-basic thead th {
-    background: #1f2937 !important; /* slate-800 */
-    color: #f8fafc !important;
-  }
-  .box .content-body .table-basic tbody td,
-  .wrapper.main-wrapper .table-basic tbody td,
-  #main-content .table-basic tbody td {
-    color: #f8fafc !important;
-  }
-}
-
-/* Encabezados de panel en Ultra Admin: mantener contraste del título */
-.panel_header .title,
-.page-title .title {
-  color: #111827; /* títulos oscuros sobre fondos claros del header */
-}
-
-/* Corrección para labels de navegación izquierda (cuando el tema aplica colores bajos) */
-.page-sidebar .wraplist .title { color: #ffffff !important; }
-
-.text-muted { color: var(--text-muted); }
-.bg-surface { background-color: var(--surface); }
-.bg-card { background-color: var(--surface-card); }
-.text-brand { color: var(--brand-primary); }
-.btn-primary { background-color: var(--brand-secondary); color: #fff; }
-
-/* Botones principales con estados y accesibilidad */
-.btn { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem .75rem; border-radius:.375rem; border:1px solid var(--border); background:#fff; color: var(--text); font-weight:500; }
-.btn:hover { background:#f7fafc; }
-.btn-primary { border-color: transparent; background: var(--brand-secondary); color:#fff; }
-.btn-primary:hover { filter: brightness(0.95); }
-.btn-icon { width:2rem; height:2rem; justify-content:center; }
-
-/* Encabezados con estilo más industrial (condensed) */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading), var(--font-sans), Arial, Helvetica, sans-serif;
-  letter-spacing: 0.01em;
-}
-
-/* Utilidades para tablas y formularios coherentes */
-.table-basic {
-  width: 100%;
-  border-collapse: collapse;
+.sp-sidebar {
   background: var(--surface-card);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
 }
-.table-basic th, .table-basic td {
-  padding: 0.625rem 0.75rem;
+
+.sp-topbar {
+  background: var(--surface-card);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
 }
-.table-basic thead th {
-  background: #f3f4f6;
-  color: #111827;
+
+.sp-nav-section {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.75rem 1rem 0.35rem;
+}
+
+.sp-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.75rem;
+  color: var(--text);
+  transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.sp-nav-link:hover,
+.sp-nav-link:focus-visible {
+  background: rgba(123, 167, 255, 0.15);
+  color: #1f2a37;
+}
+
+.sp-nav-link[data-active="true"] {
+  background: rgba(127, 209, 200, 0.25);
+  color: #0f172a;
+  box-shadow: var(--shadow-xs);
+}
+
+.dark .sp-nav-link:hover,
+.dark .sp-nav-link:focus-visible,
+.dark .sp-nav-link[data-active="true"] {
+  color: var(--text);
+}
+
+.sp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.sp-button:active {
+  transform: translateY(1px);
+}
+
+.sp-button-primary {
+  background: rgba(123, 167, 255, 0.9);
+  color: #0f172a;
+  box-shadow: var(--shadow-xs);
+}
+
+.sp-button-primary:hover {
+  background: rgba(123, 167, 255, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.sp-button-outline {
+  background: var(--surface-card);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.sp-button-outline:hover {
+  background: var(--surface-2);
+}
+
+.sp-button-ghost {
+  background: transparent;
+  color: var(--text);
+}
+
+.sp-button-ghost:hover {
+  background: rgba(201, 184, 255, 0.2);
+}
+
+.sp-button-danger {
+  background: rgba(252, 165, 165, 0.5);
+  color: #7f1d1d;
+}
+
+.sp-button-warning {
+  background: rgba(252, 211, 77, 0.4);
+  color: #7c2d12;
+}
+
+.sp-button-success {
+  background: rgba(110, 231, 183, 0.4);
+  color: #065f46;
+}
+
+.sp-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-xs);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.sp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.sp-card-static:hover {
+  transform: none;
+  box-shadow: var(--shadow-md);
+}
+
+.sp-card-header {
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
-.table-zebra tbody tr:nth-child(odd) { background: #fafafa; }
-.table-compact th, .table-compact td { padding: 0.5rem; }
-.table-empty {
-  text-align: center;
+
+.sp-card-body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.sp-widget {
+  border-radius: 1.25rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-xs);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.sp-widget:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.sp-widget-primary {
+  border-color: rgba(123, 167, 255, 0.35);
+  background: linear-gradient(135deg, rgba(123, 167, 255, 0.18), rgba(255, 255, 255, 0.9));
+}
+
+.sp-widget-secondary {
+  border-color: rgba(127, 209, 200, 0.35);
+  background: linear-gradient(135deg, rgba(127, 209, 200, 0.18), rgba(255, 255, 255, 0.9));
+}
+
+.sp-widget-accent {
+  border-color: rgba(201, 184, 255, 0.35);
+  background: linear-gradient(135deg, rgba(201, 184, 255, 0.18), rgba(255, 255, 255, 0.9));
+}
+
+.sp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(123, 167, 255, 0.4);
+  background: rgba(123, 167, 255, 0.12);
+  color: var(--text);
+}
+
+.sp-badge--primary {
+  border-color: rgba(123, 167, 255, 0.45);
+  background: rgba(123, 167, 255, 0.18);
+}
+
+.sp-badge--secondary {
+  border-color: rgba(127, 209, 200, 0.45);
+  background: rgba(127, 209, 200, 0.18);
+}
+
+.sp-badge--accent {
+  border-color: rgba(201, 184, 255, 0.45);
+  background: rgba(201, 184, 255, 0.18);
+}
+
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sp-table th,
+.sp-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sp-table thead th {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.sp-table tbody tr:hover {
+  background: rgba(123, 167, 255, 0.1);
+}
+
+.sp-muted {
   color: var(--text-muted);
 }
 
-.form-grid { display: grid; gap: 0.75rem; }
-.form-field label { display: inline-block; font-weight: 500; margin-bottom: 0.25rem; }
-.form-field input, .form-field select, .form-field textarea {
+.sp-input,
+.sp-select,
+.sp-textarea {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.625rem;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--surface-card);
+  color: var(--text);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.form-actions { display: flex; gap: 0.5rem; align-items: center; }
 
-/* Card y grid inspirados en templates del paquete web y admin */
-.card { background: var(--surface-card); border:1px solid var(--border); border-radius:.5rem; box-shadow: var(--shadow); }
-.card-header { padding:.75rem .875rem; border-bottom:1px solid var(--border); font-weight:600; color: var(--text); }
-.card-body { padding: .875rem; }
-.card-inline { display:flex; align-items:center; gap:.75rem; }
+.sp-input:focus,
+.sp-select:focus,
+.sp-textarea:focus {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(90, 141, 246, 0.18);
+}
 
-.container { width:100%; margin:0 auto; padding-left:1rem; padding-right:1rem; }
-@media (min-width: 640px) { .container { max-width:640px; } }
-@media (min-width: 768px) { .container { max-width:768px; } }
-@media (min-width: 1024px) { .container { max-width:1024px; } }
-@media (min-width: 1280px) { .container { max-width:1280px; } }
+.sp-file {
+  width: 100%;
+  color: var(--text);
+}
 
-.grid-responsive { display:grid; gap:1rem; }
-@media (min-width: 640px) { .grid-responsive.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 768px) { .grid-responsive.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .grid-responsive.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.sp-file::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
 
-/* Utilidades de badge/estado */
-.badge { display:inline-flex; align-items:center; padding:.125rem .5rem; border-radius:999px; font-size:.75rem; border:1px solid var(--border); background:#f9fafb; }
-.badge.success { border-color:#10b98133; color:#065f46; background:#ecfdf5; }
-.badge.info { border-color:#3b82f633; color:#1e40af; background:#eff6ff; }
-.badge.warning { border-color:#f59e0b33; color:#7c2d12; background:#fffbeb; }
+.sp-form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+.sp-panel {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.sp-main {
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1280px) {
+  .sp-main {
+    padding: 0.5rem 0.5rem 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

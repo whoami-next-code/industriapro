@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { apiFetch } from "@/lib/api";
 import Protected from "@/lib/Protected";
@@ -8,7 +8,9 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Table, { Th, Td } from "@/components/ui/Table";
 import Modal from "@/components/modals/Modal";
+import ConfirmDialog from "@/components/modals/ConfirmDialog";
 import { useAdminSocket } from "@/lib/AdminSocketProvider";
+import toast from "react-hot-toast";
 
 type QuoteStatus =
   | "PENDIENTE"
@@ -147,101 +149,6 @@ const STATUS_OPTIONS: { value: QuoteStatus; label: string }[] = [
 
 const CLIENT_BASE_URL = process.env.NEXT_PUBLIC_CLIENT_URL ?? "http://localhost:3000";
 
-function SignatureCanvas({ onSave, onClear }: { onSave: (data: string) => void; onClear: () => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-        }
-    }
-  }, []);
-
-  const getPos = (e: any) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return { x: 0, y: 0 };
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-          x: clientX - rect.left,
-          y: clientY - rect.top
-      };
-  };
-
-  const startDrawing = (e: any) => {
-    e.preventDefault();
-    const { x, y } = getPos(e);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setIsDrawing(true);
-  };
-
-  const draw = (e: any) => {
-    e.preventDefault();
-    if (!isDrawing) return;
-    const { x, y } = getPos(e);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const stopDrawing = (e: any) => {
-    if(isDrawing) {
-        e.preventDefault();
-        setIsDrawing(false);
-        const canvas = canvasRef.current;
-        if (canvas) {
-          onSave(canvas.toDataURL());
-        }
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="border border-gray-300 rounded inline-block bg-white shadow-sm">
-        <canvas
-          ref={canvasRef}
-          width={400}
-          height={150}
-          className="cursor-crosshair touch-none block"
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-        />
-      </div>
-      <div className="flex justify-between text-xs text-gray-500">
-         <span>Firme en el recuadro superior</span>
-         <button onClick={() => {
-             const canvas = canvasRef.current;
-             const ctx = canvas?.getContext('2d');
-             if(ctx && canvas) {
-                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                 onClear();
-             }
-        }} className="text-red-500 hover:text-red-700 font-medium">Borrar Firma</button>
-      </div>
-    </div>
-  );
-}
-
 function AssignmentModal({ 
   isOpen, 
   onClose, 
@@ -253,28 +160,58 @@ function AssignmentModal({
   onAssign: (techId: number) => void; 
   technicians: TechnicianWorkload[] 
 }) {
+  const statusPriority = (status: string) => {
+    if (status === "DISPONIBLE") return 0;
+    if (status === "EN_PROCESO") return 1;
+    if (status === "SATURADO") return 2;
+    return 1;
+  };
+  const sortedTechs = [...technicians].sort((a, b) => {
+    const scoreA = statusPriority(a.status) * 1000 + (a.activeCount ?? 0);
+    const scoreB = statusPriority(b.status) * 1000 + (b.activeCount ?? 0);
+    return scoreA - scoreB;
+  });
+  const recommended = sortedTechs[0];
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Asignación Inteligente de Personal">
       <div className="space-y-4">
-        <p className="text-sm text-gray-600 mb-4">Seleccione un técnico disponible para asignar a esta cotización. El sistema sugiere personal basado en su carga actual.</p>
+        <p className="text-sm sp-muted mb-4">Seleccione un técnico disponible para asignar a esta cotización. El sistema sugiere personal basado en su carga actual.</p>
+        {recommended && (
+          <div className="sp-panel flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Recomendación automática</div>
+              <div className="text-xs sp-muted">
+                {recommended.fullName || recommended.email} · {recommended.activeCount ?? 0} tareas en curso
+              </div>
+            </div>
+            <Button size="sm" onClick={() => onAssign(recommended.id)}>
+              Asignar automáticamente
+            </Button>
+          </div>
+        )}
+        <div className="text-xs sp-muted">Ordenado por menor carga y disponibilidad.</div>
         <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
         {technicians.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 bg-gray-50 rounded">
+          <div className="p-4 text-center sp-muted bg-[var(--surface-2)] rounded-xl">
             No se encontraron técnicos registrados con el rol TECNICO.
           </div>
         ) : (
-          technicians.map(tech => (
-            <div key={tech.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+          sortedTechs.map(tech => (
+            <div key={tech.id} className="flex items-center justify-between p-3 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-2)] transition-colors">
               <div className="flex flex-col">
-                <span className="font-medium text-gray-900">{tech.fullName || tech.email}</span>
+                <span className="font-medium">{tech.fullName || tech.email}</span>
                 <div className="flex flex-col md:flex-row items-center gap-2 mb-4 text-xs mt-1">
                    <span className={`px-2 py-0.5 rounded-full font-medium ${
-                     tech.status === 'DISPONIBLE' ? 'bg-green-100 text-green-700' :
-                     tech.status === 'SATURADO' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                     tech.status === 'DISPONIBLE' ? 'sp-badge sp-badge--secondary' :
+                     tech.status === 'SATURADO' ? 'sp-badge sp-badge--accent' : 'sp-badge sp-badge--primary'
                    }`}>
                      {tech.status}
                    </span>
-                   <span className="text-gray-500">• {tech.activeCount} tareas en curso</span>
+                   {recommended?.id === tech.id && (
+                     <span className="sp-badge sp-badge--primary">Recomendado</span>
+                   )}
+                   <span className="sp-muted">• {tech.activeCount} tareas en curso</span>
                 </div>
               </div>
               <Button 
@@ -298,12 +235,16 @@ export default function AdminCotizaciones() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canView, setCanView] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [selected, setSelected] = useState<Quote | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [images, setImages] = useState<QuotationImage[]>([]);
   const [imageLoading, setImageLoading] = useState(false);
   const [technicians, setTechnicians] = useState<TechnicianWorkload[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { lastEvent } = useAdminSocket();
 
   const [filters, setFilters] = useState<Filters>({
@@ -316,56 +257,12 @@ export default function AdminCotizaciones() {
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [apiStats, setApiStats] = useState<{ byStatus?: Record<string, number>; total?: number } | null>(null);
-  const [progressForm, setProgressForm] = useState({
-    message: "",
-    status: "" as QuoteStatus | "",
-    estimatedDate: "",
-    progressPercent: "",
-    technicianName: "",
-    attachmentUrls: "",
-    materials: "",
-    materialList: [] as MaterialUsage[],
-    technicianSignature: "",
-  });
-
-  // Prefill el formulario de avance con el último progreso registrado (incluye adjuntos y materiales)
-  useEffect(() => {
-    if (!selected) {
-      setProgressForm({
-        message: "",
-        status: "" as QuoteStatus | "",
-        estimatedDate: "",
-        progressPercent: "",
-        technicianName: "",
-        attachmentUrls: "",
-        materials: "",
-        materialList: [],
-        technicianSignature: "",
-      });
-      return;
-    }
-
-    const last =
-      (selected.progressUpdates && selected.progressUpdates[0]) ||
-      (selected.timeline && selected.timeline[0]);
-
-    if (!last) return;
-
-    setProgressForm({
-      message: last.message || "",
-      status: (last.status as QuoteStatus) || (selected.status as QuoteStatus) || "",
-      estimatedDate: last.estimatedDate ?? "",
-      progressPercent:
-        last.progressPercent !== undefined && last.progressPercent !== null
-          ? String(last.progressPercent)
-          : "",
-      technicianName: last.technician ?? selected.technicianName ?? "",
-      attachmentUrls: (last.attachmentUrls ?? []).join("\n"),
-      materials: last.materials ?? "",
-      materialList: last.materialList ?? [],
-      technicianSignature: selected.technicianSignature ?? "",
-    });
-  }, [selected]);
+  const isImageAttachment = (url: string) => {
+    if (!url) return false;
+    if (url.startsWith("data:image")) return true;
+    const clean = url.split("?")[0].split("#")[0];
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(clean);
+  };
 
   const updateFilters = (patch: Partial<Filters>) => {
     setFilters((f) => ({ ...f, ...patch }));
@@ -428,6 +325,7 @@ export default function AdminCotizaciones() {
     }
     apiFetch<Profile>("/auth/profile")
       .then((p) => {
+        setProfile(p);
         const allowed = p?.role === "ADMIN" || p?.role === "VENDEDOR";
         setCanView(allowed);
         if (!allowed) {
@@ -463,20 +361,20 @@ export default function AdminCotizaciones() {
   }, [lastEvent]);
 
   function statusColors(status: QuoteStatus) {
-    const map: Record<string, { bg: string; text: string; border: string }> = {
-      PENDIENTE: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-      APROBADA: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-      PRODUCCION: { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200" },
-      INSTALACION: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
-      FINALIZADA: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-      CANCELADA: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
-      NUEVA: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-      EN_PROCESO: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-      ENVIADA: { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200" },
-      ENTREGADA: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-      COMPLETADA: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+    const map: Record<string, { badge: string }> = {
+      PENDIENTE: { badge: "sp-badge sp-badge--accent" },
+      APROBADA: { badge: "sp-badge sp-badge--primary" },
+      PRODUCCION: { badge: "sp-badge sp-badge--primary" },
+      INSTALACION: { badge: "sp-badge sp-badge--accent" },
+      FINALIZADA: { badge: "sp-badge sp-badge--secondary" },
+      CANCELADA: { badge: "sp-badge sp-badge--accent" },
+      NUEVA: { badge: "sp-badge sp-badge--accent" },
+      EN_PROCESO: { badge: "sp-badge sp-badge--primary" },
+      ENVIADA: { badge: "sp-badge sp-badge--primary" },
+      ENTREGADA: { badge: "sp-badge sp-badge--secondary" },
+      COMPLETADA: { badge: "sp-badge sp-badge--secondary" },
     };
-    return map[status] || { bg: "bg-gray-100", text: "text-gray-700", border: "border-gray-200" };
+    return map[status] || { badge: "sp-badge sp-badge--primary" };
   }
 
   function statusToPercent(status?: QuoteStatus) {
@@ -484,7 +382,7 @@ export default function AdminCotizaciones() {
     switch (normalized) {
       case "PENDIENTE":
       case "NUEVA":
-        return 5;
+        return 0;
       case "APROBADA":
       case "EN_PROCESO":
         return 20;
@@ -550,16 +448,39 @@ export default function AdminCotizaciones() {
   async function handleAssign(techId: number) {
     if (!selected) return;
     try {
-      await apiFetch(`/cotizaciones/${selected.id}/assign`, {
+      const updated = await apiFetch(`/cotizaciones/${selected.id}/assign`, {
         method: 'PUT',
         body: JSON.stringify({ technicianId: techId })
       });
       setShowAssignModal(false);
       await loadQuotes();
       if (selected) openDetail({ ...selected, technicianId: techId }); // Refresh selected roughly
-      alert('Técnico asignado correctamente');
+      const techName = (updated as any)?.technicianName || technicians.find(t => t.id === techId)?.fullName || 'técnico';
+      toast.success(`Técnico asignado: ${techName}`);
     } catch (err) {
-      alert('Error al asignar técnico');
+      toast.error('No se pudo asignar el técnico. Intenta nuevamente.');
+    }
+  }
+
+  function openDeleteConfirm(quote: Quote) {
+    setDeleteTarget(quote);
+    setShowDeleteConfirm(true);
+  }
+
+  async function handleDeleteQuote() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiFetch(`/cotizaciones/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success("Cotización eliminada");
+      if (selected?.id === deleteTarget.id) {
+        setSelected(null);
+      }
+      await loadQuotes();
+    } catch (err) {
+      toast.error("No se pudo eliminar la cotización");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -668,40 +589,6 @@ export default function AdminCotizaciones() {
     }
   }
 
-  async function handleProgressSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selected) return;
-
-    const payload: Partial<ProgressUpdate> & {
-      status?: QuoteStatus;
-      technicianSignature?: string;
-    } = {
-      message: progressForm.message,
-      status: progressForm.status || undefined,
-      estimatedDate: progressForm.estimatedDate || undefined,
-      progressPercent: progressForm.progressPercent
-        ? parseInt(progressForm.progressPercent, 10)
-        : undefined,
-      technician: progressForm.technicianName || undefined,
-      attachmentUrls: progressForm.attachmentUrls.split("\n").filter(Boolean),
-      materials: progressForm.materials || undefined,
-      materialList: progressForm.materialList,
-      technicianSignature: progressForm.technicianSignature || undefined,
-    };
-
-    try {
-      await apiFetch(`/cotizaciones/${selected.id}/progress`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      alert("Progreso actualizado");
-      openDetail(selected); // Recargar
-      loadQuotes(); // Recargar lista
-    } catch (err: any) {
-      alert(`Error: ${err.message || "No se pudo actualizar el progreso"}`);
-    }
-  }
-
   const stats = useMemo(() => {
     if (apiStats) {
       return {
@@ -726,6 +613,27 @@ export default function AdminCotizaciones() {
       { PENDIENTE: 0, PRODUCCION: 0, INSTALACION: 0, FINALIZADA: 0, TOTAL: 0 },
     );
   }, [items, apiStats]);
+
+  const timeline = useMemo(() => {
+    if (!selected) return [] as ProgressUpdate[];
+    return (selected.timeline ?? selected.progressUpdates ?? []) as ProgressUpdate[];
+  }, [selected]);
+
+  const pendingUpdates = useMemo(() => {
+    return timeline
+      .map((update, index) => ({ update, index }))
+      .filter(({ update }) => update.approvalStatus === "PENDING")
+      .sort((a, b) => {
+        const aTime = new Date(a.update.createdAt ?? 0).getTime();
+        const bTime = new Date(b.update.createdAt ?? 0).getTime();
+        return bTime - aTime;
+      });
+  }, [timeline]);
+
+  const getPendingCount = (quote: Quote) => {
+    const list = quote.timeline ?? quote.progressUpdates ?? [];
+    return list.filter((u) => u.approvalStatus === "PENDING").length;
+  };
 
   const exportToPDF = () => {
     if (!selected) return;
@@ -788,11 +696,11 @@ export default function AdminCotizaciones() {
 
   return (
     <Protected>
-      <div className="container mx-auto p-4">
-        <header className="flex justify-between items-center mb-6">
+      <div className="space-y-6">
+        <header className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Operaciones</h1>
-            <p className="text-gray-500 mt-1">
+            <h1 className="text-3xl font-bold">Operaciones</h1>
+            <p className="sp-muted mt-1">
               Visualiza, actualiza estados, registra avances y abre el seguimiento del cliente.
             </p>
           </div>
@@ -808,25 +716,25 @@ export default function AdminCotizaciones() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card>
-            <h3 className="text-gray-500 font-medium">Cotizaciones Totales</h3>
+            <h3 className="sp-muted font-medium">Cotizaciones Totales</h3>
             <p className="text-3xl font-bold">{loading ? "..." : stats.TOTAL}</p>
           </Card>
           <Card>
-            <h3 className="text-gray-500 font-medium">Pendientes</h3>
+            <h3 className="sp-muted font-medium">Pendientes</h3>
             <p className="text-3xl font-bold">{loading ? "..." : stats.PENDIENTE}</p>
           </Card>
           <Card>
-            <h3 className="text-gray-500 font-medium">En Producción</h3>
+            <h3 className="sp-muted font-medium">En Producción</h3>
             <p className="text-3xl font-bold">{loading ? "..." : stats.PRODUCCION}</p>
           </Card>
           <Card>
-            <h3 className="text-gray-500 font-medium">Instalación</h3>
+            <h3 className="sp-muted font-medium">Instalación</h3>
             <p className="text-3xl font-bold">{loading ? "..." : stats.INSTALACION}</p>
           </Card>
           <Card>
-            <h3 className="text-gray-500 font-medium">Finalizadas</h3>
+            <h3 className="sp-muted font-medium">Finalizadas</h3>
             <p className="text-3xl font-bold">{loading ? "..." : stats.FINALIZADA}</p>
           </Card>
         </div>
@@ -836,12 +744,12 @@ export default function AdminCotizaciones() {
             <input
               type="text"
               placeholder="Buscar por código, cliente o..."
-              className="p-2 border rounded w-full md:w-1/3"
+              className="sp-input md:w-1/3"
               value={filters.search}
               onChange={(e) => updateFilters({ search: e.target.value })}
             />
             <select
-              className="p-2 border rounded w-full md:w-auto"
+              className="sp-select md:w-auto"
               value={filters.status}
               onChange={(e) => updateFilters({ status: e.target.value })}
             >
@@ -854,13 +762,13 @@ export default function AdminCotizaciones() {
             </select>
             <input
               type="date"
-              className="p-2 border rounded"
+              className="sp-input"
               value={filters.from}
               onChange={(e) => updateFilters({ from: e.target.value })}
             />
             <input
               type="date"
-              className="p-2 border rounded"
+              className="sp-input"
               value={filters.to}
               onChange={(e) => updateFilters({ to: e.target.value })}
             />
@@ -873,7 +781,7 @@ export default function AdminCotizaciones() {
             <>
               <div className="overflow-x-auto">
                 <Table>
-                  <thead className="bg-gray-50">
+                  <thead>
                     <tr>
                       <Th>Código</Th>
                       <Th>Cliente</Th>
@@ -888,29 +796,32 @@ export default function AdminCotizaciones() {
                   </thead>
                   <tbody>
                     {items.map((q) => (
-                      <tr key={q.id} className="hover:bg-gray-50">
+                      <tr key={q.id}>
                         <Td>
                           <div className="font-bold">{q.code || `COT-${q.id}`}</div>
-                          <div className="text-xs text-gray-500">#{q.orderId}</div>
+                          <div className="text-xs sp-muted">#{q.orderId}</div>
                         </Td>
                         <Td>
                           <div className="font-medium">{q.customerName}</div>
-                          <div className="text-xs text-gray-500">{q.customerEmail}</div>
+                          <div className="text-xs sp-muted">{q.customerEmail}</div>
                         </Td>
                         <Td>
-                          <span
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              statusColors(q.status).bg
-                            } ${statusColors(q.status).text}`}
-                          >
-                            {q.status}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={statusColors(q.status).badge}>
+                              {q.status}
+                            </span>
+                            {getPendingCount(q) > 0 && (
+                              <span className="sp-badge sp-badge--accent">
+                                {getPendingCount(q)} pendiente{getPendingCount(q) > 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
                         </Td>
                         <Td className="hidden md:table-cell">
                           <div className="w-24">
-                            <div className="h-2 bg-gray-200 rounded-full">
+                            <div className="h-2 bg-[var(--surface-2)] rounded-full">
                               <div
-                                className="h-2 bg-blue-500 rounded-full"
+                                className="h-2 bg-[var(--brand-primary)] rounded-full"
                                 style={{
                                   width: `${q.progressPercent ?? statusToPercent(q.status)}%`,
                                 }}
@@ -936,7 +847,7 @@ export default function AdminCotizaciones() {
                           <div className="text-xs">{q.technicianName || 'No asignado'}</div>
                         </Td>
                         <Td className="hidden xl:table-cell">
-                          <div className="text-xs max-w-[150px] truncate">
+                          <div className="text-xs max-w-[150px] truncate sp-muted">
                             {q.lastUpdateMessage || "Sin actualizaciones"}
                           </div>
                         </Td>
@@ -945,16 +856,15 @@ export default function AdminCotizaciones() {
                             <Button onClick={() => openDetail(q)} size="sm">
                               Ver detalle
                             </Button>
-                            <Button
-                              onClick={() => {
-                                const url = `${CLIENT_BASE_URL}/mis-pedidos?order_id=${q.orderId}`;
-                                window.open(url, "_blank");
-                              }}
-                              size="sm"
-                              variant="outline"
-                            >
-                              Cliente
-                            </Button>
+                            {profile?.role === "ADMIN" && (
+                              <Button
+                                onClick={() => openDeleteConfirm(q)}
+                                size="sm"
+                                variant="danger"
+                              >
+                                Eliminar
+                              </Button>
+                            )}
                           </div>
                         </Td>
                       </tr>
@@ -963,7 +873,7 @@ export default function AdminCotizaciones() {
                 </Table>
               </div>
               <div className="flex justify-between items-center mt-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm sp-muted">
                   Mostrando {items.length} de {total} cotizaciones
                 </p>
                 <div className="flex gap-2">
@@ -998,159 +908,289 @@ export default function AdminCotizaciones() {
             {detailLoading ? (
               <p>Cargando detalles...</p>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Formulario de Avance */}
-                  <Card>
-                    <h3 className="text-lg font-semibold mb-3">Registrar Avance</h3>
-                    <form onSubmit={handleProgressSubmit} className="space-y-4">
-                      <textarea
-                        placeholder="Mensaje de actualización..."
-                        className="p-2 border rounded w-full"
-                        value={progressForm.message}
-                        onChange={(e) =>
-                          setProgressForm({ ...progressForm, message: e.target.value })
-                        }
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                        <select
-                          className="p-2 border rounded"
-                          value={progressForm.status}
-                          onChange={(e) =>
-                            setProgressForm({
-                              ...progressForm,
-                              status: e.target.value as QuoteStatus,
-                            })
-                          }
-                        >
-                          <option value="">-- Mantener Estado --</option>
-                          {STATUS_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          placeholder="Técnico Asignado"
-                          className="p-2 border rounded"
-                          value={progressForm.technicianName}
-                          onChange={(e) =>
-                            setProgressForm({
-                              ...progressForm,
-                              technicianName: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <input
-                          type="number"
-                          placeholder="% Progreso (ej. 60)"
-                          className="p-2 border rounded"
-                          value={progressForm.progressPercent}
-                          onChange={(e) =>
-                            setProgressForm({
-                              ...progressForm,
-                              progressPercent: e.target.value,
-                            })
-                          }
-                        />
-                        <input
-                          type="date"
-                          className="p-2 border rounded"
-                          value={progressForm.estimatedDate}
-                          onChange={(e) =>
-                            setProgressForm({
-                              ...progressForm,
-                              estimatedDate: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
+              <div className="space-y-6">
+                <div className="sp-card sp-card-static">
+                  <div className="sp-card-body">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div>
-                        <h4 className="font-medium mb-1">Materiales Utilizados</h4>
-                        {progressForm.materialList.map((mat, idx) => (
-                          <div key={idx} className="flex gap-2 mb-2 items-center">
-                            <input type="text" placeholder="Nombre" value={mat.name} onChange={e => {
-                              const newList = [...progressForm.materialList];
-                              newList[idx].name = e.target.value;
-                              setProgressForm({...progressForm, materialList: newList});
-                            }} className="p-1 border rounded w-1/2"/>
-                            <input type="number" placeholder="Cant." value={mat.quantity} onChange={e => {
-                              const newList = [...progressForm.materialList];
-                              newList[idx].quantity = Number(e.target.value);
-                              setProgressForm({...progressForm, materialList: newList});
-                            }} className="p-1 border rounded w-1/6"/>
-                            <input type="text" placeholder="Unidad" value={mat.unit} onChange={e => {
-                              const newList = [...progressForm.materialList];
-                              newList[idx].unit = e.target.value;
-                              setProgressForm({...progressForm, materialList: newList});
-                            }} className="p-1 border rounded w-1/6"/>
-                             <input type="text" placeholder="Proveedor" value={mat.provider} onChange={e => {
-                              const newList = [...progressForm.materialList];
-                              newList[idx].provider = e.target.value;
-                              setProgressForm({...progressForm, materialList: newList});
-                            }} className="p-1 border rounded w-1/4"/>
-                            <button type="button" onClick={() => {
-                              const newList = progressForm.materialList.filter((_, i) => i !== idx);
-                              setProgressForm({...progressForm, materialList: newList});
-                            }} className="text-red-500">X</button>
+                        <div className="text-sm sp-muted">Progreso global</div>
+                        <div className="text-2xl font-bold">
+                          {selected?.progressPercent ?? statusToPercent(selected?.status)}%
+                        </div>
+                        <div className="text-xs sp-muted mt-1">
+                          Estado actual: {selected?.status}
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 text-sm">
+                        <div className="sp-panel">
+                          <div className="text-xs sp-muted">Entrega estimada</div>
+                          <div className="font-semibold">
+                            {selected?.estimatedDeliveryDate ? formatDate(selected.estimatedDeliveryDate) : "—"}
                           </div>
-                        ))}
-                        <Button type="button" size="sm" variant="outline" onClick={() => setProgressForm({...progressForm, materialList: [...progressForm.materialList, {name: '', quantity: 1, unit: 'u', provider: ''}]})}>
-                          + Añadir Material
-                        </Button>
+                        </div>
+                        <div className="sp-panel">
+                          <div className="text-xs sp-muted">Técnico</div>
+                          <div className="font-semibold">
+                            {selected?.technicianName || "No asignado"}
+                          </div>
+                        </div>
+                        <div className="sp-panel">
+                          <div className="text-xs sp-muted">Pendientes</div>
+                          <div className="font-semibold">{pendingUpdates.length}</div>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium mb-1">Firma del Técnico</h4>
-                        <SignatureCanvas 
-                          onSave={(data) => setProgressForm({...progressForm, technicianSignature: data})}
-                          onClear={() => setProgressForm({...progressForm, technicianSignature: ""})}
+                    </div>
+                    <div className="mt-4">
+                      <div className="h-2 bg-[var(--surface-2)] rounded-full">
+                        <div
+                          className="h-2 bg-[var(--brand-primary)] rounded-full transition-all"
+                          style={{
+                            width: `${selected?.progressPercent ?? statusToPercent(selected?.status)}%`,
+                          }}
                         />
                       </div>
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="secondary" onClick={() => setSelected(null)}>
-                          Cancelar
-                        </Button>
-                        <Button type="submit">Actualizar</Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Reportes del Técnico */}
+                  <Card>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-semibold">Reportes del técnico</h3>
+                          <p className="text-sm sp-muted">
+                            Se sincroniza desde la app móvil. Aquí apruebas o rechazas el siguiente avance.
+                          </p>
+                        </div>
+                        {pendingUpdates.length > 0 && (
+                          <span className="sp-badge sp-badge--primary">
+                            {pendingUpdates.length} pendiente{pendingUpdates.length > 1 ? "s" : ""}
+                          </span>
+                        )}
                       </div>
-                    </form>
+
+                      {pendingUpdates.length === 0 ? (
+                        <div className="sp-panel text-sm sp-muted">
+                          No hay reportes pendientes. El historial de cambios es el mismo que ve el cliente.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {pendingUpdates.map(({ update, index }) => {
+                            const attachments = update.attachmentUrls ?? [];
+                            const imageAttachments = attachments.filter(isImageAttachment);
+                            const fileAttachments = attachments.filter((url) => !isImageAttachment(url));
+                            const signature = update.technicianSignature || selected?.technicianSignature;
+                            return (
+                              <div key={`${update.id ?? index}`} className="sp-panel space-y-4">
+                                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="font-semibold">{update.message || "Reporte sin mensaje"}</span>
+                                      {update.status && (
+                                        <span className={statusColors(update.status).badge}>{update.status}</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs sp-muted mt-1">
+                                      {formatDate(update.createdAt)} · {update.author || update.technician || "Técnico"}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button size="sm" onClick={() => approveUpdate(index)}>
+                                      Aprobar
+                                    </Button>
+                                    <Button size="sm" variant="danger" onClick={() => rejectUpdate(index)}>
+                                      Rechazar
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                  <div className="sp-card sp-card-static p-3">
+                                    <div className="text-xs sp-muted">Progreso</div>
+                                    <div className="text-base font-semibold">{update.progressPercent ?? "—"}%</div>
+                                  </div>
+                                  <div className="sp-card sp-card-static p-3">
+                                    <div className="text-xs sp-muted">Entrega estimada</div>
+                                    <div className="text-base font-semibold">
+                                      {update.estimatedDate ? formatDate(update.estimatedDate) : "—"}
+                                    </div>
+                                  </div>
+                                  <div className="sp-card sp-card-static p-3">
+                                    <div className="text-xs sp-muted">Técnico</div>
+                                    <div className="text-base font-semibold">
+                                      {update.technician || selected?.technicianName || "Sin asignar"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {update.materialList && update.materialList.length > 0 && (
+                                  <div>
+                                    <div className="text-sm font-semibold mb-2">Materiales reportados</div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                      {update.materialList.map((mat, idx) => (
+                                        <div key={idx} className="sp-panel">
+                                          <div className="font-semibold">{mat.name}</div>
+                                          <div className="sp-muted">
+                                            {mat.quantity} {mat.unit} · {mat.provider || "Sin proveedor"}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {signature && (
+                                  <div>
+                                    <div className="text-sm font-semibold mb-2">Firma del técnico</div>
+                                    <img
+                                      src={signature}
+                                      alt="Firma del técnico"
+                                      className="h-24 w-auto rounded-xl border border-[var(--border)] bg-white"
+                                    />
+                                  </div>
+                                )}
+
+                                {attachments.length > 0 && (
+                                  <div className="space-y-2">
+                                    <div className="text-sm font-semibold">Adjuntos</div>
+                                    {imageAttachments.length > 0 && (
+                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {imageAttachments.map((url, i) => (
+                                          <a
+                                            key={i}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block"
+                                          >
+                                            <img
+                                              src={url}
+                                              alt={`Adjunto ${i + 1}`}
+                                              className="h-24 w-full object-cover rounded-xl border border-[var(--border)]"
+                                            />
+                                          </a>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {fileAttachments.length > 0 && (
+                                      <div className="flex flex-wrap gap-2 text-xs">
+                                        {fileAttachments.map((url, i) => (
+                                          <a
+                                            key={i}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="sp-badge sp-badge--primary"
+                                          >
+                                            Ver archivo {i + 1}
+                                          </a>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </Card>
 
                   {/* Historial de Cambios */}
                   <Card>
-                    <h3 className="text-lg font-semibold mb-3">Historial de Cambios</h3>
+                    <h3 className="text-lg font-semibold mb-1">Historial de Cambios</h3>
+                    <p className="text-xs sp-muted mb-3">Este historial es el mismo que ve el cliente.</p>
                     <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {selected.timeline?.map((p, index) => (
-                        <div key={index} className="p-3 rounded-lg border border-gray-200 bg-gray-50 relative">
-                          <p className="font-medium text-gray-800">{p.message}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatDate(p.createdAt)} por {p.author || "Sistema"}
-                          </p>
-                          {p.status && (
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 ${statusColors(p.status).bg} ${statusColors(p.status).text}`}>
-                              {p.status}
-                            </span>
-                          )}
-                          {p.materialList && p.materialList.length > 0 && (
-                            <div className="mt-2 text-xs">
-                              <strong>Materiales:</strong> {p.materialList.map(m => `${m.name} (${m.quantity} ${m.unit})`).join(', ')}
+                      {timeline.map((p, index) => {
+                        const attachments = p.attachmentUrls ?? [];
+                        const imageAttachments = attachments.filter(isImageAttachment);
+                        const fileAttachments = attachments.filter((url) => !isImageAttachment(url));
+                        const signature = p.technicianSignature;
+                        return (
+                          <div key={index} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium">{p.message}</p>
+                              {p.status && (
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors(p.status).badge}`}>
+                                  {p.status}
+                                </span>
+                              )}
                             </div>
-                          )}
-                          {p.attachmentUrls && p.attachmentUrls.length > 0 && (
-                            <div className="mt-2 text-xs">
-                              <strong>Adjuntos:</strong> {p.attachmentUrls.map((url, i) => <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline ml-1">Ver {i+1}</a>)}
-                            </div>
-                          )}
-                          {p.approvalStatus === 'PENDING' && (
-                            <div className="absolute top-2 right-2 flex gap-1">
-                              <Button size="xs" variant="success" onClick={() => approveUpdate(index)}>Aprobar</Button>
-                              <Button size="xs" variant="danger" onClick={() => rejectUpdate(index)}>Rechazar</Button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            <p className="text-xs sp-muted">
+                              {formatDate(p.createdAt)} por {p.author || "Sistema"}
+                            </p>
+
+                            {p.materialList && p.materialList.length > 0 && (
+                              <div className="mt-3">
+                                <div className="text-xs font-semibold mb-1">Materiales</div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                  {p.materialList.map((m, idx) => (
+                                    <div key={idx} className="sp-panel">
+                                      <div className="font-semibold">{m.name}</div>
+                                      <div className="sp-muted">{m.quantity} {m.unit} · {m.provider || "Sin proveedor"}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {signature && (
+                              <div className="mt-3">
+                                <div className="text-xs font-semibold mb-1">Firma</div>
+                                <img
+                                  src={signature}
+                                  alt="Firma del técnico"
+                                  className="h-20 w-auto rounded-xl border border-[var(--border)] bg-white"
+                                />
+                              </div>
+                            )}
+
+                            {attachments.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                <div className="text-xs font-semibold">Adjuntos</div>
+                                {imageAttachments.length > 0 && (
+                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    {imageAttachments.map((url, i) => (
+                                      <a
+                                        key={i}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block"
+                                      >
+                                        <img
+                                          src={url}
+                                          alt={`Adjunto ${i + 1}`}
+                                          className="h-20 w-full object-cover rounded-xl border border-[var(--border)]"
+                                        />
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                                {fileAttachments.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 text-xs">
+                                    {fileAttachments.map((url, i) => (
+                                      <a
+                                        key={i}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="sp-badge sp-badge--primary"
+                                      >
+                                        Ver archivo {i + 1}
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </Card>
                 </div>
@@ -1179,12 +1219,11 @@ export default function AdminCotizaciones() {
                   {/* Galería de Imágenes */}
                   <Card>
                     <h3 className="text-lg font-semibold mb-3">Galería de Avances</h3>
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="mb-3 block w-full text-sm text-slate-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-violet-50 file:text-violet-700
-                      hover:file:bg-violet-100"
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="sp-file mb-3"
                     />
                     {imageLoading && <p>Cargando imágenes...</p>}
                     <div className="grid grid-cols-2 gap-2">
@@ -1211,9 +1250,21 @@ export default function AdminCotizaciones() {
                   </Card>
                 </div>
               </div>
+              </div>
             )}
           </Modal>
         )}
+
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDeleteQuote}
+          title="Eliminar cotización"
+          message={`¿Seguro que deseas eliminar la cotización ${deleteTarget?.code || `#${deleteTarget?.id}` }? Esta acción no se puede deshacer.`}
+          type="danger"
+          confirmText={deleting ? "Eliminando..." : "Eliminar"}
+          cancelText="Cancelar"
+        />
         
         <AssignmentModal 
           isOpen={showAssignModal}

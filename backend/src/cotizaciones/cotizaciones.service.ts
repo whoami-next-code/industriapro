@@ -2,9 +2,10 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Cotizacion, ProgressUpdate } from './cotizacion.entity';
 import { QuotationImage } from './quotation-image.entity';
 import { Product } from '../productos/product.entity';
@@ -12,6 +13,7 @@ import { User, UserRole } from '../users/user.entity';
 import { EventsService } from '../realtime/events.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
+import { EventsPublisher } from '../events/events.publisher';
 
 type QuoteFilters = {
   status?: string;
@@ -20,6 +22,8 @@ type QuoteFilters = {
   to?: string;
   customerEmail?: string;
   technician?: string;
+  technicianId?: number;
+  technicianEmail?: string;
 };
 
 type Pagination = {
@@ -53,6 +57,7 @@ export class CotizacionesService {
     private readonly events: EventsService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    @Optional() private readonly eventsPublisher?: EventsPublisher,
   ) {
     this.supabase = createClient(
       process.env.SUPABASE_URL || '',
@@ -96,8 +101,13 @@ export class CotizacionesService {
 
     const saved = await this.imageRepo.save(newImage);
 
-    // 3. Notify
-    this.events.emit('quotation.image_uploaded', {
+    // 3. Notify vía RabbitMQ y Socket.IO
+    if (this.eventsPublisher) {
+      await this.eventsPublisher.cotizacionImageUploaded(saved.id, quotationId).catch((error) => {
+        console.error('Error publicando evento cotizacion.imagen_subida:', error);
+      });
+    }
+    this.events.emit('cotizacion.imagen_subida', {
       imageId: saved.id,
       quotationId,
     });
@@ -112,8 +122,13 @@ export class CotizacionesService {
     image.isApproved = true;
     const saved = await this.imageRepo.save(image);
 
-    // Notify via events (if applicable)
-    this.events.emit('quotation.image_approved', {
+    // Notify via RabbitMQ y Socket.IO
+    if (this.eventsPublisher) {
+      await this.eventsPublisher.cotizacionImageApproved(id, image.quotationId).catch((error) => {
+        console.error('Error publicando evento cotizacion.imagen_aprobada:', error);
+      });
+    }
+    this.events.emit('cotizacion.imagen_aprobada', {
       imageId: id,
       quotationId: image.quotationId,
     });
@@ -132,7 +147,13 @@ export class CotizacionesService {
     image.isApproved = false;
     const saved = await this.imageRepo.save(image);
 
-    this.events.emit('quotation.image_rejected', {
+    // Notify via RabbitMQ y Socket.IO
+    if (this.eventsPublisher) {
+      await this.eventsPublisher.cotizacionImageRejected(id, image.quotationId).catch((error) => {
+        console.error('Error publicando evento cotizacion.imagen_rechazada:', error);
+      });
+    }
+    this.events.emit('cotizacion.imagen_rechazada', {
       imageId: id,
       quotationId: image.quotationId,
     });
@@ -201,6 +222,20 @@ export class CotizacionesService {
       status: quote.status,
       technician: tech.fullName,
     });
+
+    if (tech.email) {
+      try {
+        await this.mail.sendTechnicianAssigned({
+          to: tech.email,
+          technicianName: tech.fullName || tech.email,
+          quotationId: saved.id,
+          customerName: saved.customerName,
+          status: saved.status,
+        });
+      } catch (err) {
+        console.error('Error enviando correo al técnico', err?.message || err);
+      }
+    }
 
     return saved;
   }
@@ -328,6 +363,22 @@ export class CotizacionesService {
         { tech: `%${filters.technician.toLowerCase()}%` },
       );
     }
+    if (filters.technicianId || filters.technicianEmail) {
+      qb.andWhere(
+        new Brackets((sub) => {
+          if (filters.technicianId) {
+            sub.orWhere('q.technicianId = :technicianId', {
+              technicianId: filters.technicianId,
+            });
+          }
+          if (filters.technicianEmail) {
+            sub.orWhere('LOWER(q.technicianEmail) = LOWER(:technicianEmail)', {
+              technicianEmail: filters.technicianEmail,
+            });
+          }
+        }),
+      );
+    }
     return qb;
   }
 
@@ -363,6 +414,15 @@ export class CotizacionesService {
     });
     return this.validateBusinessRules(entity).then(async () => {
       const saved = await this.repo.save(entity);
+      
+      // Publicar evento en RabbitMQ
+      if (this.eventsPublisher) {
+        await this.eventsPublisher.cotizacionCreated(saved).catch((error) => {
+          console.error('Error publicando evento cotizacion.creada:', error);
+        });
+      }
+      
+      // Notificar vía Socket.IO
       this.events.cotizacionesUpdated(saved);
       return saved;
     });
@@ -468,6 +528,19 @@ export class CotizacionesService {
       );
     }
     
+    // Publicar eventos en RabbitMQ
+    if (this.eventsPublisher) {
+      if (oldStatus !== status) {
+        await this.eventsPublisher.cotizacionStatusChanged(id, oldStatus, status).catch((error) => {
+          console.error('Error publicando evento cotizacion.estado_cambiado:', error);
+        });
+      }
+      await this.eventsPublisher.cotizacionUpdated(saved).catch((error) => {
+        console.error('Error publicando evento cotizacion.actualizada:', error);
+      });
+    }
+    
+    // Notificar vía Socket.IO
     this.events.cotizacionesUpdated(saved);
     
     if (oldStatus !== status) {

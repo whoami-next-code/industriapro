@@ -18,26 +18,39 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    const navVerticalPadding = 8.0 + 12.0;
+    final navTotalHeight = kBottomNavigationBarHeight + navVerticalPadding + bottomInset;
+
     return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: Container(
+      body: Padding(
+        padding: EdgeInsets.only(bottom: navTotalHeight),
+        child: navigationShell,
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: DecoratedBox(
         decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
             ),
           ],
         ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
         child: BottomNavigationBar(
           currentIndex: navigationShell.currentIndex,
           onTap: _goBranch,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
           elevation: 0,
           selectedItemColor: Theme.of(context).colorScheme.primary,
-          unselectedItemColor: Colors.grey,
+                unselectedItemColor: const Color(0xFF7C8CA3),
           showUnselectedLabels: true,
           items: const [
             BottomNavigationBarItem(
@@ -46,9 +59,14 @@ class ScaffoldWithNavBar extends StatelessWidget {
               label: 'Inicio',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map_rounded),
-              label: 'Seguimiento',
+              icon: Icon(Icons.work_outline),
+              activeIcon: Icon(Icons.work),
+              label: 'Mis trabajos',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.report_outlined),
+              activeIcon: Icon(Icons.report),
+              label: 'Servicios',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.assignment_outlined),
@@ -61,6 +79,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
               label: 'Perfil',
             ),
           ],
+              ),
+            ),
+          ),
         ),
       ),
     );

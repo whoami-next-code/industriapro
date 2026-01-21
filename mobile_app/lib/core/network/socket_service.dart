@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../config/app_config.dart';
 import '../../features/auth/providers/auth_providers.dart';
@@ -17,7 +17,7 @@ class SocketService {
   SocketService(this._token);
 
   final String? _token;
-  IO.Socket? _socket;
+  io.Socket? _socket;
 
   String _buildSocketUrl() {
     final apiUrl = AppConfig.apiBaseUrl;
@@ -29,9 +29,9 @@ class SocketService {
     if ((_token ?? '').isEmpty) return;
     final socketUrl = _buildSocketUrl();
 
-    _socket = IO.io(
+    _socket = io.io(
       socketUrl,
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setTransports(['websocket'])
           .setQuery({'token': _token})
           .enableAutoConnect()

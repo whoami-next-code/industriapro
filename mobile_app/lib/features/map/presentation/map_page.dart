@@ -35,8 +35,8 @@ class MapPage extends StatelessWidget {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.grey.withOpacity(0.3),
-                border: Border.all(color: Colors.grey.withOpacity(0.5)),
+                color: Colors.grey.withValues(alpha: 0.3),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
               ),
               child: Center(
                 child: Container(
@@ -47,7 +47,7 @@ class MapPage extends StatelessWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -80,7 +80,7 @@ class MapPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),

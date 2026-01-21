@@ -18,7 +18,9 @@ final cotizacionesProvider = FutureProvider<List<Trabajo>>((ref) async {
   }
 
   final repo = ref.watch(cotizacionesRepositoryProvider);
-  final data = await repo.obtenerTodas();
+  final role = authState.user?.role;
+  final isClient = (role ?? '').toUpperCase() == 'CLIENTE';
+  final data = isClient ? await repo.obtenerMias() : await repo.obtenerTodas();
 
   // Reusar entidad Trabajo para la lista (mantiene UI existente)
   return data

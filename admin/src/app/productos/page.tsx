@@ -245,10 +245,10 @@ export default function AdminProductos() {
           ? (url.startsWith('http') ? url : `http://localhost:3001${url.startsWith('/') ? url : '/' + url}`)
           : null;
         return imageUrl ? (
-          <img src={imageUrl} alt="Producto" className="h-12 w-12 object-cover rounded" />
+          <img src={imageUrl} alt="Producto" className="h-12 w-12 object-cover rounded-xl" />
         ) : (
-          <div className="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">
-            <PhotoIcon className="h-6 w-6 text-gray-400" />
+          <div className="h-12 w-12 bg-[var(--surface-2)] rounded-xl flex items-center justify-center">
+            <PhotoIcon className="h-6 w-6 text-[var(--text-muted)]" />
           </div>
         );
       },
@@ -257,7 +257,7 @@ export default function AdminProductos() {
       accessorKey: 'nombre',
       header: 'Nombre',
       cell: ({ getValue }) => (
-        <span className="font-medium text-gray-900 dark:text-white">{getValue()}</span>
+        <span className="font-medium">{getValue()}</span>
       ),
     },
     {
@@ -266,11 +266,11 @@ export default function AdminProductos() {
       cell: ({ getValue }) => {
         const cat = getValue();
         return cat ? (
-          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+          <span className="sp-badge sp-badge--primary">
             {cat.nombre}
           </span>
         ) : (
-          <span className="text-gray-400">Sin categoría</span>
+          <span className="sp-muted">Sin categoría</span>
         );
       },
     },
@@ -289,12 +289,12 @@ export default function AdminProductos() {
       cell: ({ getValue }) => {
         const stock = getValue();
         return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            stock === 0 
-              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+          <span className={`sp-badge ${
+            stock === 0
+              ? 'sp-badge--accent'
               : stock < 10
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                ? 'sp-badge--primary'
+                : 'sp-badge--secondary'
           }`}>
             {stock}
           </span>
@@ -308,14 +308,14 @@ export default function AdminProductos() {
         <div className="flex gap-2">
           <button
             onClick={() => openEditModal(row.original)}
-            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition"
+            className="sp-button sp-button-ghost h-9 w-9 !p-0 text-blue-600"
             title="Editar"
           >
             <PencilIcon className="h-5 w-5" />
           </button>
           <button
             onClick={() => openDeleteDialog(row.original)}
-            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
+            className="sp-button sp-button-ghost h-9 w-9 !p-0 text-rose-600"
             title="Eliminar"
           >
             <TrashIcon className="h-5 w-5" />
@@ -328,10 +328,10 @@ export default function AdminProductos() {
   if (loading) {
     return (
       <Protected>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Cargando productos...</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="sp-card sp-card-static px-10 py-8 text-center">
+            <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-[var(--brand-primary)] mx-auto mb-4"></div>
+            <p className="sp-muted">Cargando productos...</p>
           </div>
         </div>
       </Protected>
@@ -343,12 +343,12 @@ export default function AdminProductos() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Productos</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Gestiona el inventario de productos</p>
+            <h1 className="text-3xl font-bold">Productos</h1>
+            <p className="sp-muted mt-1">Gestiona el inventario de productos</p>
           </div>
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+            className="sp-button sp-button-primary"
           >
             <PlusIcon className="h-5 w-5" />
             Nuevo Producto
@@ -356,25 +356,25 @@ export default function AdminProductos() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Productos</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{productos.length}</p>
+          <div className="sp-widget sp-widget-primary">
+            <p className="text-sm sp-muted">Total Productos</p>
+            <p className="text-2xl font-bold mt-2">{productos.length}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">En Stock</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
+          <div className="sp-widget sp-widget-secondary">
+            <p className="text-sm sp-muted">En Stock</p>
+            <p className="text-2xl font-bold mt-2">
               {productos.filter(p => p.stock > 0).length}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Bajo Stock</p>
-            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
+          <div className="sp-widget sp-widget-accent">
+            <p className="text-sm sp-muted">Bajo Stock</p>
+            <p className="text-2xl font-bold mt-2">
               {productos.filter(p => p.stock > 0 && p.stock < 10).length}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Sin Stock</p>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
+          <div className="sp-widget sp-widget-primary">
+            <p className="text-sm sp-muted">Sin Stock</p>
+            <p className="text-2xl font-bold mt-2">
               {productos.filter(p => p.stock === 0).length}
             </p>
           </div>
@@ -397,70 +397,72 @@ export default function AdminProductos() {
         >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Nombre del Producto *
-            </label>
+            <label className="sp-form-label">Nombre del Producto *</label>
             <input
               type="text"
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="sp-input"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Precio (S/) *
-              </label>
+              <label className="sp-form-label">Precio (S/) *</label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.precio}
-                onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (next === '' || Number(next) >= 0) {
+                    setFormData({ ...formData, precio: next });
+                  }
+                }}
+                className="sp-input"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Stock *
-              </label>
+              <label className="sp-form-label">Stock *</label>
               <input
                 type="number"
+                min="0"
                 value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (next === '' || Number(next) >= 0) {
+                    setFormData({ ...formData, stock: next });
+                  }
+                }}
+                className="sp-input"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Descripción detallada * (máx 500)
-            </label>
+            <label className="sp-form-label">Descripción detallada * (máx 500)</label>
             <textarea
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value.slice(0, 500) })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="sp-textarea"
               rows={4}
               maxLength={500}
               required
               placeholder="Puedes usar saltos de línea y listas con - o *"
             />
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formData.descripcion.length}/500</div>
+            <div className="text-xs sp-muted mt-1">{formData.descripcion.length}/500</div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Categoría
-            </label>
+            <label className="sp-form-label">Categoría</label>
             <select
               value={formData.categoriaId}
               onChange={(e) => setFormData({ ...formData, categoriaId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="sp-select"
             >
               <option value="">Sin categoría</option>
               {categorias.map((cat) => (
@@ -472,16 +474,14 @@ export default function AdminProductos() {
           </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Imagen del Producto
-              </label>
+              <label className="sp-form-label">Imagen del Producto</label>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="sp-file"
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs sp-muted mt-1">
                 Formatos permitidos: JPG, PNG, WEBP. Máximo 5MB.
               </p>
               {imagePreview && (
@@ -495,13 +495,13 @@ export default function AdminProductos() {
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300"
+                className="sp-button sp-button-outline"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                className="sp-button sp-button-primary"
               >
                 {selectedProduct ? 'Actualizar' : 'Crear'}
               </button>

@@ -40,6 +40,23 @@ class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
     'FINALIZADA',
   ];
 
+  int _porcentajePorEstado(String? estado) {
+    switch (estado?.toUpperCase()) {
+      case 'PENDIENTE':
+        return 0;
+      case 'EN_PROCESO':
+        return 25;
+      case 'PRODUCCION':
+        return 60;
+      case 'INSTALACION':
+        return 85;
+      case 'FINALIZADA':
+        return 100;
+      default:
+        return int.tryParse(_porcentajeCtrl.text) ?? 0;
+    }
+  }
+
   @override
   void dispose() {
     _mensajeCtrl.dispose();
@@ -210,249 +227,293 @@ class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Estado del avance
-            DropdownButtonFormField<String>(
-              value: _estadoSeleccionado,
-              decoration: const InputDecoration(
-                labelText: 'Estado',
-                prefixIcon: Icon(Icons.work_outline),
-                border: OutlineInputBorder(),
-              ),
-              items: _estadosDisponibles.map((estado) {
-                return DropdownMenuItem(
-                  value: estado,
-                  child: Text(estado.replaceAll('_', ' ')),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _estadoSeleccionado = value;
-                });
-              },
-              validator: (value) =>
-                  value == null || value.isEmpty ? 'Selecciona un estado' : null,
-            ),
-            const SizedBox(height: 16),
-
-            // Porcentaje de avance
-            TextFormField(
-              controller: _porcentajeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Porcentaje de avance (%)',
-                prefixIcon: Icon(Icons.percent),
-                border: OutlineInputBorder(),
-                suffixText: '%',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(3),
-              ],
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Requerido';
-                final n = int.tryParse(value);
-                if (n == null || n < 0 || n > 100) return '0-100';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Mensaje
-            TextFormField(
-              controller: _mensajeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Mensaje / Observaciones',
-                prefixIcon: Icon(Icons.message),
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 3,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'El mensaje es requerido';
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'Materiales utilizados',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            // Lista de materiales agregados
-            if (_materialesList.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _materialesList.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final item = _materialesList[index];
-                    return ListTile(
-                      dense: true,
-                      title: Text(item['nombre']),
-                      subtitle: Text('${item['cantidad']} ${item['unidad']}'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                        onPressed: () => _eliminarMaterial(index),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-            // Formulario para agregar material
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: _materialCtrl,
+            _buildSectionCard(
+              title: 'Información del avance',
+              icon: Icons.assignment_outlined,
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: _estadoSeleccionado,
                     decoration: const InputDecoration(
-                      labelText: 'Material',
-                      isDense: true,
+                      labelText: 'Estado',
+                      prefixIcon: Icon(Icons.work_outline),
                       border: OutlineInputBorder(),
                     ),
+                    items: _estadosDisponibles.map((estado) {
+                      return DropdownMenuItem(
+                        value: estado,
+                        child: Text(estado.replaceAll('_', ' ')),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _estadoSeleccionado = value;
+                        _porcentajeCtrl.text =
+                            _porcentajePorEstado(value).toString();
+                      });
+                    },
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Selecciona un estado'
+                        : null,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _cantidadCtrl,
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _porcentajeCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Cant.',
-                      isDense: true,
+                      labelText: 'Porcentaje de avance (%)',
+                      prefixIcon: Icon(Icons.percent),
                       border: OutlineInputBorder(),
+                      suffixText: '%',
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(3),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Requerido';
+                      final n = int.tryParse(value);
+                      if (n == null || n < 0 || n > 100) return '0-100';
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _unidadCtrl,
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _mensajeCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Unidad',
-                      isDense: true,
+                      labelText: 'Mensaje / Observaciones',
+                      prefixIcon: Icon(Icons.message),
                       border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
                     ),
+                    maxLines: 3,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'El mensaje es requerido';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                IconButton(
-                  onPressed: _agregarMaterial,
-                  icon: const Icon(Icons.add_circle, color: Colors.blue),
-                  tooltip: 'Agregar material',
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'Evidencias (Fotos)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            // Grid de fotos
-            if (_evidencias.isNotEmpty)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: _evidencias.length,
-                itemBuilder: (context, index) {
-                  return Stack(
-                    children: [
-                      Positioned.fill(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: kIsWeb
-                              ? Image.network(
-                                  _evidencias[index].path,
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.file(
-                                  File(_evidencias[index].path),
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
+            const SizedBox(height: 16),
+            _buildSectionCard(
+              title: 'Materiales utilizados',
+              icon: Icons.inventory_2_outlined,
+              child: Column(
+                children: [
+                  if (_materialesList.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: InkWell(
-                          onTap: () => _eliminarEvidencia(index),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _materialesList.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = _materialesList[index];
+                          return ListTile(
+                            dense: true,
+                            title: Text(item['nombre']),
+                            subtitle:
+                                Text('${item['cantidad']} ${item['unidad']}'),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              onPressed: () => _eliminarMaterial(index),
                             ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.white,
-                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: _materialCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Material',
+                            isDense: true,
+                            border: OutlineInputBorder(),
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          controller: _cantidadCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Cant.',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          controller: _unidadCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Unidad',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _agregarMaterial,
+                        icon: const Icon(Icons.add_circle, color: Colors.blue),
+                        tooltip: 'Agregar material',
+                      ),
                     ],
-                  );
-                },
+                  ),
+                ],
               ),
-            
-            const SizedBox(height: 16),
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _seleccionarFoto,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Cámara'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                    foregroundColor: Colors.black87,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _seleccionarDeGaleria,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Galería'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                    foregroundColor: Colors.black87,
-                  ),
-                ),
-              ],
             ),
-
-            const SizedBox(height: 32),
-
+            const SizedBox(height: 16),
+            _buildSectionCard(
+              title: 'Evidencias (Fotos)',
+              icon: Icons.photo_library_outlined,
+              child: Column(
+                children: [
+                  if (_evidencias.isNotEmpty)
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemCount: _evidencias.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: kIsWeb
+                                    ? Image.network(
+                                        _evidencias[index].path,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.file(
+                                        File(_evidencias[index].path),
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: InkWell(
+                                onTap: () => _eliminarEvidencia(index),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _seleccionarFoto,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Cámara'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade200,
+                          foregroundColor: Colors.black87,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _seleccionarDeGaleria,
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Galería'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade200,
+                          foregroundColor: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
             SizedBox(
               height: 50,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: _sending ? null : _submit,
                 child: _sending
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('GUARDAR AVANCE'),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required Widget child,
+    IconData? icon,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon ?? Icons.info_outline, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            child,
           ],
         ),
       ),

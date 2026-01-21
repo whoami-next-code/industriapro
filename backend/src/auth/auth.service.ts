@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
 import { AuditService } from '../audit/audit.service';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,132 @@ export class AuthService {
     private mail: MailService,
     private audit: AuditService,
   ) {}
+
+  private generateTempPassword(length = 12) {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const pool = upper + lower + digits;
+    const pick = (chars: string) =>
+      chars[randomBytes(1)[0] % chars.length];
+    const result = [pick(upper), pick(lower), pick(digits)];
+    while (result.length < length) {
+      result.push(pick(pool));
+    }
+    return result
+      .sort(() => (randomBytes(1)[0] % 2 === 0 ? -1 : 1))
+      .join('');
+  }
+
+  async createUserByAdmin(data: {
+    email: string;
+    fullName?: string;
+    phone?: string;
+    role?: string;
+    active?: boolean;
+  }) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !serviceKey) {
+      throw new BadRequestException(
+        'Configuración de Supabase incompleta en el servidor',
+      );
+    }
+
+    const tempPassword = this.generateTempPassword();
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { data: userData, error } = await supabase.auth.admin.createUser({
+      email: data.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        fullName: data.fullName,
+        phone: data.phone,
+        role: data.role ?? 'CLIENTE',
+        mustChangePassword: true,
+      },
+    });
+
+    let supabaseUser = userData?.user;
+    let created = true;
+    if (error) {
+      if (error.message.includes('already been registered')) {
+        created = false;
+        const { data: listData, error: listError } =
+          await supabase.auth.admin.listUsers({
+            page: 1,
+            perPage: 1000,
+          });
+        if (listError) {
+          throw new BadRequestException(
+            `Error de Supabase: ${listError.message}`,
+          );
+        }
+        supabaseUser =
+          listData?.users?.find(
+            (u) => u.email?.toLowerCase() === data.email.toLowerCase(),
+          ) ?? null;
+        if (!supabaseUser) {
+          throw new BadRequestException(
+            'Error de Supabase: usuario ya registrado pero no encontrado',
+          );
+        }
+        const { error: updateError } =
+          await supabase.auth.admin.updateUserById(supabaseUser.id, {
+            password: tempPassword,
+            user_metadata: {
+              fullName: data.fullName,
+              phone: data.phone,
+              role: data.role ?? 'CLIENTE',
+              mustChangePassword: true,
+            },
+          });
+        if (updateError) {
+          throw new BadRequestException(
+            `Error de Supabase: ${updateError.message}`,
+          );
+        }
+      } else {
+        throw new BadRequestException(`Error de Supabase: ${error.message}`);
+      }
+    }
+
+    const email = data.email.toLowerCase().trim();
+    const existing = await this.users.findByEmail(email);
+    const userPayload = {
+      email,
+      fullName: data.fullName,
+      phone: data.phone,
+      role: data.role as any,
+      verified: true,
+      supabaseUid: supabaseUser?.id,
+      active: data.active ?? true,
+      mustChangePassword: true,
+    };
+
+    const user = existing
+      ? await this.users.update(existing.id, userPayload as any)
+      : await this.users.create({ ...userPayload, password: tempPassword });
+
+    await this.audit.log('user.created_by_admin', user.id, {
+      email,
+      role: user.role,
+    });
+
+    return {
+      ok: true,
+      user,
+      tempPassword,
+      created,
+    };
+  }
 
   // Nota: Login/Registro principal debe ocurrir en el Frontend (Cliente Supabase).
   // Estos métodos quedan como soporte para flujos legacy o administrativos.
@@ -183,39 +310,16 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas (Supabase)');
     }
 
-    let user = await this.users.findBySupabaseUid(authData.user.id);
+    const user = await this.users.findBySupabaseUid(authData.user.id);
 
-    // Si el usuario no existe localmente, intentar sincronización automática
     if (!user) {
-      // Intentar buscar por email como fallback
-      user = await this.users.findByEmail(authData.user.email || data.email);
+      throw new UnauthorizedException(
+        'Usuario no registrado en el sistema. Contacte al administrador.',
+      );
+    }
 
-      if (user) {
-        // Actualizar con supabaseUid si existe pero no tiene el UID
-        await this.users.update(user.id, {
-          supabaseUid: authData.user.id,
-        } as any);
-        this.logger.log(`Usuario sincronizado por email: ${user.email}`);
-      } else {
-        // Crear usuario local automáticamente si no existe
-        const fullName =
-          authData.user.user_metadata?.fullName ||
-          authData.user.user_metadata?.name ||
-          authData.user.email?.split('@')[0] ||
-          'Usuario';
-
-        user = await this.users.create({
-          email: authData.user.email || data.email,
-          fullName,
-          role: authData.user.user_metadata?.role || 'CLIENTE',
-          verified: authData.user.email_confirmed_at ? true : false,
-          supabaseUid: authData.user.id,
-        });
-
-        this.logger.log(
-          `Usuario creado automáticamente durante login: ${user.email}`,
-        );
-      }
+    if (!user.active) {
+      throw new UnauthorizedException('Usuario inactivo. Contacte al administrador.');
     }
 
     await this.audit.log('user.logged_in_proxy', user.id, {
@@ -227,7 +331,60 @@ export class AuthService {
       access_token: authData.session.access_token,
       refresh_token: authData.session.refresh_token,
       user,
+      mustChangePassword: !!user.mustChangePassword,
     };
+  }
+
+  async changePasswordFirst(
+    userId: number,
+    supabaseUid: string,
+    newPassword: string,
+  ) {
+    if (!userId || !supabaseUid) {
+      throw new BadRequestException('Usuario inválido');
+    }
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('La contraseña es muy corta');
+    }
+
+    const user = await this.users.findOne(userId);
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+    if (!user.mustChangePassword) {
+      return { ok: true, changed: false };
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      throw new BadRequestException('Configuración Supabase incompleta');
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { error } = await supabase.auth.admin.updateUserById(supabaseUid, {
+      password: newPassword,
+    });
+    if (error) {
+      throw new BadRequestException(`Error de Supabase: ${error.message}`);
+    }
+
+    await this.users.update(user.id, {
+      password: newPassword,
+      mustChangePassword: false,
+    } as any);
+
+    await this.audit.log('user.password_changed_first', user.id, {
+      email: user.email,
+    });
+
+    return { ok: true, changed: true };
   }
 
   // Métodos legacy simplificados o eliminados

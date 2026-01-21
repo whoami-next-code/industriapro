@@ -270,7 +270,7 @@ class _AvanceFormPageState extends ConsumerState<AvanceFormPage> {
           children: [
             // Estado del avance
             DropdownButtonFormField<String>(
-              value: _estadoSeleccionado,
+              initialValue: _estadoSeleccionado,
               decoration: const InputDecoration(
                 labelText: 'Estado / Etapa',
                 prefixIcon: Icon(Icons.work_outline),
@@ -364,7 +364,7 @@ class _AvanceFormPageState extends ConsumerState<AvanceFormPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -406,7 +406,7 @@ class _AvanceFormPageState extends ConsumerState<AvanceFormPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _unidadCtrl.text,
+                            initialValue: _unidadCtrl.text,
                             decoration: const InputDecoration(
                               labelText: 'Unidad',
                               border: OutlineInputBorder(),

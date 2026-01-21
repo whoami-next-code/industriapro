@@ -108,12 +108,6 @@ export default function Home2Header() {
                 >
                   Iniciar Sesión
                 </Link>
-                <Link 
-                  href="/auth/register" 
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
-                >
-                  Registrarse
-                </Link>
               </div>
             )}
 
@@ -171,9 +165,6 @@ export default function Home2Header() {
                 <>
                   <Link href="/auth/login" className="text-gray-700 hover:text-orange-500 font-medium" onClick={() => setIsMenuOpen(false)}>
                     Iniciar Sesión
-                  </Link>
-                  <Link href="/auth/register" className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded font-medium inline-block" onClick={() => setIsMenuOpen(false)}>
-                    Registrarse
                   </Link>
                 </>
               )}

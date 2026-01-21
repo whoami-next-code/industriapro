@@ -37,7 +37,17 @@ const toCard = (p: ApiProduct): Product => ({
 
 type Category = { id: number; name: string };
 
-function ProductCard({ product, onQuickView }: { product: Product; onQuickView: (id: number) => void }) {
+function ProductCard({
+  product,
+  onQuickView,
+  favorites,
+  onToggleFavorite,
+}: {
+  product: Product;
+  onQuickView: (id: number) => void;
+  favorites: Set<number>;
+  onToggleFavorite: (id: number) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   // #region agent log
   useEffect(() => {
@@ -50,10 +60,19 @@ function ProductCard({ product, onQuickView }: { product: Product; onQuickView: 
         <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         {product.isNew && (<span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">NUEVO</span>)}
         {product.originalPrice && (<span className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">OFERTA</span>)}
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <div className="absolute inset-0 bg-transparent transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
           <div className="flex space-x-2">
             <button onClick={(e) => { e.preventDefault(); onQuickView(product.id); }} className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors" aria-label="Vista rápida"><Eye className="h-4 w-4 text-gray-700" /></button>
-            <button onClick={(e) => { e.preventDefault(); }} className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors" aria-label="Favoritos"><Heart className="h-4 w-4 text-gray-700" /></button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                onToggleFavorite(product.id);
+              }}
+              className={`bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors ${favorites.has(product.id) ? 'text-rose-600' : 'text-gray-700'}`}
+              aria-label={favorites.has(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+            >
+              <Heart className={`h-4 w-4 ${favorites.has(product.id) ? 'fill-current' : ''}`} />
+            </button>
           </div>
         </div>
       </Link>
@@ -103,6 +122,7 @@ export default function CatalogPage() {
   const [quickId, setQuickId] = useState<number | null>(null);
   const [quickData, setQuickData] = useState<ApiProduct | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -115,6 +135,17 @@ export default function CatalogPage() {
       }
     };
     loadCategories();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('catalogFavorites');
+      const parsed = raw ? (JSON.parse(raw) as number[]) : [];
+      setFavorites(new Set(Array.isArray(parsed) ? parsed : []));
+    } catch {
+      setFavorites(new Set());
+    }
   }, []);
 
   useEffect(() => {
@@ -163,11 +194,26 @@ export default function CatalogPage() {
   }, [search, activeCategory, sort]);
 
   const getProductsByTab = (tab: ProductCategory) => {
-    const base = products.filter(p => p.tab === tab || tab === 'featured');
-    return base.filter(p => {
+    return products.filter(p => {
+      const matchesTab = p.tab === tab;
       const matchesSearch = search ? p.name.toLowerCase().includes(search.toLowerCase()) : true;
       const matchesCategory = activeCategory === 'ALL' ? true : (p.catLabel || '').toLowerCase() === activeCategory.toLowerCase();
-      return matchesSearch && matchesCategory;
+      return matchesTab && matchesSearch && matchesCategory;
+    });
+  };
+
+  const toggleFavorite = (id: number) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('catalogFavorites', JSON.stringify(Array.from(next)));
+      }
+      return next;
     });
   };
 
@@ -217,7 +263,13 @@ export default function CatalogPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {getProductsByTab(activeTab).map((product) => (
-                  <ProductCard key={product.id} product={product} onQuickView={(id)=>{ setQuickId(id); setQuickOpen(true); }} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onQuickView={(id)=>{ setQuickId(id); setQuickOpen(true); }}
+                    favorites={favorites}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 ))}
               </div>
             </div>

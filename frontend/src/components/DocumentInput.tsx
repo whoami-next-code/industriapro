@@ -174,6 +174,14 @@ export default function DocumentInput({
       };
     }
 
+    const firstTwoDigits = cleanDocument.substring(0, 2);
+    const rucPrefixes = ['10', '15', '17', '20'];
+
+    // Si empieza con prefijo de RUC, tratarlo siempre como RUC (aunque esté incompleto)
+    if (rucPrefixes.includes(firstTwoDigits)) {
+      return validateRUC(cleanDocument);
+    }
+
     if (cleanDocument.length <= 8) {
       return validateDNI(cleanDocument);
     } else if (cleanDocument.length <= 11) {

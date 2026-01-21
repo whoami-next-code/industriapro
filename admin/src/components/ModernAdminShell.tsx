@@ -2,9 +2,23 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useAdminSocket } from "@/lib/AdminSocketProvider";
 import { useAppStore } from "@/store/useAppStore";
-import { SunIcon, MoonIcon } from "@heroicons/react/24/outline";
+import {
+  SunIcon,
+  MoonIcon,
+  Bars3Icon,
+  ChartBarIcon,
+  UsersIcon,
+  UserGroupIcon,
+  CubeIcon,
+  TagIcon,
+  DocumentTextIcon,
+  ShoppingCartIcon,
+  EnvelopeIcon,
+  ChartPieIcon,
+} from "@heroicons/react/24/outline";
 
 // Evitar hidratación inconsistente en HeadlessUI cuando se renderiza en SSR
 const NotificationDropdown = dynamic(
@@ -12,23 +26,50 @@ const NotificationDropdown = dynamic(
   { ssr: false },
 );
 
-type NavItem = { href: string; label: string; icon?: string };
+type NavItem = { href: string; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> };
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: "fa fa-chart-line" },
-  { href: "/usuarios", label: "Usuarios", icon: "fa fa-users" },
-  { href: "/clientes", label: "Clientes", icon: "fa fa-user-circle" },
-  { href: "/productos", label: "Productos", icon: "fa fa-cubes" },
-  { href: "/categorias", label: "Categorías", icon: "fa fa-tags" },
-  { href: "/cotizaciones", label: "Cotizaciones", icon: "fa fa-file-text" },
-  { href: "/pedidos", label: "Pedidos", icon: "fa fa-shopping-cart" },
-  { href: "/contactos", label: "Contactos", icon: "fa fa-envelope" },
-  { href: "/reportes", label: "Reportes", icon: "fa fa-chart-bar" },
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "General",
+    items: [
+      { href: "/", label: "Dashboard", icon: ChartBarIcon },
+      { href: "/reportes", label: "Reportes", icon: ChartPieIcon },
+    ],
+  },
+  {
+    title: "Gestión",
+    items: [
+      { href: "/usuarios", label: "Usuarios", icon: UsersIcon },
+      { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
+    ],
+  },
+  {
+    title: "Catálogo",
+    items: [
+      { href: "/productos", label: "Productos", icon: CubeIcon },
+      { href: "/categorias", label: "Categorías", icon: TagIcon },
+    ],
+  },
+  {
+    title: "Ventas",
+    items: [
+      { href: "/cotizaciones", label: "Cotizaciones", icon: DocumentTextIcon },
+      { href: "/pedidos", label: "Pedidos", icon: ShoppingCartIcon },
+    ],
+  },
+  {
+    title: "Atención",
+    items: [
+      { href: "/contactos", label: "Contactos", icon: EnvelopeIcon },
+      { href: "/reporte-tecnico", label: "Reporte técnico", icon: DocumentTextIcon },
+    ],
+  },
 ];
 
 export default function ModernAdminShell({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const pathname = usePathname();
   const { darkMode, sidebarCollapsed, toggleDarkMode, toggleSidebar } = useAppStore();
 
   useEffect(() => {
@@ -59,60 +100,88 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
     }
   }, []);
 
+  const sidebarCollapsedState = sidebarCollapsed;
+  const sidebarWidth = sidebarCollapsedState ? "w-20" : "w-64";
+  const sidebarPosition = isMobile
+    ? `fixed inset-y-0 left-0 z-40 ${sidebarCollapsedState ? "-translate-x-full" : "translate-x-0"}`
+    : "relative";
+
   return (
-    <div className="sp-admin min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex">
+    <div className="sp-admin min-h-screen flex">
+      {isMobile && !sidebarCollapsedState && (
+        <button
+          aria-label="Cerrar menú"
+          className="fixed inset-0 z-30 bg-black/30"
+          onClick={toggleSidebar}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={
-          `group/sidebar ${!sidebarCollapsed ? 'w-64' : 'w-16'} shrink-0 transition-all duration-200 ease-in-out bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`
-        }
+        className={`sp-sidebar ${sidebarWidth} ${sidebarPosition} shrink-0 transition-all duration-200 ease-in-out`}
         aria-label="Menú lateral"
       >
-        <div className="h-14 flex items-center gap-2 px-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="h-16 flex items-center gap-2 px-4 border-b border-[var(--border)]">
           <button
-            aria-label={!sidebarCollapsed ? 'Contraer menú' : 'Expandir menú'}
-            aria-expanded={!sidebarCollapsed}
+            aria-label={!sidebarCollapsedState ? "Contraer menú" : "Expandir menú"}
+            aria-expanded={!sidebarCollapsedState}
             onClick={toggleSidebar}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="sp-button sp-button-ghost h-10 w-10 !p-0"
           >
-            <i className="fa fa-bars" aria-hidden="true"></i>
+            <Bars3Icon className="h-5 w-5" aria-hidden="true" />
           </button>
-          <span className={`text-sm font-semibold tracking-wide ${!sidebarCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity`}>Industrias SP</span>
+          <span
+            className={`text-sm font-semibold tracking-wide ${
+              !sidebarCollapsedState ? "opacity-100" : "opacity-0 pointer-events-none"
+            } transition-opacity`}
+          >
+            Industrias SP
+          </span>
         </div>
 
-        <nav className="py-3" role="navigation" aria-label="Navegación principal">
-          <ul className="space-y-1">
-            {NAV_ITEMS.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 focus:bg-blue-50 dark:focus:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition`}
-                >
-                  {item.icon && <i className={`${item.icon}`} aria-hidden="true" />}
-                  <span className={`${!sidebarCollapsed ? 'block' : 'sr-only'}`}>{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <nav className="py-4" role="navigation" aria-label="Navegación principal">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title}>
+              <div className={`sp-nav-section ${sidebarCollapsedState ? "sr-only" : ""}`}>{group.title}</div>
+              <ul className="space-y-1 px-3">
+                {group.items.map((item) => {
+                  const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className="sp-nav-link"
+                        data-active={isActive}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                        <span className={`${!sidebarCollapsedState ? "block" : "sr-only"}`}>{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
       </aside>
 
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar */}
-        <header className="h-14 flex items-center justify-between px-4 lg:px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800" role="banner">
+        <header className="sp-topbar h-16 flex items-center justify-between px-4 lg:px-6" role="banner">
           <div className="flex items-center gap-4">
             {/* Mobile toggle */}
             <button
-              aria-label={!sidebarCollapsed ? 'Contraer menú' : 'Expandir menú'}
-              aria-expanded={!sidebarCollapsed}
+              aria-label={!sidebarCollapsedState ? "Contraer menú" : "Expandir menú"}
+              aria-expanded={!sidebarCollapsedState}
               onClick={toggleSidebar}
-              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="lg:hidden sp-button sp-button-ghost h-10 w-10 !p-0"
             >
-              <i className="fa fa-bars" aria-hidden="true"></i>
+              <Bars3Icon className="h-5 w-5" aria-hidden="true" />
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Panel de administración</span>
+              <span className="text-sm sp-muted">Panel de administración</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -120,27 +189,35 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
             <NotificationDropdown />
             <button
               onClick={toggleDarkMode}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+              className="sp-button sp-button-ghost h-10 w-10 !p-0"
               aria-label={darkMode ? 'Modo claro' : 'Modo oscuro'}
             >
               {darkMode ? <SunIcon className="h-6 w-6" /> : <MoonIcon className="h-6 w-6" />}
             </button>
             {loggedIn ? (
               <button
-                onClick={() => { if (typeof window !== 'undefined') { localStorage.removeItem('token'); window.location.href = '/auth/login'; } }}
-                className="text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem('token');
+                    window.dispatchEvent(new Event('auth-token-changed'));
+                    window.location.href = '/auth/login';
+                  }
+                }}
+                className="text-sm sp-muted hover:text-[var(--text)] transition"
                 aria-label="Cerrar sesión"
               >
                 Salir
               </button>
             ) : (
-              <Link href="/auth/login" className="text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white">Login</Link>
+              <Link href="/auth/login" className="text-sm sp-muted hover:text-[var(--text)] transition">Login</Link>
             )}
           </div>
         </header>
 
         <main id="main" role="main" className="flex-1 min-w-0 p-4 lg:p-6">
-          {children}
+          <div className="sp-main">
+            {children}
+          </div>
         </main>
       </div>
     </div>
@@ -148,8 +225,21 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
 }
 
 function ConnectionIndicator() {
-  const { status } = useAdminSocket();
-  const color = status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500' : status === 'error' ? 'bg-red-500' : 'bg-gray-400';
-  const text = status === 'connected' ? 'Conectado' : status === 'connecting' ? 'Conectando' : status === 'error' ? 'Error' : 'Desconectado';
-  return <div className={`px-3 py-1 rounded-full text-white text-xs ${color}`}>{text}</div>;
+  const { status, socket } = useAdminSocket();
+  const effectiveStatus = socket?.connected ? "connected" : status;
+  const color = effectiveStatus === "connected"
+    ? "bg-emerald-400"
+    : effectiveStatus === "connecting"
+      ? "bg-amber-300"
+      : effectiveStatus === "error"
+        ? "bg-rose-400"
+        : "bg-slate-300";
+  const text = effectiveStatus === "connected"
+    ? "Conectado"
+    : effectiveStatus === "connecting"
+      ? "Conectando"
+      : effectiveStatus === "error"
+        ? "Error"
+        : "Desconectado";
+  return <div className={`px-3 py-1 rounded-full text-[11px] font-semibold text-slate-900 ${color}`}>{text}</div>;
 }

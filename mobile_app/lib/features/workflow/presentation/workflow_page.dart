@@ -78,8 +78,8 @@ class _Header extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Theme.of(context).colorScheme.primary.withOpacity(0.9),
-            Theme.of(context).colorScheme.secondary.withOpacity(0.9),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.9),
+            Theme.of(context).colorScheme.secondary.withValues(alpha: 0.9),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -87,7 +87,7 @@ class _Header extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -113,7 +113,7 @@ class _Header extends StatelessWidget {
                   Text(
                     'Flujo basado en eventos, sin modo oscuro',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                   ),
                 ],
@@ -249,7 +249,7 @@ class _WorkflowCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 6),
           ),
@@ -279,7 +279,7 @@ class _WorkflowCard extends StatelessWidget {
               ),
               Chip(
                 label: Text(_statusLabel()),
-                backgroundColor: _statusColor(context).withOpacity(0.12),
+                backgroundColor: _statusColor(context).withValues(alpha: 0.12),
                 labelStyle: TextStyle(
                   color: _statusColor(context),
                   fontWeight: FontWeight.w600,
@@ -368,7 +368,7 @@ class _ApprovalsSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 6),
           ),
@@ -389,7 +389,7 @@ class _ApprovalsSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -431,7 +431,7 @@ class _ApprovalsSection extends StatelessWidget {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color:
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -523,7 +523,7 @@ class _TimelineSection extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 6),
             ),
@@ -549,7 +549,7 @@ class _TimelineSection extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 6),
           ),
@@ -572,7 +572,7 @@ class _TimelineSection extends ConsumerWidget {
               leading: CircleAvatar(
                 radius: 16,
                 backgroundColor:
-                    Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                 child: Icon(
                   _eventIcon(e.type),
                   color: Theme.of(context).colorScheme.primary,
@@ -647,7 +647,7 @@ class _StatusStepper extends StatelessWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     child: Text(
                       '${s.progress}%',
                       style: TextStyle(

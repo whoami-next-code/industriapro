@@ -11,19 +11,25 @@ type StatCardProps = {
 };
 
 export default function StatCard({ title, value, icon, href, accent = "info" }: StatCardProps) {
+  const accentClass = {
+    primary: "sp-badge--primary",
+    info: "sp-badge--primary",
+    success: "sp-badge--secondary",
+    warning: "sp-badge--accent",
+  }[accent];
   const content = (
-    <div className="card" aria-label={`${title}: ${value}`}>
-      <div className="card-body card-inline">
+    <div className="sp-card" aria-label={`${title}: ${value}`}>
+      <div className="sp-card-body flex items-center gap-3">
         {icon && (
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full">
-            <Icon variant="fa" name={icon} size={18} className="text-brand" />
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--surface-2)]">
+            <Icon variant="hero" name={icon} size={18} className="text-[var(--text)]" />
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="text-muted text-sm">{title}</div>
+          <div className="sp-muted text-sm">{title}</div>
           <div className="text-2xl font-bold" aria-live="polite">{value}</div>
         </div>
-        <span className={`badge ${accent}`}>{title}</span>
+        <span className={`sp-badge ${accentClass}`}>{title}</span>
       </div>
     </div>
   );

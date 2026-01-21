@@ -31,6 +31,7 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { MailService } from '../mail/mail.service';
+import { ComprobantesService } from '../comprobantes/comprobantes.service';
 
 @ApiTags('pedidos')
 @Controller('api/pedidos')
@@ -39,6 +40,7 @@ export class PedidosController {
     private readonly service: PedidosService,
     private readonly events: EventsService,
     private readonly mail: MailService,
+    private readonly comprobantes: ComprobantesService,
   ) {}
 
   @Post()
@@ -143,6 +145,115 @@ export class PedidosController {
         HttpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  @Post('pago-ficticio')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiOperation({ summary: 'Registrar pago ficticio y generar comprobante/factura' })
+  async createFakePayment(@Req() req: any, @Body() body: any) {
+    const userId = req.user?.userId;
+    const items = Array.isArray(body?.items) ? body.items : [];
+    const customerData = body?.customerData || {};
+    const rawDocument = String(customerData?.document ?? '').trim();
+    const documentType =
+      customerData?.documentType === 'ruc' || rawDocument.length === 11
+        ? 'RUC'
+        : 'DNI';
+    const customerName = String(customerData?.name ?? '').trim();
+    const customerPhone = String(customerData?.phone ?? '').trim();
+    const customerEmail = String(customerData?.email ?? '').trim() || undefined;
+    const shippingAddress = String(customerData?.address ?? body?.shippingAddress ?? '').trim();
+
+    if (!items.length) {
+      throw new HttpException({ ok: false, error: 'Items inválidos' }, HttpStatus.BAD_REQUEST);
+    }
+    if (!rawDocument || !customerName || !shippingAddress) {
+      throw new HttpException({ ok: false, error: 'Datos de cliente incompletos' }, HttpStatus.BAD_REQUEST);
+    }
+
+    const subtotal = items.reduce(
+      (sum: number, it: any) =>
+        sum + Number(it?.price ?? it?.precioUnitario ?? 0) * Number(it?.quantity ?? it?.cantidad ?? 0),
+      0,
+    );
+    const shipping = 0;
+    const total = Number(body?.total ?? subtotal + shipping);
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+    const paymentId = `FAKE-${Date.now()}`;
+
+    const comprobanteItems = items.map((it: any) => ({
+      productId: Number(it?.productId ?? 0),
+      name: String(it?.name ?? it?.nombre ?? 'Producto'),
+      price: Number(it?.price ?? it?.precioUnitario ?? 0),
+      quantity: Number(it?.quantity ?? it?.cantidad ?? 0),
+      total: Number(it?.price ?? it?.precioUnitario ?? 0) * Number(it?.quantity ?? it?.cantidad ?? 0),
+    }));
+
+    const baseDocPayload = {
+      orderNumber,
+      customerName,
+      customerDni: rawDocument,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      items: comprobanteItems,
+      subtotal,
+      shipping,
+      total,
+      paymentMethod: 'CARD' as const,
+      paymentStatus: 'COMPLETED',
+      orderDate: new Date(),
+      notes: 'Pago ficticio',
+    };
+
+    const comprobante = documentType === 'DNI'
+      ? await this.comprobantes.generateComprobante(baseDocPayload)
+      : null;
+
+    const factura = documentType === 'RUC'
+      ? {
+          ...(await this.comprobantes.generateComprobante(baseDocPayload)),
+          type: 'FACTURA',
+          id: `F001-${Math.floor(Math.random() * 999999).toString().padStart(6, '0')}`,
+        }
+      : null;
+
+    const notes = JSON.stringify({
+      comprobante,
+      factura,
+      payment: { method: 'FAKE', id: paymentId },
+    });
+
+    const order = await this.service.create({
+      orderNumber,
+      userId,
+      customerName,
+      customerDni: rawDocument,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      items: JSON.stringify(items),
+      subtotal,
+      shipping,
+      total,
+      paymentMethod: 'CARD',
+      paymentStatus: 'COMPLETED',
+      orderStatus: 'CONFIRMED',
+      stripePaymentId: paymentId,
+      status: 'PAGADO',
+      notes,
+    });
+
+    this.events.pedidosUpdated({ id: order.id, action: 'create' });
+
+    return {
+      ok: true,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      comprobante,
+      factura,
+      paymentId,
+    };
   }
 
   @Get('by-payment')

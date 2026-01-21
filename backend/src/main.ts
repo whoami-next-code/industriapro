@@ -10,9 +10,14 @@ async function bootstrap() {
   console.log('ENV PORT:', process.env.PORT);
   console.log('NODE_ENV:', process.env.NODE_ENV);
   console.log('CORS_ORIGINS:', process.env.CORS_ORIGINS);
+  console.log('RABBITMQ_URL:', process.env.RABBITMQ_URL ? 'Configurado' : 'No configurado');
 
   const app = await NestFactory.create(AppModule);
   console.log('✅ Nest app created');
+
+  if (!process.env.RABBITMQ_URL && !process.env.RABBITMQ_HOST) {
+    console.warn('⚠️  RabbitMQ no configurado - Los eventos funcionarán solo vía Socket.IO');
+  }
 
   // ===== HELMET =====
   app.use(
@@ -57,21 +62,23 @@ async function bootstrap() {
       // Permitir si está en la lista
       if (corsOriginsEnv.includes(origin)) return cb(null, true);
 
-      // Permitir red local SOLO en no-producción
-      if (!isProd) {
-        try {
-          const hostname = new URL(origin).hostname;
+      try {
+        const hostname = new URL(origin).hostname;
+        // Permitir localhost siempre (útil para admin/local)
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return cb(null, true);
+        }
+        // Permitir red local SOLO en no-producción
+        if (!isProd) {
           if (
-            hostname === 'localhost' ||
-            hostname === '127.0.0.1' ||
             hostname.startsWith('192.168.') ||
             hostname.startsWith('10.') ||
             hostname.startsWith('172.')
           ) {
             return cb(null, true);
           }
-        } catch {}
-      }
+        }
+      } catch {}
 
       console.error(`[CORS] Blocked origin: ${origin}`);
       return cb(new Error(`Not allowed by CORS: ${origin}`));

@@ -10,6 +10,7 @@ import {
   Put,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -23,6 +24,8 @@ import { ForgotPasswordDto } from './dto/forgot.dto';
 import { ResetPasswordDto } from './dto/reset.dto';
 import { CheckEmailDto } from './dto/check-email.dto';
 import { createClient } from '@supabase/supabase-js';
+import { Roles } from './roles.decorator';
+import { RolesGuard } from './roles.guard';
 
 @Controller('api/auth')
 export class AuthController {
@@ -35,40 +38,32 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() body: RegisterDto, @Req() req: any) {
-    const ip =
-      req?.ip ||
-      req?.headers?.['x-forwarded-for'] ||
-      req?.connection?.remoteAddress;
-    this.logger.log(
-      `register start email=${body.email} ip=${Array.isArray(ip) ? ip.join(',') : ip}`,
+    throw new ForbiddenException(
+      'Registro público deshabilitado. Contacte al administrador.',
     );
-    try {
-      const result = await this.auth.register({
-        email: body.email,
-        password: body.password,
-        fullName: body.fullName,
-        phone: body.phone,
-      });
-      this.logger.log(
-        `register success email=${body.email} id=${(result as any)?.id ?? 'unknown'}`,
-      );
-      return result;
-    } catch (err: any) {
-      this.logger.error(
-        `register error email=${body.email}: ${err?.message || err}`,
-      );
-      throw err;
-    }
   }
 
   @Post('register-custom')
   async registerCustom(@Body() body: RegisterDto) {
-    return this.auth.registerWithSupabase({
-      email: body.email,
-      password: body.password,
-      fullName: body.fullName,
-      phone: body.phone,
-    });
+    throw new ForbiddenException(
+      'Registro público deshabilitado. Contacte al administrador.',
+    );
+  }
+
+  @Post('admin/create-user')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async adminCreateUser(
+    @Body()
+    body: {
+      email: string;
+      fullName?: string;
+      phone?: string;
+      role?: UserRole;
+      active?: boolean;
+    },
+  ) {
+    return this.auth.createUserByAdmin(body);
   }
 
   @Post('login')
@@ -112,6 +107,19 @@ export class AuthController {
   @Post('reset-password')
   async reset(@Body() body: ResetPasswordDto) {
     return this.auth.resetPassword(body.token, body.newPassword);
+  }
+
+  @Post('change-password-first')
+  @UseGuards(SupabaseAuthGuard)
+  async changePasswordFirst(
+    @Req() req: any,
+    @Body() body: { newPassword: string },
+  ) {
+    return this.auth.changePasswordFirst(
+      req.user?.userId,
+      req.user?.supabaseId,
+      body.newPassword,
+    );
   }
 
   /*
@@ -212,11 +220,7 @@ export class AuthController {
     @Body() body: { email: string; fullName?: string; id?: string },
   ) {
     const expected = process.env.EXTERNAL_REG_SECRET || '';
-    const isDev = process.env.NODE_ENV !== 'production';
-    if (!expected && isDev) {
-      // Permitir en entorno de desarrollo si no hay secreto configurado
-      this.logger.warn('register-external permitido sin secreto en desarrollo');
-    } else if (secret !== expected) {
+    if (!expected || secret !== expected) {
       this.logger.warn(
         `register-external unauthorized for email=${body?.email}`,
       );
@@ -392,8 +396,8 @@ export class AuthController {
     // Por ahora, solo devolverá instrucciones.
     return {
       message:
-        'Por favor, regístrese como admin desde el Frontend. El sistema sincronizará automáticamente.',
-      action: 'Go to /auth/register',
+        'Cree el usuario admin desde el panel o con la API admin/create-user.',
+      action: 'POST /auth/admin/create-user',
     };
   }
 

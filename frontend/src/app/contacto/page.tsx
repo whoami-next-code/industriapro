@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapPin, Phone, Mail, Clock, Send, User, MessageSquare, Building, CheckCircle, AlertCircle } from 'lucide-react';
+import { apiFetch, apiFetchAuth, getToken } from '@/lib/api';
 
 interface FormData {
   name: string;
@@ -23,7 +24,7 @@ export default function ContactoPage() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
-    phone: '',
+    phone: '+51 ',
     company: '',
     service: '',
     message: ''
@@ -31,7 +32,30 @@ export default function ContactoPage() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'unauthorized'>('idle');
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let isActive = true;
+    (async () => {
+      try {
+        const profile = await apiFetchAuth('/clientes/me');
+        if (!isActive) return;
+        setFormData((prev) => ({
+          ...prev,
+          name: profile?.fullName ?? prev.name,
+          email: profile?.email ?? prev.email,
+          phone: profile?.phone ?? prev.phone,
+        }));
+      } catch {
+        // Si falla, dejamos el formulario editable sin bloquear
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const services = [
     'Mantenimiento Industrial',
@@ -102,7 +126,8 @@ export default function ContactoPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const nextValue = name === 'phone' && value.trim() === '' ? '+51 ' : value;
+    setFormData(prev => ({ ...prev, [name]: nextValue }));
     
     // Clear error for this field when user starts typing
     if (errors[name as keyof FormErrors]) {
@@ -112,7 +137,12 @@ export default function ContactoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    const token = getToken();
+    if (!token) {
+      setSubmitStatus('unauthorized');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -121,21 +151,31 @@ export default function ContactoPage() {
     setSubmitStatus('idle');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Here you would typically send the data to your backend
-      // TODO: Implement API call to submit form data
+      const messageParts = [
+        formData.message?.trim(),
+        formData.service?.trim() ? `Servicio de interés: ${formData.service}` : '',
+        formData.company?.trim() ? `Empresa: ${formData.company}` : '',
+      ].filter(Boolean);
+
+      await apiFetchAuth('/contactos', {
+        method: 'POST',
+        body: JSON.stringify({
+          nombre: formData.name.trim(),
+          email: formData.email.trim(),
+          telefono: formData.phone.trim(),
+          mensaje: messageParts.join('\n'),
+        }),
+      });
       
       setSubmitStatus('success');
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
+      setFormData((prev) => ({
+        name: token ? prev.name : '',
+        email: token ? prev.email : '',
+        phone: token ? prev.phone : '',
         company: '',
         service: '',
-        message: ''
-      });
+        message: '',
+      }));
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Error submitting form:', error);
@@ -184,6 +224,15 @@ export default function ContactoPage() {
                   <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                   <p className="text-green-800">
                     ¡Gracias por tu mensaje! Nos pondremos en contacto contigo pronto.
+                  </p>
+                </div>
+              )}
+
+              {submitStatus === 'unauthorized' && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                  <p className="text-yellow-800">
+                    Debes iniciar sesión para enviar el formulario de contacto.
                   </p>
                 </div>
               )}
