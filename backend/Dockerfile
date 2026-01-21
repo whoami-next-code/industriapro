@@ -5,10 +5,10 @@ WORKDIR /app
 COPY . .
 RUN if [ -d backend ]; then \
   cp backend/package*.json ./; \
-  cp backend/nest-cli.json ./; \
-  cp backend/tsconfig*.json ./; \
-  cp -r backend/src ./src; \
-  cp -r backend/public ./public; \
+  [ -f backend/nest-cli.json ] && cp backend/nest-cli.json ./ || true; \
+  [ -e backend/tsconfig.json ] && cp backend/tsconfig*.json ./ || true; \
+  [ -d backend/src ] && cp -r backend/src ./src || true; \
+  [ -d backend/public ] && cp -r backend/public ./public || true; \
 fi
 
 RUN npm ci
