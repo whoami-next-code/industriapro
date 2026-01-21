@@ -14,7 +14,7 @@ RUN if [ -d frontend ]; then \
   cp -r frontend/public ./public; \
 fi
 
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps --include=optional
 RUN npm run build
 
 FROM node:20-bullseye-slim AS runner
