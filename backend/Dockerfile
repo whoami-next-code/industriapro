@@ -34,4 +34,4 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 
 USER node
-CMD ["node", "dist/src/main.js"]
+CMD ["sh", "-c", "if [ -f dist/src/main.js ]; then node dist/src/main.js; elif [ -f dist/main.js ]; then node dist/main.js; else echo \"No se encontro dist/main.js\"; ls -la dist || true; exit 1; fi"]
