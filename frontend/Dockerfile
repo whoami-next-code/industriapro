@@ -14,6 +14,7 @@ RUN if [ -d frontend ]; then \
   cp -r frontend/public ./public; \
 fi
 
+ENV NEXT_DISABLE_TURBOPACK=1
 RUN npm ci --legacy-peer-deps --include=optional
 RUN npm run build
 
