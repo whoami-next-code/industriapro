@@ -4,7 +4,7 @@ WORKDIR /app
 # Soporta build context en raíz del repo o en carpeta backend/
 COPY . .
 RUN set -e; \
-  if [ -d backend ]; then \
+  if [ -f backend/package.json ]; then \
     cd backend; \
     npm ci; \
     npm run build; \
@@ -13,10 +13,12 @@ RUN set -e; \
     cp backend/package*.json ./; \
     cp -r backend/dist ./dist; \
     [ -d backend/public ] && cp -r backend/public ./public || true; \
-  else \
+  elif [ -f package.json ] && [ -f nest-cli.json ]; then \
     npm ci; \
     npm run build; \
     test -d dist; \
+  else \
+    echo "No se encontro el paquete del backend en el contexto de build" && exit 1; \
   fi
 
 FROM node:20-alpine AS runner
