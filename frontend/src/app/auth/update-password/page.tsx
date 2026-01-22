@@ -15,6 +15,10 @@ export default function UpdatePasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!supabase) {
+      setError('Supabase no configurado');
+      return;
+    }
     // Verificar sesión
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
@@ -42,6 +46,7 @@ export default function UpdatePasswordPage() {
     setIsLoading(true);
 
     try {
+      if (!supabase) throw new Error('Supabase no configurado');
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setSuccess('Contraseña actualizada correctamente. Redirigiendo...');
