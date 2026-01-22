@@ -232,7 +232,7 @@ export class AuthController {
         this.logger.log(
           `check-email supabase-found unverified email=${body.email} - permitiendo registro (usuario no verificado)`,
         );
-        // Opcional: eliminar el usuario no verificado de Supabase para limpiar
+        // Eliminar el usuario no verificado de Supabase para limpiar
         try {
           await supabase.auth.admin.deleteUser(user.id);
           this.logger.log(
@@ -249,13 +249,19 @@ export class AuthController {
         };
       }
       
-      // Si está verificado en Supabase, el correo está en uso
+      // Si está verificado en Supabase pero NO existe en la base de datos local,
+      // significa que fue eliminado de la BD local, así que permitir registro de nuevo
+      // Solo bloquear si existe Y está verificado en la BD local
       this.logger.log(
-        `check-email supabase-result verified email=${body.email} exists=true verified=true`,
+        `check-email supabase-found verified but not in local DB email=${body.email} - permitiendo registro (usuario fue eliminado de BD local)`,
       );
+      
+      // Opcional: eliminar también de Supabase para permitir registro limpio
+      // O simplemente permitir el registro y que se actualice el usuario existente
+      // Por ahora, permitimos el registro
       return {
-        exists: true,
-        verified: true,
+        exists: false,
+        verified: false,
       };
     } catch (err: any) {
       this.logger.warn(
