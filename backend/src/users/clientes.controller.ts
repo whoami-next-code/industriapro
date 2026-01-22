@@ -58,7 +58,9 @@ export class ClientesMeController {
 
   @Get('autocomplete')
   async autocomplete(@Query('doc') doc: string) {
-    console.log(`[ClientesController] autocomplete llamado con doc: ${doc}`);
+    console.log(`[ClientesController] ========== autocomplete llamado ==========`);
+    console.log(`[ClientesController] doc recibido: "${doc}"`);
+    console.log(`[ClientesController] tipo de doc: ${typeof doc}`);
     
     if (!doc) {
       return { ok: false, error: 'Parámetro doc es requerido' };

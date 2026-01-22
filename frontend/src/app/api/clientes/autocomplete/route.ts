@@ -18,8 +18,12 @@ export async function GET(req: Request) {
     }
 
     // Consultar el backend que tiene las API keys configuradas
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-0c3e.up.railway.app/api';
     const backendUrl = `${API_BASE}/clientes/autocomplete?doc=${encodeURIComponent(doc)}`;
+    
+    console.log('[Frontend Autocomplete] Consultando backend:', backendUrl);
+    console.log('[Frontend Autocomplete] API_BASE configurado:', API_BASE);
+    console.log('[Frontend Autocomplete] Documento a consultar:', doc);
     
     const resp = await fetch(backendUrl, {
       method: 'GET',
@@ -27,6 +31,8 @@ export async function GET(req: Request) {
         'Content-Type': 'application/json',
       },
     });
+    
+    console.log('[Frontend Autocomplete] Respuesta del backend - status:', resp.status, resp.statusText);
 
     if (!resp.ok) {
       const text = await resp.text();
