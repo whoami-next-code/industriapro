@@ -88,11 +88,6 @@ export default function LineChart({
       position: 'top',
       horizontalAlign: 'right',
       fontSize: '14px',
-      markers: {
-        width: 10,
-        height: 10,
-        radius: 3
-      }
     },
     responsive: [{
       breakpoint: 768,
