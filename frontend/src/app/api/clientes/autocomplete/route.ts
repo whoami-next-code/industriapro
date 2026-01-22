@@ -77,6 +77,15 @@ export async function GET(req: Request) {
       return NextResponse.json(data, { status: 400 });
     }
     
+    // Verificar que los datos no sean genéricos
+    if (data.ok && data.type === 'DNI' && (!data.name || data.name === 'Cliente')) {
+      console.warn('[Frontend Autocomplete] ⚠️ Backend devolvió nombre genérico para DNI:', data);
+    }
+    if (data.ok && data.type === 'RUC' && (!data.businessName || data.businessName === 'Empresa')) {
+      console.warn('[Frontend Autocomplete] ⚠️ Backend devolvió razón social genérica para RUC:', data);
+    }
+    
+    console.log('[Frontend Autocomplete] ✅ Devolviendo datos al cliente');
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Error en autocomplete proxy:', err);
