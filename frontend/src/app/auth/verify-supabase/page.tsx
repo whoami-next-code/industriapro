@@ -31,34 +31,36 @@ function VerifySupabaseComponent() {
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    // Verificar el token con Supabase
+    // Verificar el token usando el endpoint del backend (evita problemas de CORS)
     const verifyToken = async () => {
       try {
-        // Para magiclink, necesitamos usar el endpoint de verificación de Supabase
-        // Construir la URL de verificación de Supabase
-        const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}`;
+        setStatus('pending');
+        setMessage('Verificando tu correo...');
+        
+        // Usar el endpoint del backend para verificar el token
+        const apiUrl = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const verifyUrl = `${apiUrl}/auth/verify-supabase-token?token=${encodeURIComponent(token)}&type=${type}`;
         
         const response = await fetch(verifyUrl, {
           method: 'GET',
           headers: {
-            'apikey': supabaseAnonKey,
             'Content-Type': 'application/json',
           },
         });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-          const errorMessage = errorData.error || errorData.message || `Error ${response.status}: ${response.statusText}`;
+          const errorMessage = errorData.message || errorData.error || `Error ${response.status}`;
           throw new Error(errorMessage);
         }
 
         const responseData = await response.json();
         
-        if (!responseData.access_token) {
-          throw new Error('No se recibió access_token de Supabase. El token puede haber expirado.');
+        if (!responseData.ok || !responseData.access_token) {
+          throw new Error('No se recibió access_token. El token puede haber expirado.');
         }
 
-        // Establecer la sesión con Supabase
+        // Establecer la sesión con Supabase usando los tokens recibidos
         const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token: responseData.access_token,
           refresh_token: responseData.refresh_token || '',
@@ -72,27 +74,14 @@ function VerifySupabaseComponent() {
           throw new Error('No se pudo establecer la sesión después de verificar el token');
         }
 
-        // Obtener el usuario actual de la sesión
-        let user = sessionData.session.user;
-        
-        // Si no tenemos el usuario de la sesión, intentar obtenerlo
+        const user = sessionData.session.user || responseData.user;
+
         if (!user) {
-          const { data: userData, error: userError } = await supabase.auth.getUser();
-          
-          if (userError) {
-            throw new Error(`Error obteniendo información del usuario: ${userError.message}`);
-          }
-
-          if (!userData?.user) {
-            throw new Error('No se pudo obtener la información del usuario después de verificar el token');
-          }
-
-          user = userData.user;
+          throw new Error('No se pudo obtener la información del usuario');
         }
 
         // Sincronizar con el backend
         const secret = process.env.NEXT_PUBLIC_EXTERNAL_REG_SECRET || 'industriasp-external-reg-secret-2024-railway';
-        const apiUrl = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
         
         try {
           await fetch(`${apiUrl}/auth/register-external`, {
@@ -135,8 +124,8 @@ function VerifySupabaseComponent() {
           errorMessage = 'El enlace de verificación ha expirado. Por favor, solicita un nuevo enlace.';
         } else if (errorMessage.includes('invalid') || errorMessage.includes('inválido')) {
           errorMessage = 'El enlace de verificación no es válido. Por favor, verifica que el enlace sea correcto.';
-        } else if (errorMessage.includes('obtener')) {
-          errorMessage = 'Error al obtener la información del usuario. Por favor, intenta iniciar sesión manualmente.';
+        } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('fetch')) {
+          errorMessage = 'Error de conexión. Por favor, verifica tu conexión a internet e intenta de nuevo.';
         }
         
         setMessage(errorMessage);

@@ -147,6 +147,73 @@ export class AuthController {
     return this.auth.verifyEmail(token);
   }
 
+  @Get('verify-supabase-token')
+  async verifySupabaseToken(
+    @Query('token') token: string,
+    @Query('type') type: string = 'magiclink',
+  ) {
+    this.logger.log(`verify-supabase-token start token=${token?.substring(0, 20)}... type=${type}`);
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    
+    if (!supabaseUrl || !serviceKey) {
+      throw new BadRequestException('Configuración de Supabase faltante');
+    }
+
+    if (!token) {
+      throw new BadRequestException('Token de verificación faltante');
+    }
+
+    try {
+      const supabase = createClient(supabaseUrl, serviceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+
+      // Verificar el token con Supabase
+      const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}`;
+      
+      const response = await fetch(verifyUrl, {
+        method: 'GET',
+        headers: {
+          'apikey': serviceKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        const errorMessage = errorData.error || errorData.message || `Error ${response.status}`;
+        this.logger.error(`verify-supabase-token error: ${errorMessage}`);
+        throw new BadRequestException(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      if (!responseData.access_token) {
+        throw new BadRequestException('No se recibió access_token de Supabase. El token puede haber expirado.');
+      }
+
+      this.logger.log(`verify-supabase-token success email=${responseData.user?.email || 'unknown'}`);
+      
+      return {
+        ok: true,
+        access_token: responseData.access_token,
+        refresh_token: responseData.refresh_token,
+        user: responseData.user,
+      };
+    } catch (error: any) {
+      this.logger.error(`verify-supabase-token exception: ${error.message || error}`);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(error?.message || 'Error al verificar el token');
+    }
+  }
+
   @Post('check-email')
   async checkEmail(@Body() body: CheckEmailDto) {
     this.logger.log(`check-email start email=${body.email}`);
