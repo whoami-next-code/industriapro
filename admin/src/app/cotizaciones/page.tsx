@@ -57,6 +57,7 @@ type MaterialUsage = {
 };
 
 type ProgressUpdate = {
+  id?: number;
   message: string;
   status?: QuoteStatus;
   estimatedDate?: string;
