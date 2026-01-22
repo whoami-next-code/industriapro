@@ -359,8 +359,23 @@ function CheckoutForm() {
 
   // Debounced autocompletado desde API interna protegida
   useEffect(() => {
+    // Logging inmediato para verificar que el effect se ejecuta
+    console.error('[Pasarela] 🔄 useEffect AUTocomplete EJECUTADO');
+    console.log('[Pasarela] 🔄 useEffect AUTocomplete EJECUTADO');
+    
     const doc = documentType === 'dni' ? dni : ruc;
     const cleanDoc = (doc || '').replace(/[^0-9]/g, '');
+    
+    console.error('[Pasarela] ========== AUTocomplete EFFECT ==========');
+    console.error('[Pasarela] Estado completo:', JSON.stringify({
+      documentType,
+      doc,
+      cleanDoc,
+      cleanDocLength: cleanDoc.length,
+      documentValidation,
+      isValid: documentValidation.isValid,
+      documentTypeDetected: documentValidation.documentType,
+    }, null, 2));
     
     console.log('[Pasarela] ========== AUTocomplete EFFECT ==========');
     console.log('[Pasarela] Estado completo:', {
@@ -379,11 +394,12 @@ function CheckoutForm() {
     const isValidLength = cleanDoc.length === 8 || cleanDoc.length === 11;
     
     if (!isValidLength || !cleanDoc) {
-      console.log('[Pasarela] Autocomplete cancelado - longitud inválida:', {
+      console.error('[Pasarela] ❌ Autocomplete cancelado - longitud inválida:', {
         cleanDoc,
         cleanDocLength: cleanDoc.length,
         isValidLength,
       });
+      console.log('[Pasarela] ❌ Autocomplete cancelado - longitud inválida');
       setAutoLoading(false);
       setAutoData(null);
       return;
@@ -391,14 +407,18 @@ function CheckoutForm() {
     
     // Si el documento no está validado, esperar un poco más
     if (!documentValidation.isValid) {
-      console.log('[Pasarela] Autocomplete esperando validación...', {
+      console.error('[Pasarela] ⏳ Autocomplete esperando validación...', {
         isValid: documentValidation.isValid,
         documentType: documentValidation.documentType,
       });
+      console.log('[Pasarela] ⏳ Autocomplete esperando validación...');
       setAutoLoading(false);
       setAutoData(null);
       return;
     }
+    
+    console.error('[Pasarela] ✅ Validación pasada, continuando...');
+    console.log('[Pasarela] ✅ Validación pasada, continuando...');
     
     // Limpiar caché si los datos son genéricos (para forzar nueva consulta)
     const cached = cacheRef.current.get(cleanDoc);
