@@ -173,22 +173,45 @@ export class AuthController {
         },
       });
 
-      // Verificar el token con Supabase
-      const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}`;
+      // Usar el endpoint de verificación de Supabase con POST
+      // El endpoint /auth/v1/verify con GET devuelve HTML, necesitamos usar POST
+      const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
       
       const response = await fetch(verifyUrl, {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'apikey': serviceKey,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          token_hash: token,
+          type: type,
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        const errorMessage = errorData.error || errorData.message || `Error ${response.status}`;
+        const contentType = response.headers.get('content-type');
+        let errorMessage = `Error ${response.status}`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } else {
+          // Si devuelve HTML, leer el texto para ver el error
+          const text = await response.text();
+          this.logger.error(`verify-supabase-token HTML response: ${text.substring(0, 200)}`);
+          errorMessage = 'Error al verificar el token. El token puede haber expirado o ser inválido.';
+        }
+        
         this.logger.error(`verify-supabase-token error: ${errorMessage}`);
         throw new BadRequestException(errorMessage);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        this.logger.error(`verify-supabase-token unexpected content type: ${contentType}, response: ${text.substring(0, 200)}`);
+        throw new BadRequestException('Respuesta inesperada del servidor de verificación');
       }
 
       const responseData = await response.json();
