@@ -406,7 +406,7 @@ export default function Cotizacion() {
     }
   }
 
-  const imageSrc = getImageUrl(product?.imageUrl || product?.thumbnailUrl || productImageParam);
+  const imageSrc = getImageUrl(product?.imageUrl || product?.thumbnailUrl || productImageParam || undefined);
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 space-y-8">
