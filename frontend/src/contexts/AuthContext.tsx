@@ -64,44 +64,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) throw new Error('Supabase no configurado');
     
     try {
-      // Intentar primero sin emailRedirectTo para evitar errores 500 de Supabase
-      // Si falla, intentar con la redirección
+      // Intentar primero con redirección, si falla con 500, intentar sin redirección
       let data, error;
       
-      try {
-        const result = await supabase.auth.signUp({
+      const result = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
+          data: metadata,
+        },
+      });
+      data = result.data;
+      error = result.error;
+      
+      // Si hay error 500, intentar sin redirección
+      if (error && (error.status === 500 || error.message?.includes('500') || error.message?.includes('Internal Server Error'))) {
+        console.warn('Signup con redirección falló (500), intentando sin redirección...', error);
+        const retryResult = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
             data: metadata,
           },
         });
-        data = result.data;
-        error = result.error;
-      } catch (signupError: any) {
-        // Si falla con 500, intentar sin redirección
-        if (signupError?.status === 500 || signupError?.message?.includes('500')) {
-          console.warn('Signup con redirección falló, intentando sin redirección...');
-          const result = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: metadata,
-            },
-          });
-          data = result.data;
-          error = result.error;
-        } else {
-          throw signupError;
-        }
+        data = retryResult.data;
+        error = retryResult.error;
       }
       
       // Manejar errores de Supabase
       if (error) {
         // Error 500 de Supabase - problema de configuración del servidor
-        if (error.status === 500 || error.message?.includes('500')) {
-          throw new Error('Error del servidor de autenticación. Por favor, contacta al administrador o intenta más tarde.');
+        if (error.status === 500 || error.message?.includes('500') || error.message?.includes('Internal Server Error')) {
+          console.error('Error 500 de Supabase:', error);
+          throw new Error('Error del servidor de autenticación. Verifica la configuración de Supabase o contacta al administrador.');
         }
         // Error de email/correo
         if (error.message?.toLowerCase().includes('email') || 
