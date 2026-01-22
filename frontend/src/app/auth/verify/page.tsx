@@ -12,7 +12,7 @@ export default function VerifyPage() {
   const [resendMessage, setResendMessage] = useState('');
 
   useEffect(() => {
-    const token = params.get('token');
+    const token = params?.get('token');
     if (!token) {
       setStatus('error');
       setMessage('Token de verificación faltante');
