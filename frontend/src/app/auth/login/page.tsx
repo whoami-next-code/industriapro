@@ -168,9 +168,12 @@ function LoginComponent() {
             </div>
           </form>
 
-          <div className="mt-6 text-sm text-gray-500 text-center">
-            ¿Necesitas acceso? Solicita tu cuenta al administrador.
-          </div>
+        <div className="mt-6 text-sm text-gray-500 text-center">
+          ¿No tienes cuenta?{' '}
+          <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
+            Crear cuenta
+          </Link>
+        </div>
         </div>
       </div>
     </div>
