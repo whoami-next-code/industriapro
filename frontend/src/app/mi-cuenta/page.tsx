@@ -46,7 +46,7 @@ export default function MiCuentaPage() {
     setMsg(null);
     const form = new FormData(e.currentTarget);
     try {
-      const updated = await apiFetchAuth("/auth/profile", {
+      const updated = await apiFetchAuth<Profile>("/auth/profile", {
         method: "PUT",
         body: JSON.stringify({
           fullName: form.get("fullName"),
