@@ -259,7 +259,20 @@ export class AuthController {
       // Intentar generar link de verificación desde Supabase
       const supabaseUrl = process.env.SUPABASE_URL;
       const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-      const webUrl = process.env.WEB_URL || 'http://localhost:3000';
+      let webUrl = process.env.WEB_URL || process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
+      
+      // Validar que WEB_URL no sea localhost en producción
+      if (process.env.NODE_ENV === 'production' && webUrl.includes('localhost')) {
+        this.logger.error(
+          `⚠️ WEB_URL está configurado como localhost en producción. Esto causará problemas con los links de verificación.`,
+        );
+        // Intentar usar la URL del frontend desde las variables de entorno
+        webUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://frontend-production-cacc.up.railway.app';
+        this.logger.warn(
+          `Usando URL alternativa: ${webUrl}`,
+        );
+      }
+      
       const resendApiKey = process.env.RESEND_API_KEY;
 
       this.logger.log(
@@ -277,15 +290,16 @@ export class AuthController {
         try {
           // Generar link de confirmación de signup para el usuario recién creado
           // Este link será enviado con Resend usando la plantilla personalizada
+          const redirectUrl = `${webUrl}/auth/confirm`;
           this.logger.log(
-            `Generando link de verificación de Supabase para email=${body.email}`,
+            `Generando link de verificación de Supabase para email=${body.email} con redirectTo=${redirectUrl}`,
           );
           // Usar 'magiclink' para generar un link de autenticación que también verifica el email
           const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
             type: 'magiclink',
             email: body.email,
             options: {
-              redirectTo: `${webUrl}/auth/confirm`,
+              redirectTo: redirectUrl,
             },
           });
 
@@ -300,6 +314,11 @@ export class AuthController {
           this.logger.log(
             `Link generado: ${url ? 'presente' : 'faltante'}`,
           );
+          if (url) {
+            this.logger.log(
+              `URL del link de verificación: ${url.substring(0, 100)}...`,
+            );
+          }
           if (url) {
             this.logger.log(
               `Enviando correo de verificación con Resend a ${created.email}`,
