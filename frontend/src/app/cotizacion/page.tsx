@@ -296,7 +296,7 @@ export default function Cotizacion() {
     const token = getToken();
     if (!token) return;
     try {
-      const data = await apiFetchAuth(`/cotizaciones/${id}`, { method: "GET" });
+      const data = await apiFetchAuth<QuoteDetail>(`/cotizaciones/${id}`, { method: "GET" });
       setQuote(data);
     } catch (err: any) {
       setOk("No se pudo cargar la cotización.");
