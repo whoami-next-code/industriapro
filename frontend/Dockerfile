@@ -40,6 +40,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
+# Crear directorio de caché con permisos correctos antes de cambiar a usuario node
+RUN mkdir -p /app/.next/cache && chown -R node:node /app/.next
+
 USER node
 CMD ["node", "server.js"]
 
