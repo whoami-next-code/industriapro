@@ -94,30 +94,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         const syncData = await syncResponse.json();
         
-        // Si la sincronización falla por problemas de correo, lanzar error específico
-        // porque queremos informar al usuario sobre el problema
+        // Si la sincronización falla, solo loguear el error pero no bloquear el registro
+        // porque Supabase ya envió su correo de confirmación y el usuario fue creado
         if (!syncResponse.ok && syncData.error) {
-          console.warn('Error sincronizando usuario:', syncData.error);
-          // Si es un error de correo, lanzar un error específico
-          if (syncData.emailError || 
-              syncData.error.toLowerCase().includes('correo') || 
-              syncData.error.toLowerCase().includes('email') || 
-              syncData.error.toLowerCase().includes('mail')) {
-            throw new Error('Error al enviar el correo electrónico de confirmación');
-          }
-          // Para otros errores de sincronización, también lanzar error
-          throw new Error(syncData.error || 'Error al sincronizar usuario');
+          console.warn('Error sincronizando usuario (no crítico):', syncData.error);
+          // No lanzar error - el usuario ya fue creado en Supabase y recibirá su correo de confirmación
         }
       } catch (err: any) {
-        // Si el error ya tiene un mensaje específico, lanzarlo
-        if (err.message) {
-          throw err;
-        }
-        // Para errores de red u otros, solo loguear en desarrollo
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error sincronizando usuario al registro:', err);
-        }
-        // No lanzar error para errores de red no críticos, el usuario ya fue creado en Supabase
+        // Solo loguear errores de red, no bloquear el registro
+        console.warn('Error de red al sincronizar usuario (no crítico):', err);
+        // No lanzar error - el usuario ya fue creado en Supabase
       }
     }
   };
