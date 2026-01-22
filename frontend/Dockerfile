@@ -14,6 +14,15 @@ RUN if [ -d frontend ]; then \
   cp -r frontend/public ./public; \
 fi
 
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
+
 ENV NEXT_DISABLE_TURBOPACK=1
 RUN npm ci --legacy-peer-deps --include=optional \
   && npm install lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu --no-save --legacy-peer-deps
