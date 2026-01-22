@@ -67,11 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Intentar primero con redirección, si falla con 500, intentar sin redirección
       let data, error;
       
+      // El backend enviará el correo con Resend usando la plantilla personalizada
+      // Supabase también enviará su correo por defecto, pero el backend enviará el principal
+      const webUrl = typeof window !== 'undefined' 
+        ? (process.env.NEXT_PUBLIC_WEB_URL || window.location.origin)
+        : undefined;
+      
       const result = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
+          emailRedirectTo: webUrl ? `${webUrl}/auth/confirm` : undefined,
           data: metadata,
         },
       });

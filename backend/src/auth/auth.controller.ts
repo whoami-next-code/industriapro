@@ -265,14 +265,13 @@ export class AuthController {
         });
 
         try {
-          // Usar magiclink en lugar de signup porque no tenemos la contraseña
-          // El usuario ya se registró desde el frontend, Supabase ya envió su correo de verificación
-          // Aquí enviamos un correo de bienvenida adicional
+          // Generar link de confirmación de signup para el usuario recién creado
+          // Este link será enviado con Resend usando la plantilla personalizada
           const { data: linkData } = await supabase.auth.admin.generateLink({
-            type: 'magiclink',
+            type: 'signup',
             email: body.email,
             options: {
-              redirectTo: `${process.env.WEB_URL || 'http://localhost:3000'}/auth/login`,
+              redirectTo: `${process.env.WEB_URL || 'http://localhost:3000'}/auth/confirm`,
             },
           });
 
