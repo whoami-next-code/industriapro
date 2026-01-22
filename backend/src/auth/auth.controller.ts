@@ -340,10 +340,19 @@ export class AuthController {
           let finalUrl = url;
           if (url) {
             this.logger.log(
-              `URL completa del link de verificación: ${url}`,
+              `URL completa del link de verificación (ANTES del reemplazo): ${url}`,
+            );
+            this.logger.log(
+              `Longitud de la URL: ${url.length} caracteres`,
             );
             // Verificar si la URL contiene localhost, 127.0.0.1 o 0.0.0.0 y reemplazarlo
-            if (url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0')) {
+            const hasLocalhost = url.includes('localhost');
+            const has127 = url.includes('127.0.0.1');
+            const has000 = url.includes('0.0.0.0');
+            this.logger.log(
+              `Detección: localhost=${hasLocalhost}, 127.0.0.1=${has127}, 0.0.0.0=${has000}`,
+            );
+            if (hasLocalhost || has127 || has000) {
               this.logger.warn(
                 `⚠️ PROBLEMA DETECTADO: El link generado por Supabase contiene dirección local: ${url}`,
               );
@@ -353,18 +362,57 @@ export class AuthController {
               // Reemplazar localhost:3000, 127.0.0.1:3000 o 0.0.0.0:3000 con la URL de producción
               // Reemplazar todas las ocurrencias en toda la URL (incluyendo hash y query params)
               finalUrl = url;
-              // Reemplazar con protocolo completo
+              
+              // Reemplazo agresivo: buscar y reemplazar cualquier patrón de dirección local
+              // Primero reemplazar con protocolo completo
               finalUrl = finalUrl.replace(/https?:\/\/localhost:\d+/gi, webUrl);
               finalUrl = finalUrl.replace(/https?:\/\/127\.0\.0\.1:\d+/gi, webUrl);
               finalUrl = finalUrl.replace(/https?:\/\/0\.0\.0\.0:\d+/gi, webUrl);
+              
               // Reemplazar sin protocolo (para hash y query params)
               const webUrlNoProtocol = webUrl.replace(/^https?:\/\//, '');
               finalUrl = finalUrl.replace(/localhost:\d+/gi, webUrlNoProtocol);
               finalUrl = finalUrl.replace(/127\.0\.0\.1:\d+/gi, webUrlNoProtocol);
               finalUrl = finalUrl.replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
+              
+              // Reemplazo adicional: si la URL completa empieza con 0.0.0.0, reemplazarla completamente
+              if (finalUrl.startsWith('0.0.0.0:') || finalUrl.startsWith('http://0.0.0.0:') || finalUrl.startsWith('https://0.0.0.0:')) {
+                // Extraer el path y hash después de 0.0.0.0:3000
+                const match = finalUrl.match(/(?:https?:\/\/)?0\.0\.0\.0:\d+(\/.*)/);
+                if (match && match[1]) {
+                  finalUrl = `${webUrl}${match[1]}`;
+                } else {
+                  finalUrl = webUrl;
+                }
+              }
+              
+              // Verificar una vez más si quedó alguna dirección local
+              if (finalUrl.includes('localhost:') || finalUrl.includes('127.0.0.1:') || finalUrl.includes('0.0.0.0:')) {
+                this.logger.error(
+                  `❌ ERROR: Aún quedan direcciones locales después del reemplazo: ${finalUrl}`,
+                );
+                // Último intento: reemplazo manual más agresivo
+                finalUrl = finalUrl.split('#')[0].replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
+                const hash = url.split('#')[1];
+                if (hash) {
+                  // Reemplazar en el hash también
+                  const fixedHash = hash.replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
+                  finalUrl = `${finalUrl}#${fixedHash}`;
+                }
+              }
               this.logger.log(
-                `URL corregida: ${finalUrl}`,
+                `URL corregida (DESPUÉS del reemplazo): ${finalUrl}`,
               );
+              // Verificar que el reemplazo funcionó
+              if (finalUrl.includes('localhost:') || finalUrl.includes('127.0.0.1:') || finalUrl.includes('0.0.0.0:')) {
+                this.logger.error(
+                  `❌ ERROR CRÍTICO: El reemplazo falló. La URL aún contiene direcciones locales: ${finalUrl}`,
+                );
+              } else {
+                this.logger.log(
+                  `✅ Reemplazo exitoso. La URL ya no contiene direcciones locales.`,
+                );
+              }
               this.logger.warn(
                 `⚠️ IMPORTANTE: Configura en Supabase Dashboard → Authentication → URL Configuration → Site URL: ${webUrl}`,
               );
