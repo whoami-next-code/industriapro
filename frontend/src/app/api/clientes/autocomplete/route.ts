@@ -8,6 +8,8 @@ function cleanDigits(s: string): string {
 }
 
 export async function GET(req: Request) {
+  // Logging que aparecerá en los logs de Railway
+  console.error('[Frontend Autocomplete] ========== ENDPOINT LLAMADO ==========');
   console.log('[Frontend Autocomplete] ========== ENDPOINT LLAMADO ==========');
   try {
     const url = new URL(req.url);
@@ -35,15 +37,21 @@ export async function GET(req: Request) {
     const normalizedApiBase = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE.replace(/\/api\/?$/, '')}/api`;
     const backendUrl = `${normalizedApiBase}/clientes/autocomplete?doc=${encodeURIComponent(doc)}`;
     
+    // Usar console.error para que aparezca en los logs de Railway
+    console.error('[Frontend Autocomplete] ========== CONFIGURACIÓN ==========');
+    console.error('[Frontend Autocomplete] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE || 'NO CONFIGURADO');
+    console.error('[Frontend Autocomplete] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL || 'NO CONFIGURADO');
+    console.error('[Frontend Autocomplete] API_BASE (env):', process.env.API_BASE || 'NO CONFIGURADO');
+    console.error('[Frontend Autocomplete] API_URL (env):', process.env.API_URL || 'NO CONFIGURADO');
+    console.error('[Frontend Autocomplete] API_BASE final:', API_BASE);
+    console.error('[Frontend Autocomplete] normalizedApiBase:', normalizedApiBase);
+    console.error('[Frontend Autocomplete] backendUrl:', backendUrl);
+    console.error('[Frontend Autocomplete] Documento a consultar:', doc);
+    
+    // También usar console.log
     console.log('[Frontend Autocomplete] ========== CONFIGURACIÓN ==========');
-    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE || 'NO CONFIGURADO');
-    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL || 'NO CONFIGURADO');
-    console.log('[Frontend Autocomplete] API_BASE (env):', process.env.API_BASE || 'NO CONFIGURADO');
-    console.log('[Frontend Autocomplete] API_URL (env):', process.env.API_URL || 'NO CONFIGURADO');
-    console.log('[Frontend Autocomplete] API_BASE final:', API_BASE);
-    console.log('[Frontend Autocomplete] normalizedApiBase:', normalizedApiBase);
     console.log('[Frontend Autocomplete] backendUrl:', backendUrl);
-    console.log('[Frontend Autocomplete] Documento a consultar:', doc);
+    console.log('[Frontend Autocomplete] Documento:', doc);
     
     let resp: Response;
     try {
@@ -60,10 +68,11 @@ export async function GET(req: Request) {
       });
       
       clearTimeout(timeoutId);
-      console.log('[Frontend Autocomplete] Fetch completado, status:', resp.status);
+      console.error('[Frontend Autocomplete] ✅ Fetch completado, status:', resp.status);
+      console.log('[Frontend Autocomplete] ✅ Fetch completado, status:', resp.status);
     } catch (fetchError: any) {
-      console.error('[Frontend Autocomplete] Error al hacer fetch:', fetchError);
-      console.error('[Frontend Autocomplete] Error stack:', fetchError?.stack);
+      console.error('[Frontend Autocomplete] ❌ Error al hacer fetch:', fetchError);
+      console.error('[Frontend Autocomplete] ❌ Error stack:', fetchError?.stack);
       return NextResponse.json({ 
         ok: false, 
         error: `Error de conexión al backend: ${fetchError?.message || 'No se pudo conectar al servidor'}` 
