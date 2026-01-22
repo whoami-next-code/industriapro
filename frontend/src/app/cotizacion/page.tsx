@@ -59,6 +59,10 @@ type ClienteProfile = {
   address?: string | null;
 };
 
+type QuoteCreateResponse = {
+  id?: number | null;
+};
+
 const STATUS_OPTIONS = ["NUEVA", "EN_PROCESO", "ENVIADA", "ENTREGADA", "COMPLETADA", "CANCELADA"];
 
 export default function Cotizacion() {
@@ -345,7 +349,7 @@ export default function Cotizacion() {
         productName: productNameParam || product?.name,
         productImage: productImageParam || (product?.imageUrl ? `${API_URL}${product.imageUrl}` : product?.thumbnailUrl ? `${API_URL}${product.thumbnailUrl}` : undefined),
       };
-      const data = await apiFetchAuth("/cotizaciones", {
+      const data = await apiFetchAuth<QuoteCreateResponse>("/cotizaciones", {
         method: "POST",
         body: JSON.stringify(payload),
       });
