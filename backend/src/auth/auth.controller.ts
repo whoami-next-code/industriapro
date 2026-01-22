@@ -261,22 +261,29 @@ export class AuthController {
       const serviceKey = process.env.SUPABASE_SERVICE_KEY;
       let webUrl = process.env.WEB_URL || process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
       
-      // Validar que WEB_URL no sea localhost en producción
-      if (process.env.NODE_ENV === 'production' && webUrl.includes('localhost')) {
-        this.logger.error(
-          `⚠️ WEB_URL está configurado como localhost en producción. Esto causará problemas con los links de verificación.`,
+      // Validar que WEB_URL no sea localhost (siempre, no solo en producción)
+      if (webUrl.includes('localhost') || webUrl.includes('127.0.0.1')) {
+        this.logger.warn(
+          `⚠️ WEB_URL está configurado como localhost (${webUrl}). Esto causará problemas con los links de verificación.`,
         );
         // Intentar usar la URL del frontend desde las variables de entorno
-        webUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://frontend-production-cacc.up.railway.app';
+        const alternativeUrl = process.env.FRONTEND_URL 
+          || process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') 
+          || process.env.NEXT_PUBLIC_API_BASE?.replace('/api', '')
+          || 'https://frontend-production-cacc.up.railway.app';
         this.logger.warn(
-          `Usando URL alternativa: ${webUrl}`,
+          `Usando URL alternativa: ${alternativeUrl}`,
         );
+        webUrl = alternativeUrl;
       }
       
       const resendApiKey = process.env.RESEND_API_KEY;
 
       this.logger.log(
         `Configuración: SUPABASE_URL=${supabaseUrl ? 'presente' : 'faltante'}, SUPABASE_SERVICE_KEY=${serviceKey ? 'presente' : 'faltante'}, WEB_URL=${webUrl}, RESEND_API_KEY=${resendApiKey ? 'presente' : 'faltante'}`,
+      );
+      this.logger.log(
+        `🔗 URL que se usará para redirectTo: ${webUrl}/auth/confirm`,
       );
 
       if (supabaseUrl && serviceKey) {
