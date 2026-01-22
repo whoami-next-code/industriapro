@@ -37,6 +37,7 @@ export async function GET(req: Request) {
     }
 
     const data = await resp.json();
+    console.log('[Frontend Autocomplete] Respuesta del backend:', JSON.stringify(data, null, 2));
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Error en autocomplete proxy:', err);

@@ -389,14 +389,19 @@ function CheckoutForm() {
           throw new Error(text || 'Error al consultar documento');
         }
         const data = await res.json();
+        console.log('[Pasarela] Datos recibidos de autocomplete:', JSON.stringify(data, null, 2));
         cacheRef.current.set(cleanDoc, data);
         try { sessionStorage.setItem(`doc_cache_${cleanDoc}`, JSON.stringify(data)); } catch {}
         setAutoData(data);
         if (data.type === 'DNI') {
-          setCustomerName(data.name || 'Cliente');
+          const name = data.name || data.nombre || 'Cliente';
+          console.log('[Pasarela] Estableciendo nombre DNI:', name);
+          setCustomerName(name);
           if (!shippingAddress && data.address) setShippingAddress(data.address);
         } else if (data.type === 'RUC') {
-          setCustomerName(data.businessName || 'Empresa');
+          const businessName = data.businessName || data.razonSocial || data.razon_social || 'Empresa';
+          console.log('[Pasarela] Estableciendo razón social RUC:', businessName);
+          setCustomerName(businessName);
           if (!shippingAddress && data.address) setShippingAddress(data.address);
         }
         setAutoError(null);
