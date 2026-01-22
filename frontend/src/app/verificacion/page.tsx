@@ -3,19 +3,25 @@
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function VerificacionRedirect() {
+import { Suspense } from 'react';
+
+function VerificacionComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const email = searchParams.get('email');
-    
-    if (token) {
-      const params = new URLSearchParams();
-      params.set('token', token);
-      if (email) params.set('email', email);
-      router.replace(`/auth/verify?${params.toString()}`);
+    if (searchParams) {
+      const token = searchParams.get('token');
+      const email = searchParams.get('email');
+      
+      if (token) {
+        const params = new URLSearchParams();
+        params.set('token', token);
+        if (email) params.set('email', email);
+        router.replace(`/auth/verify?${params.toString()}`);
+      } else {
+        router.replace('/auth/login');
+      }
     } else {
       router.replace('/auth/login');
     }
@@ -28,5 +34,13 @@ export default function VerificacionRedirect() {
         <p className="text-gray-600">Redirigiendo a verificación...</p>
       </div>
     </div>
+  );
+}
+
+export default function VerificacionRedirect() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerificacionComponent />
+    </Suspense>
   );
 }

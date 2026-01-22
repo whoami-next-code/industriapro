@@ -26,7 +26,7 @@ export function HomeAuthPanel() {
           setProfile(null);
         } else {
           const data = await apiFetch('/api/auth/profile');
-          setProfile(data);
+          setProfile(data as Profile);
         }
       } catch (e: any) {
         setProfile(null);

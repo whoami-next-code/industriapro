@@ -15,7 +15,7 @@ export function AuthLoginForm() {
     setError(null);
     const form = new FormData(e.currentTarget);
     try {
-      const data = await apiFetch('/api/auth/login', {
+      const data: { access_token: string } = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({
           email: String(form.get('email') || ''),

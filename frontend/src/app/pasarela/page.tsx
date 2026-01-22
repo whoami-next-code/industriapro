@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, Suspense } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import axios from "axios";
@@ -1182,7 +1182,9 @@ function CheckoutForm() {
 export default function Page() {
   return (
     <Elements stripe={stripePromise}>
-      <CheckoutForm />
+      <Suspense fallback={<div>Cargando...</div>}>
+        <CheckoutForm />
+      </Suspense>
     </Elements>
   );
 }

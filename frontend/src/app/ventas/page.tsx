@@ -135,7 +135,7 @@ function VentasPage() {
         shippingAddress: shippingAddress.trim(),
       };
       
-      const created = await apiFetchAuth("/pedidos", { method: "POST", body: JSON.stringify(payload) });
+      const created: { id?: number } = await apiFetchAuth("/pedidos", { method: "POST", body: JSON.stringify(payload) });
       
       // Redirigir a pasarela de pago con datos necesarios
       const orderId = created?.id;

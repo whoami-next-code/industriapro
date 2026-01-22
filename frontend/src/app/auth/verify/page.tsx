@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function VerifyPage() {
+function VerifyComponent() {
   const params = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'pending' | 'ok' | 'error'>('pending');
@@ -109,6 +109,14 @@ export default function VerifyPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerifyComponent />
+    </Suspense>
   );
 }
 

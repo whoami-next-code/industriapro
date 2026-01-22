@@ -65,7 +65,9 @@ type QuoteCreateResponse = {
 
 const STATUS_OPTIONS = ["NUEVA", "EN_PROCESO", "ENVIADA", "ENTREGADA", "COMPLETADA", "CANCELADA"];
 
-export default function Cotizacion() {
+import { Suspense } from 'react';
+
+function CotizacionComponent() {
   const params = useSearchParams();
   const { loading: authLoading, user } = useAuth();
   const productIdParam = params?.get("productId");
@@ -99,6 +101,8 @@ export default function Cotizacion() {
     phone: "",
     address: "",
   });
+// ... (el resto del componente)
+
   const [clientLoading, setClientLoading] = useState(true);
   const [clientError, setClientError] = useState<string | null>(null);
   const [formState, setFormState] = useState({
@@ -720,6 +724,14 @@ export default function Cotizacion() {
         </div>
       </div>
     </section>
+  );
+}
+
+export default function Cotizacion() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CotizacionComponent />
+    </Suspense>
   );
 }
 
