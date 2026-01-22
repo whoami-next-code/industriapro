@@ -297,7 +297,23 @@ export class AuthController {
         try {
           // Generar link de confirmación de signup para el usuario recién creado
           // Este link será enviado con Resend usando la plantilla personalizada
-          const redirectUrl = `${webUrl}/auth/confirm`;
+          let redirectUrl = `${webUrl}/auth/confirm`;
+          
+          // Validar que redirectUrl no contenga direcciones locales
+          if (redirectUrl.includes('localhost') || redirectUrl.includes('127.0.0.1') || redirectUrl.includes('0.0.0.0')) {
+            this.logger.error(
+              `❌ ERROR CRÍTICO: redirectUrl contiene dirección local: ${redirectUrl}`,
+            );
+            this.logger.error(
+              `webUrl actual: ${webUrl}`,
+            );
+            // Forzar uso de URL de producción
+            redirectUrl = 'https://frontend-production-cacc.up.railway.app/auth/confirm';
+            this.logger.warn(
+              `Usando URL forzada: ${redirectUrl}`,
+            );
+          }
+          
           this.logger.log(
             `Generando link de verificación de Supabase para email=${body.email} con redirectTo=${redirectUrl}`,
           );
@@ -326,17 +342,26 @@ export class AuthController {
             this.logger.log(
               `URL completa del link de verificación: ${url}`,
             );
-            // Verificar si la URL contiene localhost y reemplazarlo
-            if (url.includes('localhost') || url.includes('127.0.0.1')) {
+            // Verificar si la URL contiene localhost, 127.0.0.1 o 0.0.0.0 y reemplazarlo
+            if (url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0')) {
               this.logger.warn(
-                `⚠️ PROBLEMA DETECTADO: El link generado por Supabase contiene localhost: ${url}`,
+                `⚠️ PROBLEMA DETECTADO: El link generado por Supabase contiene dirección local: ${url}`,
               );
               this.logger.warn(
-                `Reemplazando localhost con la URL de producción: ${webUrl}`,
+                `Reemplazando dirección local con la URL de producción: ${webUrl}`,
               );
-              // Reemplazar localhost:3000 con la URL de producción
-              finalUrl = url.replace(/https?:\/\/localhost:\d+/, webUrl);
-              finalUrl = finalUrl.replace(/https?:\/\/127\.0\.0\.1:\d+/, webUrl);
+              // Reemplazar localhost:3000, 127.0.0.1:3000 o 0.0.0.0:3000 con la URL de producción
+              // Reemplazar todas las ocurrencias en toda la URL (incluyendo hash y query params)
+              finalUrl = url;
+              // Reemplazar con protocolo completo
+              finalUrl = finalUrl.replace(/https?:\/\/localhost:\d+/gi, webUrl);
+              finalUrl = finalUrl.replace(/https?:\/\/127\.0\.0\.1:\d+/gi, webUrl);
+              finalUrl = finalUrl.replace(/https?:\/\/0\.0\.0\.0:\d+/gi, webUrl);
+              // Reemplazar sin protocolo (para hash y query params)
+              const webUrlNoProtocol = webUrl.replace(/^https?:\/\//, '');
+              finalUrl = finalUrl.replace(/localhost:\d+/gi, webUrlNoProtocol);
+              finalUrl = finalUrl.replace(/127\.0\.0\.1:\d+/gi, webUrlNoProtocol);
+              finalUrl = finalUrl.replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
               this.logger.log(
                 `URL corregida: ${finalUrl}`,
               );
@@ -345,7 +370,7 @@ export class AuthController {
               );
             } else {
               this.logger.log(
-                `✅ URL del link es correcta (no contiene localhost)`,
+                `✅ URL del link es correcta (no contiene direcciones locales)`,
               );
             }
           }
