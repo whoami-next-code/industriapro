@@ -22,9 +22,9 @@ export default function MiCuentaPage() {
       setLoading(true);
       try {
         const [prof, peds, cots] = await Promise.all([
-          apiFetchAuth("/auth/profile"),
-          apiFetchAuth("/pedidos").catch(() => []),
-          apiFetchAuth("/cotizaciones").catch(() => []),
+          apiFetchAuth<Profile>("/auth/profile"),
+          apiFetchAuth<Order[]>("/pedidos").catch(() => []),
+          apiFetchAuth<Quote[]>("/cotizaciones").catch(() => []),
         ]);
         setProfile(prof);
         setOrders(Array.isArray(peds) ? peds : []);
