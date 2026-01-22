@@ -42,7 +42,7 @@ export default function PerfilPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = await apiFetchAuth("/clientes/me");
+        const data = await apiFetchAuth<ProfileForm>("/clientes/me");
         reset({
           fullName: data.fullName ?? "",
           email: data.email ?? "",
