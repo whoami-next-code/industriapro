@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AddToCartButton from '@/components/cart/AddToCartButton';
 import { API_URL, getImageUrl } from '@/lib/api';
