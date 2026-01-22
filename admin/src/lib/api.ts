@@ -1,4 +1,8 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const FALLBACK_API_URL = 'https://backend-production-0c3e.up.railway.app/api';
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.NEXT_PUBLIC_API_BASE ??
+  FALLBACK_API_URL;
 
 function getToken() {
   if (typeof window === 'undefined') return null;
