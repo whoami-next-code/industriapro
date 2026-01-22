@@ -20,6 +20,12 @@ interface FormErrors {
   message?: string;
 }
 
+interface ClienteProfile {
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
 export default function ContactoPage() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -40,7 +46,7 @@ export default function ContactoPage() {
     let isActive = true;
     (async () => {
       try {
-        const profile = await apiFetchAuth('/clientes/me');
+        const profile = (await apiFetchAuth('/clientes/me')) as ClienteProfile;
         if (!isActive) return;
         setFormData((prev) => ({
           ...prev,
