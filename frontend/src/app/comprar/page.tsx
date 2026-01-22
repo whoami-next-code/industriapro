@@ -33,7 +33,7 @@ export default function Comprar() {
     async function loadProfile() {
       setProfileLoading(true);
       try {
-        const data = await apiFetchAuth<ClienteProfile>("/clientes/me");
+        const data = (await apiFetchAuth("/clientes/me")) as ClienteProfile;
         setForm((prev) => ({
           ...prev,
           dni: data.document ?? prev.dni,
