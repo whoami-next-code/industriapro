@@ -362,82 +362,111 @@ function CheckoutForm() {
     const doc = documentType === 'dni' ? dni : ruc;
     const cleanDoc = (doc || '').replace(/[^0-9]/g, '');
     
-    console.log('[Pasarela] Autocomplete effect ejecutado:', {
+    console.log('[Pasarela] ========== AUTocomplete EFFECT ==========');
+    console.log('[Pasarela] Estado completo:', {
       documentType,
       doc,
       cleanDoc,
       cleanDocLength: cleanDoc.length,
       documentValidation,
       isValid: documentValidation.isValid,
+      documentTypeDetected: documentValidation.documentType,
     });
     
     setAutoError(null);
-    setAutoData(null);
     
-    if (!documentValidation.isValid || !cleanDoc || (cleanDoc.length !== 8 && cleanDoc.length !== 11)) {
-      console.log('[Pasarela] Autocomplete cancelado - validación fallida:', {
-        isValid: documentValidation.isValid,
+    // Validar que el documento tenga la longitud correcta
+    const isValidLength = cleanDoc.length === 8 || cleanDoc.length === 11;
+    
+    if (!isValidLength || !cleanDoc) {
+      console.log('[Pasarela] Autocomplete cancelado - longitud inválida:', {
         cleanDoc,
         cleanDocLength: cleanDoc.length,
+        isValidLength,
       });
       setAutoLoading(false);
+      setAutoData(null);
       return;
     }
     
-    const cached = cacheRef.current.get(cleanDoc) || null;
-    if (cached) {
-      console.log('[Pasarela] Usando datos en caché para:', cleanDoc);
-      setAutoData(cached);
-      // Rellenar campos principales
-      if (cached.type === 'DNI') {
-        setCustomerName(cached.name || 'Cliente');
-        if (!shippingAddress && cached.address) setShippingAddress(cached.address);
-      } else if (cached.type === 'RUC') {
-        setCustomerName(cached.businessName || 'Empresa');
-        if (!shippingAddress && cached.address) setShippingAddress(cached.address);
+    // Si el documento no está validado, esperar un poco más
+    if (!documentValidation.isValid) {
+      console.log('[Pasarela] Autocomplete esperando validación...', {
+        isValid: documentValidation.isValid,
+        documentType: documentValidation.documentType,
+      });
+      setAutoLoading(false);
+      setAutoData(null);
+      return;
+    }
+    
+    // Limpiar caché si los datos son genéricos (para forzar nueva consulta)
+    const cached = cacheRef.current.get(cleanDoc);
+    if (cached && (cached.name === 'Cliente' || cached.businessName === 'Empresa')) {
+      console.log('[Pasarela] Eliminando caché genérico para:', cleanDoc);
+      cacheRef.current.delete(cleanDoc);
+      try { sessionStorage.removeItem(`doc_cache_${cleanDoc}`); } catch {}
+    }
+    
+    const finalCached = cacheRef.current.get(cleanDoc);
+    if (finalCached && finalCached.ok && finalCached.name !== 'Cliente' && finalCached.businessName !== 'Empresa') {
+      console.log('[Pasarela] Usando datos en caché válidos para:', cleanDoc, finalCached);
+      setAutoData(finalCached);
+      if (finalCached.type === 'DNI') {
+        setCustomerName(finalCached.name || 'Cliente');
+        if (!shippingAddress && finalCached.address) setShippingAddress(finalCached.address);
+      } else if (finalCached.type === 'RUC') {
+        setCustomerName(finalCached.businessName || 'Empresa');
+        if (!shippingAddress && finalCached.address) setShippingAddress(finalCached.address);
       }
       return;
     }
     
-    console.log('[Pasarela] Iniciando consulta de autocomplete para:', cleanDoc);
+    console.log('[Pasarela] ✅ Iniciando consulta de autocomplete para:', cleanDoc);
     setAutoLoading(true);
     const t = setTimeout(async () => {
       try {
         const url = `/api/clientes/autocomplete?doc=${encodeURIComponent(cleanDoc)}`;
-        console.log('[Pasarela] Llamando a:', url);
+        console.log('[Pasarela] 🌐 Llamando a:', url);
         const res = await fetch(url);
-        console.log('[Pasarela] Respuesta recibida - status:', res.status, res.statusText);
+        console.log('[Pasarela] 📥 Respuesta recibida - status:', res.status, res.statusText);
         
         if (!res.ok) {
           const text = await res.text();
-          console.error('[Pasarela] Error en respuesta:', text);
+          console.error('[Pasarela] ❌ Error en respuesta:', text);
           throw new Error(text || 'Error al consultar documento');
         }
         const data = await res.json();
-        console.log('[Pasarela] Datos recibidos de autocomplete:', JSON.stringify(data, null, 2));
-        cacheRef.current.set(cleanDoc, data);
-        try { sessionStorage.setItem(`doc_cache_${cleanDoc}`, JSON.stringify(data)); } catch {}
+        console.log('[Pasarela] 📦 Datos recibidos de autocomplete:', JSON.stringify(data, null, 2));
+        
+        // Solo cachear si los datos son válidos y no genéricos
+        if (data.ok && data.name !== 'Cliente' && data.businessName !== 'Empresa') {
+          cacheRef.current.set(cleanDoc, data);
+          try { sessionStorage.setItem(`doc_cache_${cleanDoc}`, JSON.stringify(data)); } catch {}
+        }
+        
         setAutoData(data);
         if (data.type === 'DNI') {
           const name = data.name || data.nombre || 'Cliente';
-          console.log('[Pasarela] Estableciendo nombre DNI:', name);
+          console.log('[Pasarela] ✏️ Estableciendo nombre DNI:', name);
           setCustomerName(name);
           if (!shippingAddress && data.address) setShippingAddress(data.address);
         } else if (data.type === 'RUC') {
           const businessName = data.businessName || data.razonSocial || data.razon_social || 'Empresa';
-          console.log('[Pasarela] Estableciendo razón social RUC:', businessName);
+          console.log('[Pasarela] ✏️ Estableciendo razón social RUC:', businessName);
           setCustomerName(businessName);
           if (!shippingAddress && data.address) setShippingAddress(data.address);
         }
         setAutoError(null);
       } catch (e: any) {
+        console.error('[Pasarela] ❌ Error en autocomplete:', e);
         setAutoError(e?.message || 'No se pudo obtener datos');
       } finally {
         setAutoLoading(false);
       }
-    }, 300);
+    }, 500); // Aumentar delay para dar tiempo a la validación
     return () => clearTimeout(t);
-  }, [documentType, dni, ruc, documentValidation.isValid, shippingAddress]);
+  }, [documentType, dni, ruc, documentValidation.isValid, documentValidation.documentType, shippingAddress]);
 
   // Pago con tarjeta
   async function handleCardPayment(e: React.FormEvent) {
