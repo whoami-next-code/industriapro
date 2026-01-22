@@ -10,6 +10,12 @@ type Resultado = {
   comprobante: any;
 };
 
+type ClienteProfile = {
+  document?: string | null;
+  phone?: string | null;
+  address?: string | null;
+};
+
 export default function Comprar() {
   const router = useRouter();
   const [form, setForm] = useState({ dni: '', producto: '', cantidad: 1, precioUnitario: 50, phone: '', address: '' });
@@ -27,7 +33,7 @@ export default function Comprar() {
     async function loadProfile() {
       setProfileLoading(true);
       try {
-        const data = await apiFetchAuth("/clientes/me");
+        const data = await apiFetchAuth<ClienteProfile>("/clientes/me");
         setForm((prev) => ({
           ...prev,
           dni: data.document ?? prev.dni,
