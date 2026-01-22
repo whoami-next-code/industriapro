@@ -1,4 +1,9 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const FALLBACK_API_URL = 'https://backend-production-0c3e.up.railway.app/api';
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.NEXT_PUBLIC_API_BASE ??
+  process.env.NEXT_PUBLIC_BACKEND_URL ??
+  FALLBACK_API_URL;
 export const BACKEND_URL = API_URL.replace(/\/api\/?$/, '');
 
 export function getImageUrl(path?: string): string {
