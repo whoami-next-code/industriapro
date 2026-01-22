@@ -321,19 +321,42 @@ export class AuthController {
           this.logger.log(
             `Link generado: ${url ? 'presente' : 'faltante'}`,
           );
+          let finalUrl = url;
           if (url) {
             this.logger.log(
-              `URL del link de verificación: ${url.substring(0, 100)}...`,
+              `URL completa del link de verificación: ${url}`,
             );
+            // Verificar si la URL contiene localhost y reemplazarlo
+            if (url.includes('localhost') || url.includes('127.0.0.1')) {
+              this.logger.warn(
+                `⚠️ PROBLEMA DETECTADO: El link generado por Supabase contiene localhost: ${url}`,
+              );
+              this.logger.warn(
+                `Reemplazando localhost con la URL de producción: ${webUrl}`,
+              );
+              // Reemplazar localhost:3000 con la URL de producción
+              finalUrl = url.replace(/https?:\/\/localhost:\d+/, webUrl);
+              finalUrl = finalUrl.replace(/https?:\/\/127\.0\.0\.1:\d+/, webUrl);
+              this.logger.log(
+                `URL corregida: ${finalUrl}`,
+              );
+              this.logger.warn(
+                `⚠️ IMPORTANTE: Configura en Supabase Dashboard → Authentication → URL Configuration → Site URL: ${webUrl}`,
+              );
+            } else {
+              this.logger.log(
+                `✅ URL del link es correcta (no contiene localhost)`,
+              );
+            }
           }
-          if (url) {
+          if (finalUrl) {
             this.logger.log(
               `Enviando correo de verificación con Resend a ${created.email}`,
             );
             const mailResult = await this.mail.sendVerification({
               to: created.email,
               fullName: created.fullName ?? 'Usuario',
-              url,
+              url: finalUrl,
             });
             if (mailResult?.ok) {
               emailSent = true;
