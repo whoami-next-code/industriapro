@@ -60,15 +60,18 @@ export async function obtenerDatosPorRUC(
   if (token && token.startsWith('sk_')) {
     try {
       const url = `https://api.decolecta.com/v1/sunat/ruc/full?numero=${clean}`;
+      console.log(`[SUNAT] Consultando Decolecta para RUC: ${clean}`);
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
+        console.log(`[SUNAT] Respuesta de Decolecta:`, JSON.stringify(data, null, 2));
         
         // Extraer representantes legales
         let representantesLegales: Array<{ nombre: string; documento?: string; cargo?: string }> = [];
         if (Array.isArray(data?.representantes_legales)) {
+          console.log(`[SUNAT] Encontrados ${data.representantes_legales.length} representantes legales`);
           representantesLegales = data.representantes_legales.map((rep: any) => {
             if (typeof rep === 'string') {
               return { nombre: rep };
@@ -83,16 +86,19 @@ export async function obtenerDatosPorRUC(
             return { nombre: String(rep || '') };
           });
         } else if (data?.representante_legal) {
+          console.log(`[SUNAT] Encontrado representante_legal (singular)`);
           const rep = data.representante_legal;
           representantesLegales = [{
             nombre: typeof rep === 'string' ? rep : (rep.nombre || rep.name || ''),
             documento: typeof rep === 'object' ? (rep.documento || rep.document || rep.dni) : undefined,
             cargo: typeof rep === 'object' ? (rep.cargo || rep.position) : undefined,
           }];
+        } else {
+          console.log(`[SUNAT] No se encontraron representantes legales en la respuesta`);
         }
         
         // Mapeo respuesta Decolecta
-        return {
+        const result = {
           ruc: clean,
           razonSocial: data.razon_social || data.nombre_o_razon_social || '',
           nombreComercial: data.nombre_comercial,
@@ -102,9 +108,14 @@ export async function obtenerDatosPorRUC(
           actividadEconomica: data.actividad_economica,
           representantesLegales: representantesLegales.length > 0 ? representantesLegales : undefined,
         };
+        console.log(`[SUNAT] Resultado final:`, JSON.stringify(result, null, 2));
+        return result;
+      } else {
+        const errorText = await res.text();
+        console.error(`[SUNAT] Error de Decolecta (${res.status}):`, errorText);
       }
-    } catch (err) {
-      console.warn('obtenerDatosPorRUC: error consultando Decolecta', err);
+    } catch (err: any) {
+      console.error('obtenerDatosPorRUC: error consultando Decolecta', err.message, err);
     }
   }
 

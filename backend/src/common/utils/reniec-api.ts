@@ -20,9 +20,12 @@ export async function obtenerDatosPorDNI(dni: string): Promise<ReniecResponse> {
   if (token && token.startsWith('sk_')) {
     try {
       const url = `https://api.decolecta.com/v1/reniec/dni?numero=${dni}`;
+      console.log(`[RENIEC] Consultando Decolecta para DNI: ${dni}`);
       const { data } = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      console.log(`[RENIEC] Respuesta de Decolecta:`, JSON.stringify(data, null, 2));
 
       const nombres = data.nombres ?? data.nombresCompleto ?? data.first_name;
       const apellidoPaterno =
@@ -31,21 +34,27 @@ export async function obtenerDatosPorDNI(dni: string): Promise<ReniecResponse> {
         data.apellidoMaterno ?? data.apellido_materno ?? data.second_last_name;
       const fullName = data.full_name;
 
+      console.log(`[RENIEC] Datos extraídos - nombres: ${nombres}, apellidoPaterno: ${apellidoPaterno}, apellidoMaterno: ${apellidoMaterno}, fullName: ${fullName}`);
+
       if (nombres || fullName) {
-        return {
-          nombres: String(nombres || fullName.split(' ')[2] || ''),
+        const result = {
+          nombres: String(nombres || (fullName ? fullName.split(' ').slice(2).join(' ') : '') || ''),
           apellidoPaterno: String(
-            apellidoPaterno || fullName.split(' ')[0] || '',
+            apellidoPaterno || (fullName ? fullName.split(' ')[0] : '') || '',
           ),
           apellidoMaterno: String(
-            apellidoMaterno || fullName.split(' ')[1] || '',
+            apellidoMaterno || (fullName ? fullName.split(' ')[1] : '') || '',
           ),
           direccion: data.direccion || data.address || data.domicilio,
           estadoCivil: data.estado_civil || data.civil_status,
         };
+        console.log(`[RENIEC] Resultado final:`, result);
+        return result;
+      } else {
+        console.warn(`[RENIEC] No se encontraron nombres en la respuesta para DNI: ${dni}`);
       }
-    } catch (e) {
-      console.warn('Error consultando Decolecta (DNI):', e.message);
+    } catch (e: any) {
+      console.error('Error consultando Decolecta (DNI):', e.message, e.response?.data);
     }
   }
 

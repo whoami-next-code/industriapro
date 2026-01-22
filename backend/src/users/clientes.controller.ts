@@ -58,11 +58,14 @@ export class ClientesMeController {
 
   @Get('autocomplete')
   async autocomplete(@Query('doc') doc: string) {
+    console.log(`[ClientesController] autocomplete llamado con doc: ${doc}`);
+    
     if (!doc) {
       return { ok: false, error: 'Parámetro doc es requerido' };
     }
 
     const cleanDoc = (doc || '').replace(/[^0-9]/g, '');
+    console.log(`[ClientesController] Documento limpio: ${cleanDoc}, longitud: ${cleanDoc.length}`);
 
     if (!cleanDoc || (cleanDoc.length !== 8 && cleanDoc.length !== 11)) {
       return { ok: false, error: 'Documento inválido (DNI 8 dígitos, RUC 11 dígitos)' };
@@ -71,10 +74,14 @@ export class ClientesMeController {
     try {
       if (cleanDoc.length === 8) {
         // DNI - RENIEC
+        console.log(`[ClientesController] Consultando DNI: ${cleanDoc}`);
         const datos = await obtenerDatosPorDNI(cleanDoc);
-        const fullName = `${datos.apellidoPaterno} ${datos.apellidoMaterno} ${datos.nombres}`.trim();
+        console.log(`[ClientesController] Datos recibidos de RENIEC:`, datos);
         
-        return {
+        const fullName = `${datos.apellidoPaterno} ${datos.apellidoMaterno} ${datos.nombres}`.trim();
+        console.log(`[ClientesController] Nombre completo construido: ${fullName}`);
+        
+        const result = {
           ok: true,
           type: 'DNI',
           name: fullName || 'Cliente',
@@ -83,15 +90,19 @@ export class ClientesMeController {
           civilStatus: datos.estadoCivil,
           raw: datos,
         };
+        console.log(`[ClientesController] Respuesta DNI:`, result);
+        return result;
       } else if (cleanDoc.length === 11) {
         // RUC - SUNAT
+        console.log(`[ClientesController] Consultando RUC: ${cleanDoc}`);
         const datos = await obtenerDatosPorRUC(cleanDoc);
+        console.log(`[ClientesController] Datos recibidos de SUNAT:`, datos);
         
         if (!datos) {
           return { ok: false, error: 'RUC inválido' };
         }
 
-        return {
+        const result = {
           ok: true,
           type: 'RUC',
           businessName: datos.razonSocial || 'Empresa',
@@ -103,9 +114,11 @@ export class ClientesMeController {
           legalRepresentatives: datos.representantesLegales || [],
           raw: datos,
         };
+        console.log(`[ClientesController] Respuesta RUC:`, JSON.stringify(result, null, 2));
+        return result;
       }
     } catch (error: any) {
-      console.error('Error consultando documento:', error);
+      console.error('[ClientesController] Error consultando documento:', error);
       return { ok: false, error: error?.message || 'Error al consultar documento' };
     }
 
