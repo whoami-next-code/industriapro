@@ -1,7 +1,7 @@
 import React from "react";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
   size?: 'xs' | 'sm' | 'md' | 'lg';
 };
 
@@ -18,6 +18,7 @@ export default function Button({
     secondary: "sp-button-outline",
     danger: "bg-rose-500 hover:bg-rose-400 text-white border border-transparent",
     ghost: "sp-button-ghost",
+    success: "bg-emerald-600 hover:bg-emerald-500 text-white border border-transparent",
   };
   const sizes: Record<string, string> = {
     xs: "text-xs py-1 px-2 h-7",
