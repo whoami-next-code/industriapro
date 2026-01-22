@@ -28,6 +28,7 @@ type Order = {
 type Avance = {
   fecha: string;
   mensaje: string;
+  message?: string;
   estado?: string;
   tecnico?: string;
 };
