@@ -78,19 +78,29 @@ export class ClientesMeController {
         const datos = await obtenerDatosPorDNI(cleanDoc);
         console.log(`[ClientesController] Datos recibidos de RENIEC:`, datos);
         
-        const fullName = `${datos.apellidoPaterno} ${datos.apellidoMaterno} ${datos.nombres}`.trim();
-        console.log(`[ClientesController] Nombre completo construido: ${fullName}`);
+        // Construir nombre completo de manera más robusta
+        const partesNombre = [
+          datos.apellidoPaterno,
+          datos.apellidoMaterno,
+          datos.nombres,
+        ].filter(Boolean);
+        const fullName = partesNombre.length > 0 
+          ? partesNombre.join(' ').trim()
+          : (datos.nombres || 'Cliente');
+        
+        console.log(`[ClientesController] Nombre completo construido: "${fullName}"`);
+        console.log(`[ClientesController] Partes: apellidoPaterno="${datos.apellidoPaterno}", apellidoMaterno="${datos.apellidoMaterno}", nombres="${datos.nombres}"`);
         
         const result = {
           ok: true,
           type: 'DNI',
-          name: fullName || 'Cliente',
+          name: fullName,
           document: cleanDoc,
           address: datos.direccion,
           civilStatus: datos.estadoCivil,
           raw: datos,
         };
-        console.log(`[ClientesController] Respuesta DNI:`, result);
+        console.log(`[ClientesController] Respuesta DNI completa:`, JSON.stringify(result, null, 2));
         return result;
       } else if (cleanDoc.length === 11) {
         // RUC - SUNAT
