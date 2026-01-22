@@ -4,6 +4,8 @@ type ReniecResponse = {
   nombres: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
+  direccion?: string;
+  estadoCivil?: string;
 };
 
 /**
@@ -38,6 +40,8 @@ export async function obtenerDatosPorDNI(dni: string): Promise<ReniecResponse> {
           apellidoMaterno: String(
             apellidoMaterno || fullName.split(' ')[1] || '',
           ),
+          direccion: data.direccion || data.address || data.domicilio,
+          estadoCivil: data.estado_civil || data.civil_status,
         };
       }
     } catch (e) {

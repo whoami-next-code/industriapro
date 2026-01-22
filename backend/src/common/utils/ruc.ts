@@ -31,6 +31,13 @@ export type DatosRUC = {
   nombreComercial?: string;
   direccion?: string;
   estado?: string;
+  condicion?: string;
+  actividadEconomica?: string;
+  representantesLegales?: Array<{
+    nombre: string;
+    documento?: string;
+    cargo?: string;
+  }>;
 };
 
 /**
@@ -58,13 +65,42 @@ export async function obtenerDatosPorRUC(
       });
       if (res.ok) {
         const data = await res.json();
+        
+        // Extraer representantes legales
+        let representantesLegales: Array<{ nombre: string; documento?: string; cargo?: string }> = [];
+        if (Array.isArray(data?.representantes_legales)) {
+          representantesLegales = data.representantes_legales.map((rep: any) => {
+            if (typeof rep === 'string') {
+              return { nombre: rep };
+            }
+            if (typeof rep === 'object' && rep !== null) {
+              return {
+                nombre: rep.nombre || rep.name || rep.nombres || rep.razon_social || '',
+                documento: rep.documento || rep.document || rep.dni || rep.numero_documento,
+                cargo: rep.cargo || rep.position,
+              };
+            }
+            return { nombre: String(rep || '') };
+          });
+        } else if (data?.representante_legal) {
+          const rep = data.representante_legal;
+          representantesLegales = [{
+            nombre: typeof rep === 'string' ? rep : (rep.nombre || rep.name || ''),
+            documento: typeof rep === 'object' ? (rep.documento || rep.document || rep.dni) : undefined,
+            cargo: typeof rep === 'object' ? (rep.cargo || rep.position) : undefined,
+          }];
+        }
+        
         // Mapeo respuesta Decolecta
         return {
           ruc: clean,
-          razonSocial: data.razon_social || data.nombre_o_razon_social,
+          razonSocial: data.razon_social || data.nombre_o_razon_social || '',
           nombreComercial: data.nombre_comercial,
           direccion: data.direccion || data.domicilio_fiscal,
           estado: data.estado,
+          condicion: data.condicion,
+          actividadEconomica: data.actividad_economica,
+          representantesLegales: representantesLegales.length > 0 ? representantesLegales : undefined,
         };
       }
     } catch (err) {

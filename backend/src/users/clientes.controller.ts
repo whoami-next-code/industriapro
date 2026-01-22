@@ -79,6 +79,8 @@ export class ClientesMeController {
           type: 'DNI',
           name: fullName || 'Cliente',
           document: cleanDoc,
+          address: datos.direccion,
+          civilStatus: datos.estadoCivil,
           raw: datos,
         };
       } else if (cleanDoc.length === 11) {
@@ -89,47 +91,6 @@ export class ClientesMeController {
           return { ok: false, error: 'RUC inválido' };
         }
 
-        // Obtener representantes legales desde Decolecta si está disponible
-        let legalRepresentatives: any[] = [];
-        const token = process.env.API_TOKEN_SUNAT || process.env.API_TOKEN_RENIEC;
-        
-        if (token && token.startsWith('sk_')) {
-          try {
-            const url = `https://api.decolecta.com/v1/sunat/ruc/full?numero=${cleanDoc}`;
-            const res = await fetch(url, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
-              const fullData = await res.json();
-              // Extraer representantes legales en diferentes formatos
-              if (Array.isArray(fullData?.representantes_legales)) {
-                legalRepresentatives = fullData.representantes_legales;
-              } else if (Array.isArray(fullData?.representantes)) {
-                legalRepresentatives = fullData.representantes;
-              } else if (fullData?.representante_legal) {
-                legalRepresentatives = [fullData.representante_legal];
-              }
-              
-              // Normalizar representantes
-              legalRepresentatives = legalRepresentatives.map((rep: any) => {
-                if (typeof rep === 'string') {
-                  return { nombre: rep, documento: '' };
-                }
-                if (typeof rep === 'object' && rep !== null) {
-                  return {
-                    nombre: rep.nombre || rep.name || rep.nombres || rep.razon_social || '',
-                    documento: rep.documento || rep.document || rep.dni || rep.numero_documento || '',
-                    cargo: rep.cargo || rep.position || '',
-                  };
-                }
-                return { nombre: String(rep || ''), documento: '' };
-              });
-            }
-          } catch (err) {
-            console.warn('Error obteniendo representantes legales:', err);
-          }
-        }
-
         return {
           ok: true,
           type: 'RUC',
@@ -137,8 +98,9 @@ export class ClientesMeController {
           document: datos.ruc,
           address: datos.direccion || '',
           status: datos.estado,
-          activity: undefined, // No disponible en la función actual
-          legalRepresentatives: legalRepresentatives,
+          condition: datos.condicion,
+          activity: datos.actividadEconomica,
+          legalRepresentatives: datos.representantesLegales || [],
           raw: datos,
         };
       }
