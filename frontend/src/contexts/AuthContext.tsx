@@ -64,14 +64,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) throw new Error('Supabase no configurado');
     
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
-          data: metadata,
-        },
-      });
+      // Intentar primero sin emailRedirectTo para evitar errores 500 de Supabase
+      // Si falla, intentar con la redirección
+      let data, error;
+      
+      try {
+        const result = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
+            data: metadata,
+          },
+        });
+        data = result.data;
+        error = result.error;
+      } catch (signupError: any) {
+        // Si falla con 500, intentar sin redirección
+        if (signupError?.status === 500 || signupError?.message?.includes('500')) {
+          console.warn('Signup con redirección falló, intentando sin redirección...');
+          const result = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: metadata,
+            },
+          });
+          data = result.data;
+          error = result.error;
+        } else {
+          throw signupError;
+        }
+      }
       
       // Manejar errores de Supabase
       if (error) {
