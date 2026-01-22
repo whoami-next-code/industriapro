@@ -408,7 +408,19 @@ function CheckoutForm() {
       try { sessionStorage.removeItem(`doc_cache_${cleanDoc}`); } catch {}
     }
     
-    const finalCached = cacheRef.current.get(cleanDoc);
+    // Verificar caché en sessionStorage también
+    let sessionCached = null;
+    try {
+      const cachedStr = sessionStorage.getItem(`doc_cache_${cleanDoc}`);
+      if (cachedStr) {
+        sessionCached = JSON.parse(cachedStr);
+        console.log('[Pasarela] Datos encontrados en sessionStorage:', sessionCached);
+      }
+    } catch (e) {
+      console.warn('[Pasarela] Error leyendo sessionStorage:', e);
+    }
+    
+    const finalCached = cacheRef.current.get(cleanDoc) || sessionCached;
     if (finalCached && finalCached.ok && finalCached.name !== 'Cliente' && finalCached.businessName !== 'Empresa') {
       console.log('[Pasarela] Usando datos en caché válidos para:', cleanDoc, finalCached);
       setAutoData(finalCached);
@@ -422,14 +434,31 @@ function CheckoutForm() {
       return;
     }
     
-    console.log('[Pasarela] ✅ Iniciando consulta de autocomplete para:', cleanDoc);
+    // FORZAR consulta al backend (eliminar cualquier caché genérico)
+    console.log('[Pasarela] ✅ FORZANDO consulta de autocomplete para:', cleanDoc);
+    console.log('[Pasarela] Estado antes de consulta:', {
+      cleanDoc,
+      isValid: documentValidation.isValid,
+      documentType: documentValidation.documentType,
+      hasCached: !!finalCached,
+    });
+    
     setAutoLoading(true);
     const t = setTimeout(async () => {
       try {
         const url = `/api/clientes/autocomplete?doc=${encodeURIComponent(cleanDoc)}`;
         console.log('[Pasarela] 🌐 Llamando a:', url);
-        const res = await fetch(url);
+        console.error('[Pasarela] 🌐 Llamando a:', url); // También en console.error para Railway
+        
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
         console.log('[Pasarela] 📥 Respuesta recibida - status:', res.status, res.statusText);
+        console.error('[Pasarela] 📥 Respuesta recibida - status:', res.status, res.statusText);
         
         if (!res.ok) {
           const text = await res.text();
@@ -438,12 +467,11 @@ function CheckoutForm() {
         }
         const data = await res.json();
         console.log('[Pasarela] 📦 Datos recibidos de autocomplete:', JSON.stringify(data, null, 2));
+        console.error('[Pasarela] 📦 Datos recibidos:', JSON.stringify(data, null, 2));
         
-        // Solo cachear si los datos son válidos y no genéricos
-        if (data.ok && data.name !== 'Cliente' && data.businessName !== 'Empresa') {
-          cacheRef.current.set(cleanDoc, data);
-          try { sessionStorage.setItem(`doc_cache_${cleanDoc}`, JSON.stringify(data)); } catch {}
-        }
+        // Cachear siempre (incluso si son genéricos, para evitar llamadas repetidas)
+        cacheRef.current.set(cleanDoc, data);
+        try { sessionStorage.setItem(`doc_cache_${cleanDoc}`, JSON.stringify(data)); } catch {}
         
         setAutoData(data);
         if (data.type === 'DNI') {
@@ -464,7 +492,7 @@ function CheckoutForm() {
       } finally {
         setAutoLoading(false);
       }
-    }, 500); // Aumentar delay para dar tiempo a la validación
+    }, 300); // Reducir delay
     return () => clearTimeout(t);
   }, [documentType, dni, ruc, documentValidation.isValid, documentValidation.documentType, shippingAddress]);
 
