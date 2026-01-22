@@ -25,25 +25,44 @@ export async function GET(req: Request) {
     console.log('[Frontend Autocomplete] API_BASE configurado:', API_BASE);
     console.log('[Frontend Autocomplete] Documento a consultar:', doc);
     
-    const resp = await fetch(backendUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(backendUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Agregar timeout
+        signal: AbortSignal.timeout(10000),
+      });
+    } catch (fetchError: any) {
+      console.error('[Frontend Autocomplete] Error al hacer fetch:', fetchError);
+      return NextResponse.json({ 
+        ok: false, 
+        error: `Error de conexión al backend: ${fetchError?.message || 'No se pudo conectar al servidor'}` 
+      }, { status: 502 });
+    }
     
     console.log('[Frontend Autocomplete] Respuesta del backend - status:', resp.status, resp.statusText);
 
     if (!resp.ok) {
       const text = await resp.text();
+      console.error('[Frontend Autocomplete] Error del backend:', text);
       return NextResponse.json({ 
         ok: false, 
-        error: `Error del backend: ${text || resp.statusText}` 
+        error: `Error del backend (${resp.status}): ${text || resp.statusText}` 
       }, { status: resp.status || 502 });
     }
 
     const data = await resp.json();
-    console.log('[Frontend Autocomplete] Respuesta del backend:', JSON.stringify(data, null, 2));
+    console.log('[Frontend Autocomplete] Respuesta del backend (datos):', JSON.stringify(data, null, 2));
+    
+    // Verificar que la respuesta tenga los campos esperados
+    if (!data.ok && data.error) {
+      console.error('[Frontend Autocomplete] Backend devolvió error:', data.error);
+      return NextResponse.json(data, { status: 400 });
+    }
+    
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Error en autocomplete proxy:', err);
