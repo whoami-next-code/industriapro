@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { RolesGuard } from './auth/roles.guard';
+import { LoggingInterceptor } from './common/logging.interceptor';
 import { ReportesModule } from './reportes/reportes.module';
 import { ContactosModule } from './contactos/contactos.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -234,6 +235,10 @@ import { EventsModule } from './events/events.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
     },
   ],
 })
