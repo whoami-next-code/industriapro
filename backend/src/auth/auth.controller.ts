@@ -251,10 +251,20 @@ export class AuthController {
     let emailSent = false;
     let emailError: string | null = null;
 
+    this.logger.log(
+      `register-external iniciando envío de correo para email=${body.email}`,
+    );
+
     try {
       // Intentar generar link de verificación desde Supabase
       const supabaseUrl = process.env.SUPABASE_URL;
       const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+      const webUrl = process.env.WEB_URL || 'http://localhost:3000';
+      const resendApiKey = process.env.RESEND_API_KEY;
+
+      this.logger.log(
+        `Configuración: SUPABASE_URL=${supabaseUrl ? 'presente' : 'faltante'}, SUPABASE_SERVICE_KEY=${serviceKey ? 'presente' : 'faltante'}, WEB_URL=${webUrl}, RESEND_API_KEY=${resendApiKey ? 'presente' : 'faltante'}`,
+      );
 
       if (supabaseUrl && serviceKey) {
         const supabase = createClient(supabaseUrl, serviceKey, {
@@ -267,16 +277,33 @@ export class AuthController {
         try {
           // Generar link de confirmación de signup para el usuario recién creado
           // Este link será enviado con Resend usando la plantilla personalizada
-          const { data: linkData } = await supabase.auth.admin.generateLink({
-            type: 'signup',
+          this.logger.log(
+            `Generando link de verificación de Supabase para email=${body.email}`,
+          );
+          // Usar 'magiclink' para generar un link de autenticación que también verifica el email
+          const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+            type: 'magiclink',
             email: body.email,
             options: {
-              redirectTo: `${process.env.WEB_URL || 'http://localhost:3000'}/auth/confirm`,
+              redirectTo: `${webUrl}/auth/confirm`,
             },
           });
 
+          if (linkError) {
+            this.logger.error(
+              `Error de Supabase al generar link: ${linkError.message}`,
+            );
+            throw linkError;
+          }
+
           const url = linkData?.properties?.action_link;
+          this.logger.log(
+            `Link generado: ${url ? 'presente' : 'faltante'}`,
+          );
           if (url) {
+            this.logger.log(
+              `Enviando correo de verificación con Resend a ${created.email}`,
+            );
             const mailResult = await this.mail.sendVerification({
               to: created.email,
               fullName: created.fullName ?? 'Usuario',
@@ -285,13 +312,13 @@ export class AuthController {
             if (mailResult?.ok) {
               emailSent = true;
               this.logger.log(
-                `Correo de verificación enviado a ${created.email}`,
+                `✅ Correo de verificación enviado exitosamente a ${created.email}`,
               );
             } else {
               emailError =
                 mailResult?.error || 'Error al enviar correo de verificación';
-              this.logger.warn(
-                `Error enviando correo de verificación: ${emailError}`,
+              this.logger.error(
+                `❌ Error enviando correo de verificación: ${emailError}`,
               );
             }
           } else {
@@ -314,10 +341,13 @@ export class AuthController {
             }
           }
         } catch (linkError: any) {
-          this.logger.warn(
-            `Error generando link de verificación: ${linkError.message}`,
+          this.logger.error(
+            `❌ Error generando link de verificación de Supabase: ${linkError.message || linkError}`,
           );
           // Fallback a correo de bienvenida
+          this.logger.log(
+            `Intentando fallback: enviar correo de bienvenida a ${created.email}`,
+          );
           try {
             const mailResult = await this.mail.sendAccountCreation({
               to: created.email,
@@ -326,25 +356,28 @@ export class AuthController {
             if (mailResult?.ok) {
               emailSent = true;
               this.logger.log(
-                `Correo de bienvenida enviado a ${created.email} (fallback)`,
+                `✅ Correo de bienvenida enviado a ${created.email} (fallback)`,
               );
             } else {
               emailError =
                 mailResult?.error || 'Error al enviar correo de bienvenida';
-              this.logger.warn(
-                `Error enviando correo de bienvenida (fallback): ${emailError}`,
+              this.logger.error(
+                `❌ Error enviando correo de bienvenida (fallback): ${emailError}`,
               );
             }
           } catch (mailErr: any) {
             emailError =
               mailErr?.message || 'Error al enviar correo de bienvenida';
             this.logger.error(
-              `Error enviando correo de bienvenida (fallback): ${emailError}`,
+              `❌ Error enviando correo de bienvenida (fallback): ${emailError}`,
             );
           }
         }
       } else {
         // Si no hay configuración de Supabase, solo enviar bienvenida
+        this.logger.warn(
+          `⚠️ Supabase no configurado (SUPABASE_URL o SUPABASE_SERVICE_KEY faltantes). Enviando solo correo de bienvenida.`,
+        );
         try {
           const mailResult = await this.mail.sendAccountCreation({
             to: created.email,
@@ -352,31 +385,31 @@ export class AuthController {
           });
           if (mailResult?.ok) {
             emailSent = true;
-            this.logger.log(`Correo de bienvenida enviado a ${created.email}`);
+            this.logger.log(`✅ Correo de bienvenida enviado a ${created.email}`);
           } else {
             emailError =
               mailResult?.error || 'Error al enviar correo de bienvenida';
-            this.logger.warn(
-              `Error enviando correo de bienvenida: ${emailError}`,
+            this.logger.error(
+              `❌ Error enviando correo de bienvenida: ${emailError}`,
             );
           }
         } catch (mailErr: any) {
           emailError =
             mailErr?.message || 'Error al enviar correo de bienvenida';
           this.logger.error(
-            `Error enviando correo de bienvenida: ${emailError}`,
+            `❌ Error enviando correo de bienvenida: ${emailError}`,
           );
         }
       }
     } catch (error: any) {
       emailError =
         error?.message || 'Error al enviar correo electrónico de confirmación';
-      this.logger.error(`Error enviando correo: ${emailError}`);
+      this.logger.error(`❌ Error general enviando correo: ${emailError}`);
       // No fallar el registro si el correo falla
     }
 
     this.logger.log(
-      `register-external created id=${created.id} email=${body.email} emailSent=${emailSent}`,
+      `register-external finalizado: id=${created.id} email=${body.email} emailSent=${emailSent} emailError=${emailError || 'ninguno'}`,
     );
     return {
       ok: true,
