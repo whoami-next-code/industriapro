@@ -77,6 +77,7 @@ type ProgressUpdate = {
   technician?: string;
   highlighted?: boolean;
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  technicianSignature?: string;
   rejectionReason?: string;
   reviewedBy?: string;
 };
