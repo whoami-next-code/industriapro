@@ -22,7 +22,8 @@ import DocumentInput from '@/components/DocumentInput';
 import OwnerAutocomplete from '@/components/OwnerAutocomplete';
 import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "");
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "";
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
 
 function validarRUC(ruc: string) {
@@ -1198,7 +1199,7 @@ function CheckoutForm() {
 
 export default function Page() {
   return (
-    <Elements stripe={stripePromise}>
+    <Elements stripe={stripePromise || undefined}>
       <Suspense fallback={<div>Cargando...</div>}>
         <CheckoutForm />
       </Suspense>

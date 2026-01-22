@@ -190,7 +190,11 @@ export default function CategoriasPage() {
             <div className="w-24 h-24 bg-[var(--surface-2)] rounded-xl overflow-hidden mb-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={c.imageUrl ? (c.imageUrl.startsWith('http') ? c.imageUrl : `http://localhost:3001${c.imageUrl.startsWith('/') ? c.imageUrl : '/' + c.imageUrl}`) : '/window.svg'}
+                src={c.imageUrl ? (c.imageUrl.startsWith('http') ? c.imageUrl : (() => {
+                  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                  const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
+                  return `${BACKEND_BASE}${c.imageUrl.startsWith('/') ? c.imageUrl : '/' + c.imageUrl}`;
+                })()) : '/window.svg'}
                 alt={c.name}
                 className="w-full h-full object-cover"
                 onError={(e) => { e.currentTarget.src = '/window.svg'; }}

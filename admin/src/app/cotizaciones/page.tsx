@@ -548,7 +548,9 @@ export default function AdminCotizaciones() {
       // We need to use raw fetch or adapt apiFetch for FormData if it doesn't support it automatically
       // Assuming apiFetch handles JSON, for FormData we might need to bypass or adjust content-type
       const token = localStorage.getItem("token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/cotizaciones/${selected.id}/images`, {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
+      const res = await fetch(`${BACKEND_BASE}/api/cotizaciones/${selected.id}/images`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

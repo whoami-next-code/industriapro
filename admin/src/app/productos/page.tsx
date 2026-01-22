@@ -207,7 +207,11 @@ export default function AdminProductos() {
     const previewUrl = product.imagenUrl 
       ? (product.imagenUrl.startsWith('http') 
           ? product.imagenUrl 
-          : `http://localhost:3001${product.imagenUrl.startsWith('/') ? product.imagenUrl : '/' + product.imagenUrl}`)
+          : (() => {
+              const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+              const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
+              return `${BACKEND_BASE}${product.imagenUrl.startsWith('/') ? product.imagenUrl : '/' + product.imagenUrl}`;
+            })())
       : null;
     setImagePreview(previewUrl);
     setShowModal(true);
@@ -241,8 +245,10 @@ export default function AdminProductos() {
       header: 'Imagen',
       cell: ({ getValue }) => {
         const url = getValue();
+        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
         const imageUrl = url 
-          ? (url.startsWith('http') ? url : `http://localhost:3001${url.startsWith('/') ? url : '/' + url}`)
+          ? (url.startsWith('http') ? url : `${BACKEND_BASE}${url.startsWith('/') ? url : '/' + url}`)
           : null;
         return imageUrl ? (
           <img src={imageUrl} alt="Producto" className="h-12 w-12 object-cover rounded-xl" />

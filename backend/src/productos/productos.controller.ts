@@ -141,13 +141,93 @@ export class ProductosController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'VENDEDOR')
-  update(@Param('id') id: string, @Body() body: any) {
+  @UseInterceptors(
+    FileInterceptor('image', { storage: multer.memoryStorage() }),
+  )
+  async update(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() body: any,
+  ) {
     if (body.price !== undefined && !isValidPrice(body.price)) {
       throw new BadRequestException(
         'El precio debe ser un número positivo (mínimo 0.01)',
       );
     }
-    return this.productosService.update(Number(id), body).then((p) => {
+
+    // Si se sube una nueva imagen, procesarla
+    let imageUrl: string | undefined;
+    let thumbnailUrl: string | undefined;
+
+    if (file) {
+      // Validate mime type
+      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowed.includes(file.mimetype)) {
+        throw new BadRequestException(
+          'Formato no permitido. Use JPG, PNG o WEBP.',
+        );
+      }
+
+      // Ensure directories exist
+      const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products');
+      const thumbsDir = join(uploadsDir, 'thumbs');
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      fs.mkdirSync(thumbsDir, { recursive: true });
+
+      // Generate filename
+      const ext =
+        file.mimetype === 'image/png'
+          ? 'png'
+          : file.mimetype === 'image/webp'
+            ? 'webp'
+            : 'jpg';
+      const base = `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const filename = `${base}.${ext}`;
+
+      // Optimize main image (max width 1600)
+      const mainOutput = join(uploadsDir, filename);
+      let pipeline = sharp(file.buffer).rotate();
+      pipeline = pipeline.resize({ width: 1600, withoutEnlargement: true });
+      if (ext === 'jpg') pipeline = pipeline.jpeg({ quality: 82 });
+      else if (ext === 'png') pipeline = pipeline.png({ quality: 82 });
+      else pipeline = pipeline.webp({ quality: 82 });
+      await pipeline.toFile(mainOutput);
+
+      // Thumbnail (width 400)
+      const thumbOutput = join(thumbsDir, filename);
+      let thumbPipe = sharp(file.buffer)
+        .rotate()
+        .resize({ width: 400, withoutEnlargement: true });
+      if (ext === 'jpg') thumbPipe = thumbPipe.jpeg({ quality: 80 });
+      else if (ext === 'png') thumbPipe = thumbPipe.png({ quality: 80 });
+      else thumbPipe = thumbPipe.webp({ quality: 80 });
+      await thumbPipe.toFile(thumbOutput);
+
+      imageUrl = `/uploads/products/${filename}`;
+      thumbnailUrl = `/uploads/products/thumbs/${filename}`;
+    }
+
+    // Preparar datos de actualización
+    const updateData: any = {
+      name: body.name,
+      description: body.description,
+      price: body.price !== undefined ? Number(body.price) : undefined,
+      stock: body.stock !== undefined ? Number(body.stock) : undefined,
+      category: body.category,
+    };
+
+    // Solo actualizar imágenes si se subió una nueva
+    if (imageUrl && thumbnailUrl) {
+      updateData.imageUrl = imageUrl;
+      updateData.thumbnailUrl = thumbnailUrl;
+    }
+
+    // Eliminar campos undefined
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key],
+    );
+
+    return this.productosService.update(Number(id), updateData).then((p) => {
       this.events.productosUpdated({ id: Number(id), action: 'update' });
       return p;
     });
