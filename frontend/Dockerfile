@@ -23,10 +23,12 @@ FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 EXPOSE 3000
-COPY --from=builder /app/package*.json ./
-RUN npm ci --omit=dev --legacy-peer-deps
-COPY --from=builder /app/.next ./.next
+
+# Next standalone output
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+
 USER node
-CMD ["sh", "-c", "next start -p ${PORT:-3000}"]
+CMD ["node", "server.js"]
 
