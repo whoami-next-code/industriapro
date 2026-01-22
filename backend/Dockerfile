@@ -33,5 +33,9 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 
+# Permisos para uploads (Railway usa USER node)
+RUN mkdir -p /app/public/uploads/categories /app/public/uploads/products \
+  && chown -R node:node /app/public/uploads
+
 USER node
 CMD ["sh", "-c", "if [ -f dist/src/main.js ]; then node dist/src/main.js; elif [ -f dist/main.js ]; then node dist/main.js; else echo \"No se encontro dist/main.js\"; ls -la dist || true; exit 1; fi"]
