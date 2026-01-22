@@ -62,49 +62,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     if (!supabase) throw new Error('Supabase no configurado');
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
-        data: metadata,
-      },
-    });
-    // Manejar errores de Supabase relacionados con correos
-    if (error) {
-      // Si el error está relacionado con correo, proporcionar un mensaje más claro
-      if (error.message?.toLowerCase().includes('email') || 
-          error.message?.toLowerCase().includes('correo') ||
-          error.message?.toLowerCase().includes('mail')) {
-        throw new Error(error.message || 'Error al enviar el correo electrónico de confirmación');
-      }
-      throw error;
-    }
-
-    // Sincronizar usuario explícitamente para asegurar envío de correo de bienvenida
-    // Esto cubre el caso donde onAuthStateChange no se dispara inmediatamente (ej. email no verificado)
-    if (data.user && data.user.email) {
-      const name = metadata?.name || metadata?.fullName;
-      try {
-        const syncResponse = await fetch('/api/sync-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: data.user.email, fullName: name, id: data.user.id }),
-        });
-        
-        const syncData = await syncResponse.json();
-        
-        // Si la sincronización falla, solo loguear el error pero no bloquear el registro
-        // porque Supabase ya envió su correo de confirmación y el usuario fue creado
-        if (!syncResponse.ok && syncData.error) {
-          console.warn('Error sincronizando usuario (no crítico):', syncData.error);
-          // No lanzar error - el usuario ya fue creado en Supabase y recibirá su correo de confirmación
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/confirm` : undefined,
+          data: metadata,
+        },
+      });
+      
+      // Manejar errores de Supabase
+      if (error) {
+        // Error 500 de Supabase - problema de configuración del servidor
+        if (error.status === 500 || error.message?.includes('500')) {
+          throw new Error('Error del servidor de autenticación. Por favor, contacta al administrador o intenta más tarde.');
         }
-      } catch (err: any) {
-        // Solo loguear errores de red, no bloquear el registro
-        console.warn('Error de red al sincronizar usuario (no crítico):', err);
-        // No lanzar error - el usuario ya fue creado en Supabase
+        // Error de email/correo
+        if (error.message?.toLowerCase().includes('email') || 
+            error.message?.toLowerCase().includes('correo') ||
+            error.message?.toLowerCase().includes('mail')) {
+          throw new Error(error.message || 'Error al enviar el correo electrónico de confirmación');
+        }
+        // Otros errores
+        throw new Error(error.message || 'Error al crear la cuenta');
       }
+      
+      // Si no hay usuario creado, lanzar error
+      if (!data.user) {
+        throw new Error('No se pudo crear el usuario');
+      }
+
+      // Sincronizar usuario explícitamente para asegurar envío de correo de bienvenida
+      // Esto cubre el caso donde onAuthStateChange no se dispara inmediatamente (ej. email no verificado)
+      if (data.user && data.user.email) {
+        const name = metadata?.name || metadata?.fullName;
+        try {
+          const syncResponse = await fetch('/api/sync-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: data.user.email, fullName: name, id: data.user.id }),
+          });
+          
+          const syncData = await syncResponse.json();
+          
+          // Si la sincronización falla, solo loguear el error pero no bloquear el registro
+          // porque Supabase ya envió su correo de confirmación y el usuario fue creado
+          if (!syncResponse.ok && syncData.error) {
+            console.warn('Error sincronizando usuario (no crítico):', syncData.error);
+            // No lanzar error - el usuario ya fue creado en Supabase y recibirá su correo de confirmación
+          }
+        } catch (err: any) {
+          // Solo loguear errores de red, no bloquear el registro
+          console.warn('Error de red al sincronizar usuario (no crítico):', err);
+          // No lanzar error - el usuario ya fue creado en Supabase
+        }
+      }
+    } catch (err: any) {
+      // Re-lanzar errores de Supabase con mensajes mejorados
+      throw err;
     }
   };
 
