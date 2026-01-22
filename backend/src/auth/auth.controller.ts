@@ -150,17 +150,32 @@ export class AuthController {
   @Post('check-email')
   async checkEmail(@Body() body: CheckEmailDto) {
     this.logger.log(`check-email start email=${body.email}`);
+    
+    // Primero verificar en la base de datos local
     const existing = await this.users.findByEmail(body.email);
-    if (existing) {
+    if (existing && existing.verified) {
+      // Si existe y está verificado, el correo está en uso
       this.logger.log(
-        `check-email local-hit email=${body.email} verified=${!!existing.verified}`,
+        `check-email local-hit verified email=${body.email}`,
       );
       return {
         exists: true,
-        verified: !!existing.verified,
+        verified: true,
       };
     }
 
+    // Si existe pero NO está verificado, permitir registro (el usuario puede re-registrarse)
+    if (existing && !existing.verified) {
+      this.logger.log(
+        `check-email local-hit unverified email=${body.email} - permitiendo registro`,
+      );
+      return {
+        exists: false,
+        verified: false,
+      };
+    }
+
+    // Verificar en Supabase solo si no existe en la base de datos local
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_KEY;
     if (!supabaseUrl || !serviceKey) {
@@ -180,26 +195,67 @@ export class AuthController {
           persistSession: false,
         },
       });
-      const { data, error } = await supabase.auth.admin.listUsers({
+      
+      // Buscar usuario específico por email en lugar de listar todos
+      const { data: userList, error: listError } = await supabase.auth.admin.listUsers({
         page: 1,
-        perPage: 100,
+        perPage: 1000, // Aumentar para buscar mejor
       });
-      if (error) {
+      
+      if (listError) {
         this.logger.warn(
-          `check-email supabase error email=${body.email}: ${error.message}`,
+          `check-email supabase error email=${body.email}: ${listError.message}`,
         );
         return { exists: false, verified: false };
       }
-      const user = data?.users?.find(
+      
+      const user = userList?.users?.find(
         (u) => u.email?.toLowerCase() === body.email.toLowerCase(),
       );
+      
+      if (!user) {
+        // No existe en Supabase, el correo está disponible
+        this.logger.log(
+          `check-email supabase-not-found email=${body.email} - correo disponible`,
+        );
+        return {
+          exists: false,
+          verified: false,
+        };
+      }
+      
       const emailConfirmed = !!user?.email_confirmed_at;
+      
+      // IMPORTANTE: Solo considerar que el correo está "en uso" si está VERIFICADO
+      // Si existe pero NO está verificado, permitir el registro
+      if (!emailConfirmed) {
+        this.logger.log(
+          `check-email supabase-found unverified email=${body.email} - permitiendo registro (usuario no verificado)`,
+        );
+        // Opcional: eliminar el usuario no verificado de Supabase para limpiar
+        try {
+          await supabase.auth.admin.deleteUser(user.id);
+          this.logger.log(
+            `check-email deleted unverified user from Supabase email=${body.email}`,
+          );
+        } catch (deleteErr: any) {
+          this.logger.warn(
+            `check-email failed to delete unverified user email=${body.email}: ${deleteErr.message}`,
+          );
+        }
+        return {
+          exists: false,
+          verified: false,
+        };
+      }
+      
+      // Si está verificado en Supabase, el correo está en uso
       this.logger.log(
-        `check-email supabase-result email=${body.email} exists=${!!user} verified=${emailConfirmed}`,
+        `check-email supabase-result verified email=${body.email} exists=true verified=true`,
       );
       return {
-        exists: !!user,
-        verified: emailConfirmed,
+        exists: true,
+        verified: true,
       };
     } catch (err: any) {
       this.logger.warn(
@@ -367,90 +423,23 @@ export class AuthController {
               );
             }
           }
-          if (url) {
-            this.logger.log(
-              `URL completa del link de verificación (ANTES del reemplazo): ${url}`,
+          
+          // Verificar que el link personalizado no contenga direcciones locales
+          if (finalUrlToSend && (finalUrlToSend.includes('localhost') || finalUrlToSend.includes('127.0.0.1') || finalUrlToSend.includes('0.0.0.0'))) {
+            this.logger.error(
+              `❌ ERROR CRÍTICO: El link personalizado contiene dirección local: ${finalUrlToSend}`,
             );
-            this.logger.log(
-              `Longitud de la URL: ${url.length} caracteres`,
-            );
-            // Verificar si la URL contiene localhost, 127.0.0.1 o 0.0.0.0 y reemplazarlo
-            const hasLocalhost = url.includes('localhost');
-            const has127 = url.includes('127.0.0.1');
-            const has000 = url.includes('0.0.0.0');
-            this.logger.log(
-              `Detección: localhost=${hasLocalhost}, 127.0.0.1=${has127}, 0.0.0.0=${has000}`,
-            );
-            if (hasLocalhost || has127 || has000) {
+            // Forzar uso de URL de producción
+            const tokenMatch = finalUrlToSend.match(/[?&]token=([^&]+)/);
+            const typeMatch = finalUrlToSend.match(/[?&]type=([^&]+)/);
+            if (tokenMatch && typeMatch) {
+              finalUrlToSend = `${webUrl}/auth/verify-supabase?token=${tokenMatch[1]}&type=${typeMatch[1]}`;
               this.logger.warn(
-                `⚠️ PROBLEMA DETECTADO: El link generado por Supabase contiene dirección local: ${url}`,
-              );
-              this.logger.warn(
-                `Reemplazando dirección local con la URL de producción: ${webUrl}`,
-              );
-              // Reemplazar localhost:3000, 127.0.0.1:3000 o 0.0.0.0:3000 con la URL de producción
-              // Reemplazar todas las ocurrencias en toda la URL (incluyendo hash y query params)
-              finalUrl = url;
-              
-              // Reemplazo agresivo: buscar y reemplazar cualquier patrón de dirección local
-              // Primero reemplazar con protocolo completo
-              finalUrl = finalUrl.replace(/https?:\/\/localhost:\d+/gi, webUrl);
-              finalUrl = finalUrl.replace(/https?:\/\/127\.0\.0\.1:\d+/gi, webUrl);
-              finalUrl = finalUrl.replace(/https?:\/\/0\.0\.0\.0:\d+/gi, webUrl);
-              
-              // Reemplazar sin protocolo (para hash y query params)
-              const webUrlNoProtocol = webUrl.replace(/^https?:\/\//, '');
-              finalUrl = finalUrl.replace(/localhost:\d+/gi, webUrlNoProtocol);
-              finalUrl = finalUrl.replace(/127\.0\.0\.1:\d+/gi, webUrlNoProtocol);
-              finalUrl = finalUrl.replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
-              
-              // Reemplazo adicional: si la URL completa empieza con 0.0.0.0, reemplazarla completamente
-              if (finalUrl.startsWith('0.0.0.0:') || finalUrl.startsWith('http://0.0.0.0:') || finalUrl.startsWith('https://0.0.0.0:')) {
-                // Extraer el path y hash después de 0.0.0.0:3000
-                const match = finalUrl.match(/(?:https?:\/\/)?0\.0\.0\.0:\d+(\/.*)/);
-                if (match && match[1]) {
-                  finalUrl = `${webUrl}${match[1]}`;
-                } else {
-                  finalUrl = webUrl;
-                }
-              }
-              
-              // Verificar una vez más si quedó alguna dirección local
-              if (finalUrl.includes('localhost:') || finalUrl.includes('127.0.0.1:') || finalUrl.includes('0.0.0.0:')) {
-                this.logger.error(
-                  `❌ ERROR: Aún quedan direcciones locales después del reemplazo: ${finalUrl}`,
-                );
-                // Último intento: reemplazo manual más agresivo
-                finalUrl = finalUrl.split('#')[0].replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
-                const hash = url.split('#')[1];
-                if (hash) {
-                  // Reemplazar en el hash también
-                  const fixedHash = hash.replace(/0\.0\.0\.0:\d+/gi, webUrlNoProtocol);
-                  finalUrl = `${finalUrl}#${fixedHash}`;
-                }
-              }
-              this.logger.log(
-                `URL corregida (DESPUÉS del reemplazo): ${finalUrl}`,
-              );
-              // Verificar que el reemplazo funcionó
-              if (finalUrl.includes('localhost:') || finalUrl.includes('127.0.0.1:') || finalUrl.includes('0.0.0.0:')) {
-                this.logger.error(
-                  `❌ ERROR CRÍTICO: El reemplazo falló. La URL aún contiene direcciones locales: ${finalUrl}`,
-                );
-              } else {
-                this.logger.log(
-                  `✅ Reemplazo exitoso. La URL ya no contiene direcciones locales.`,
-                );
-              }
-              this.logger.warn(
-                `⚠️ IMPORTANTE: Configura en Supabase Dashboard → Authentication → URL Configuration → Site URL: ${webUrl}`,
-              );
-            } else {
-              this.logger.log(
-                `✅ URL del link es correcta (no contiene direcciones locales)`,
+                `Link corregido forzadamente: ${finalUrlToSend}`,
               );
             }
           }
+          
           if (finalUrlToSend) {
             this.logger.log(
               `Enviando correo de verificación con Resend a ${created.email}`,
