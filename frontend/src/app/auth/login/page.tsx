@@ -34,6 +34,8 @@ function LoginComponent() {
     } catch (error: any) {
       if (error.message.includes('Email not confirmed')) {
         setError('Tu correo no ha sido verificado. Por favor revisa tu bandeja de entrada o spam.');
+      } else if (error.message.includes('Invalid login credentials') || error.message.includes('invalid') || error.message.includes('credentials')) {
+        setError('Credenciales inválidas. Si acabas de verificar tu correo, es posible que necesites establecer tu contraseña. Usa "¿Olvidaste tu contraseña?" para crear una nueva.');
       } else {
         setError(error.message || 'Error al iniciar sesión');
       }
@@ -168,12 +170,12 @@ function LoginComponent() {
             </div>
           </form>
 
-        <div className="mt-6 text-sm text-gray-500 text-center">
+          <div className="mt-6 text-sm text-gray-500 text-center">
           ¿No tienes cuenta?{' '}
           <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
             Crear cuenta
           </Link>
-        </div>
+          </div>
         </div>
       </div>
     </div>

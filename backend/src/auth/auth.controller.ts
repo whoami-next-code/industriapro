@@ -446,10 +446,24 @@ export class AuthController {
           this.logger.log(
             `Generando link de verificación de Supabase para email=${body.email} con redirectTo=${redirectUrl}`,
           );
-          // Usar 'magiclink' para generar un link de autenticación que también verifica el email
+          // Verificar si el usuario ya existe en Supabase y tiene contraseña
+          const { data: existingUser } = await supabase.auth.admin.getUserById(body.id || '');
+          
+          // Si el usuario ya existe y fue creado con signUp, usar 'signup' link para mantener la contraseña
+          // Si no, usar 'magiclink' (pero esto no establecerá contraseña)
+          const linkType = existingUser?.user && existingUser.user.created_at ? 'signup' : 'magiclink';
+          
+          this.logger.log(
+            `Generando link de tipo ${linkType} para email=${body.email}`,
+          );
+          
+          // Usar 'signup' si el usuario ya tiene contraseña, 'magiclink' si no
           const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-            type: 'magiclink',
+            type: linkType as any,
             email: body.email,
+            ...(linkType === 'signup' && existingUser?.user ? {
+              password: undefined, // No podemos obtener la contraseña, pero signup link funcionará si ya existe
+            } : {}),
             options: {
               redirectTo: redirectUrl,
             },
