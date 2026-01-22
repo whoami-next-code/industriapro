@@ -37,7 +37,7 @@ type QuoteItem = {
 };
 
 type QuotationImage = {
-  id: string;
+  id: number;
   quotationId: number;
   userId: string;
   image_url: string;
