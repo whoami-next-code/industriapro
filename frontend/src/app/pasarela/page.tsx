@@ -361,14 +361,32 @@ function CheckoutForm() {
   useEffect(() => {
     const doc = documentType === 'dni' ? dni : ruc;
     const cleanDoc = (doc || '').replace(/[^0-9]/g, '');
+    
+    console.log('[Pasarela] Autocomplete effect ejecutado:', {
+      documentType,
+      doc,
+      cleanDoc,
+      cleanDocLength: cleanDoc.length,
+      documentValidation,
+      isValid: documentValidation.isValid,
+    });
+    
     setAutoError(null);
     setAutoData(null);
+    
     if (!documentValidation.isValid || !cleanDoc || (cleanDoc.length !== 8 && cleanDoc.length !== 11)) {
+      console.log('[Pasarela] Autocomplete cancelado - validación fallida:', {
+        isValid: documentValidation.isValid,
+        cleanDoc,
+        cleanDocLength: cleanDoc.length,
+      });
       setAutoLoading(false);
       return;
     }
+    
     const cached = cacheRef.current.get(cleanDoc) || null;
     if (cached) {
+      console.log('[Pasarela] Usando datos en caché para:', cleanDoc);
       setAutoData(cached);
       // Rellenar campos principales
       if (cached.type === 'DNI') {
@@ -380,12 +398,19 @@ function CheckoutForm() {
       }
       return;
     }
+    
+    console.log('[Pasarela] Iniciando consulta de autocomplete para:', cleanDoc);
     setAutoLoading(true);
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/clientes/autocomplete?doc=${encodeURIComponent(cleanDoc)}`);
+        const url = `/api/clientes/autocomplete?doc=${encodeURIComponent(cleanDoc)}`;
+        console.log('[Pasarela] Llamando a:', url);
+        const res = await fetch(url);
+        console.log('[Pasarela] Respuesta recibida - status:', res.status, res.statusText);
+        
         if (!res.ok) {
           const text = await res.text();
+          console.error('[Pasarela] Error en respuesta:', text);
           throw new Error(text || 'Error al consultar documento');
         }
         const data = await res.json();
