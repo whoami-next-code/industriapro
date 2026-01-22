@@ -51,6 +51,14 @@ type QuoteDetail = {
   progressUpdates?: ProgressUpdate[];
 };
 
+type ClienteProfile = {
+  fullName?: string | null;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+};
+
 const STATUS_OPTIONS = ["NUEVA", "EN_PROCESO", "ENVIADA", "ENTREGADA", "COMPLETADA", "CANCELADA"];
 
 export default function Cotizacion() {
@@ -132,7 +140,7 @@ export default function Cotizacion() {
       setClientLoading(true);
       setClientError(null);
       try {
-        const data = await apiFetchAuth("/clientes/me");
+        const data = await apiFetchAuth<ClienteProfile>("/clientes/me");
         const next = {
           fullName: data?.fullName ?? "",
           document: data?.document ?? "",
