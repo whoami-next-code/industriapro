@@ -34,71 +34,112 @@ function VerifySupabaseComponent() {
     // Verificar el token con Supabase
     const verifyToken = async () => {
       try {
+        // Para magiclink, necesitamos usar el endpoint de verificación de Supabase
         // Construir la URL de verificación de Supabase
-        const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}&redirect_to=${encodeURIComponent(window.location.origin + '/auth/confirm')}`;
+        const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}`;
         
-        // Hacer la verificación
         const response = await fetch(verifyUrl, {
           method: 'GET',
           headers: {
             'apikey': supabaseAnonKey,
+            'Content-Type': 'application/json',
           },
         });
 
-        if (response.ok) {
-          // Si la verificación es exitosa, redirigir a /auth/confirm para establecer la sesión
-          const data = await response.json();
-          if (data.access_token) {
-            // Establecer la sesión con Supabase
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: data.access_token,
-              refresh_token: data.refresh_token || '',
-            });
-
-            if (sessionError) {
-              throw sessionError;
-            }
-
-            // Sincronizar con el backend
-            const secret = process.env.NEXT_PUBLIC_EXTERNAL_REG_SECRET || 'industriasp-external-reg-secret-2024-railway';
-            const apiUrl = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-            
-            try {
-              const user = (await supabase.auth.getUser()).data.user;
-              if (user) {
-                await fetch(`${apiUrl}/auth/register-external`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'x-external-secret': secret,
-                  },
-                  body: JSON.stringify({
-                    email: user.email,
-                    fullName: user.user_metadata?.fullName || user.user_metadata?.name,
-                    id: user.id,
-                  }),
-                });
-              }
-            } catch (e) {
-              console.warn('Error sincronizando con backend:', e);
-            }
-
-            setStatus('ok');
-            setMessage('Tu correo ha sido verificado. Redirigiendo...');
-            setTimeout(() => {
-              router.push('/dashboard');
-            }, 1500);
-          } else {
-            throw new Error('No se recibió access_token de Supabase');
-          }
-        } else {
+        if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-          throw new Error(errorData.error || 'Error al verificar el token');
+          const errorMessage = errorData.error || errorData.message || `Error ${response.status}: ${response.statusText}`;
+          throw new Error(errorMessage);
         }
+
+        const responseData = await response.json();
+        
+        if (!responseData.access_token) {
+          throw new Error('No se recibió access_token de Supabase. El token puede haber expirado.');
+        }
+
+        // Establecer la sesión con Supabase
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: responseData.access_token,
+          refresh_token: responseData.refresh_token || '',
+        });
+
+        if (sessionError) {
+          throw new Error(`Error estableciendo sesión: ${sessionError.message}`);
+        }
+
+        if (!sessionData?.session) {
+          throw new Error('No se pudo establecer la sesión después de verificar el token');
+        }
+
+        // Obtener el usuario actual de la sesión
+        let user = sessionData.session.user;
+        
+        // Si no tenemos el usuario de la sesión, intentar obtenerlo
+        if (!user) {
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw new Error(`Error obteniendo información del usuario: ${userError.message}`);
+          }
+
+          if (!userData?.user) {
+            throw new Error('No se pudo obtener la información del usuario después de verificar el token');
+          }
+
+          user = userData.user;
+        }
+
+        // Sincronizar con el backend
+        const secret = process.env.NEXT_PUBLIC_EXTERNAL_REG_SECRET || 'industriasp-external-reg-secret-2024-railway';
+        const apiUrl = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        
+        try {
+          await fetch(`${apiUrl}/auth/register-external`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-external-secret': secret,
+            },
+            body: JSON.stringify({
+              email: user.email,
+              fullName: user.user_metadata?.fullName || user.user_metadata?.name,
+              id: user.id,
+            }),
+          });
+        } catch (e: any) {
+          console.warn('Error sincronizando con backend (no crítico):', e);
+          // No bloquear el flujo si falla la sincronización
+        }
+
+        setStatus('ok');
+        setMessage('Tu correo ha sido verificado. Redirigiendo...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1500);
       } catch (error: any) {
         console.error('Error verificando token:', error);
         setStatus('error');
-        setMessage(error.message || 'El enlace de verificación no es válido o ha expirado.');
+        let errorMessage = 'El enlace de verificación no es válido o ha expirado.';
+        
+        if (error?.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error?.error) {
+          errorMessage = error.error;
+        }
+        
+        // Mensajes más amigables para errores comunes
+        if (errorMessage.includes('expired') || errorMessage.includes('expirado')) {
+          errorMessage = 'El enlace de verificación ha expirado. Por favor, solicita un nuevo enlace.';
+        } else if (errorMessage.includes('invalid') || errorMessage.includes('inválido')) {
+          errorMessage = 'El enlace de verificación no es válido. Por favor, verifica que el enlace sea correcto.';
+        } else if (errorMessage.includes('obtener')) {
+          errorMessage = 'Error al obtener la información del usuario. Por favor, intenta iniciar sesión manualmente.';
+        }
+        
+        setMessage(errorMessage);
       }
     };
 
