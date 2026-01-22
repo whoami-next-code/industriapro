@@ -23,13 +23,26 @@ export async function GET(req: Request) {
     }
 
     // Consultar el backend que tiene las API keys configuradas
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-0c3e.up.railway.app/api';
-    const backendUrl = `${API_BASE}/clientes/autocomplete?doc=${encodeURIComponent(doc)}`;
+    // En API routes de Next.js, podemos usar variables sin NEXT_PUBLIC_ también
+    const API_BASE = 
+      process.env.NEXT_PUBLIC_API_BASE || 
+      process.env.NEXT_PUBLIC_API_URL || 
+      process.env.API_BASE ||
+      process.env.API_URL ||
+      'https://backend-production-0c3e.up.railway.app/api';
     
-    console.log('[Frontend Autocomplete] Consultando backend:', backendUrl);
-    console.log('[Frontend Autocomplete] API_BASE configurado:', API_BASE);
-    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE);
-    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+    // Asegurar que termine en /api
+    const normalizedApiBase = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE.replace(/\/api\/?$/, '')}/api`;
+    const backendUrl = `${normalizedApiBase}/clientes/autocomplete?doc=${encodeURIComponent(doc)}`;
+    
+    console.log('[Frontend Autocomplete] ========== CONFIGURACIÓN ==========');
+    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE || 'NO CONFIGURADO');
+    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL || 'NO CONFIGURADO');
+    console.log('[Frontend Autocomplete] API_BASE (env):', process.env.API_BASE || 'NO CONFIGURADO');
+    console.log('[Frontend Autocomplete] API_URL (env):', process.env.API_URL || 'NO CONFIGURADO');
+    console.log('[Frontend Autocomplete] API_BASE final:', API_BASE);
+    console.log('[Frontend Autocomplete] normalizedApiBase:', normalizedApiBase);
+    console.log('[Frontend Autocomplete] backendUrl:', backendUrl);
     console.log('[Frontend Autocomplete] Documento a consultar:', doc);
     
     let resp: Response;
