@@ -14,9 +14,10 @@ type Props = {
   redirectToCart?: boolean; // deprecated: ahora usamos sidebar + toast
   label?: string;
   imageSrc?: string;
+  className?: string;
 };
 
-export default function AddToCartButton({ productId, name, price, quantity = 1, variant = "primary", redirectToCart = false, label, imageSrc }: Props) {
+export default function AddToCartButton({ productId, name, price, quantity = 1, variant = "primary", redirectToCart = false, label, imageSrc, className }: Props) {
   const { addItem, items } = useCart();
   const { openCart } = useCartUI();
   const { show } = useToast();
@@ -87,8 +88,10 @@ export default function AddToCartButton({ productId, name, price, quantity = 1, 
       ? "inline-flex items-center justify-center rounded-md bg-black text-white px-3 py-2 text-sm"
       : "inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm";
 
+  const mergedClassName = `${className} ${loading ? 'opacity-50 pointer-events-none' : ''}`;
+
   return (
-    <button onClick={handleClick} className={`${className} ${loading ? 'opacity-50 pointer-events-none' : ''}`} aria-label={`${label ? label : 'Agregar al carrito'} ${name}`} disabled={loading}>
+    <button onClick={handleClick} className={mergedClassName} aria-label={`${label ? label : 'Agregar al carrito'} ${name}`} disabled={loading}>
       {label ?? 'Agregar al carrito'}
     </button>
   );
