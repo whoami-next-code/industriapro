@@ -8,12 +8,17 @@ function cleanDigits(s: string): string {
 }
 
 export async function GET(req: Request) {
+  console.log('[Frontend Autocomplete] ========== ENDPOINT LLAMADO ==========');
   try {
     const url = new URL(req.url);
     const docParam = url.searchParams.get('doc') || '';
     const doc = cleanDigits(docParam);
 
+    console.log('[Frontend Autocomplete] docParam recibido:', docParam);
+    console.log('[Frontend Autocomplete] doc limpio:', doc);
+
     if (!doc) {
+      console.error('[Frontend Autocomplete] Error: doc vacío');
       return NextResponse.json({ ok: false, error: 'Parámetro doc es requerido' }, { status: 400 });
     }
 
@@ -23,20 +28,29 @@ export async function GET(req: Request) {
     
     console.log('[Frontend Autocomplete] Consultando backend:', backendUrl);
     console.log('[Frontend Autocomplete] API_BASE configurado:', API_BASE);
+    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE);
+    console.log('[Frontend Autocomplete] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
     console.log('[Frontend Autocomplete] Documento a consultar:', doc);
     
     let resp: Response;
     try {
+      // Crear AbortController para timeout manual (AbortSignal.timeout puede no estar disponible)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       resp = await fetch(backendUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        // Agregar timeout
-        signal: AbortSignal.timeout(10000),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      console.log('[Frontend Autocomplete] Fetch completado, status:', resp.status);
     } catch (fetchError: any) {
       console.error('[Frontend Autocomplete] Error al hacer fetch:', fetchError);
+      console.error('[Frontend Autocomplete] Error stack:', fetchError?.stack);
       return NextResponse.json({ 
         ok: false, 
         error: `Error de conexión al backend: ${fetchError?.message || 'No se pudo conectar al servidor'}` 
