@@ -46,7 +46,7 @@ export default function QuoteStatusPage() {
 
   useEffect(() => {
     if (lastEvent?.name === "cotizaciones.updated" && lastEvent.data?.id === id) {
-       apiFetchAuth(`/cotizaciones/${id}/reporte`)
+       apiFetchAuth<Quote>(`/cotizaciones/${id}/reporte`)
          .then((data) => setItem(data))
          .catch((e: any) => console.error("Error reloading quote", e));
     }
@@ -57,7 +57,7 @@ export default function QuoteStatusPage() {
     if (!token) return;
     setLoading(true);
     setError(null);
-    apiFetchAuth(`/cotizaciones/${id}/reporte`)
+    apiFetchAuth<Quote>(`/cotizaciones/${id}/reporte`)
       .then((data) => setItem(data))
       .catch((e: any) => setError(e?.message ?? "Error cargando la cotización"))
       .finally(() => setLoading(false));

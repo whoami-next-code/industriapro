@@ -149,13 +149,16 @@ export function requireAuthOrRedirect(nextUrl?: string) {
 }
 
 // Versión de apiFetch que falla temprano si no hay token y necesita autenticación
-export async function apiFetchAuth(path: string, options: RequestInit = {}) {
+export async function apiFetchAuth<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   // No pasar rutas de API como "next"; debemos regresar al lugar actual del usuario.
   const token = requireAuthOrRedirect();
   if (!token) throw new Error('no_auth');
   
   try {
-    return await apiFetch(path, options);
+    return await apiFetch<T>(path, options);
   } catch (err: any) {
     if (err.message.includes('"statusCode":401') || err.message.includes('Unauthorized')) {
       // Si recibimos un 401 del backend, el token probablemente expiró
