@@ -337,7 +337,35 @@ export class AuthController {
           this.logger.log(
             `Link generado: ${url ? 'presente' : 'faltante'}`,
           );
+          
+          // IMPORTANTE: Asegurarse de que el redirect_to en el link sea correcto
+          // Supabase puede estar usando su Site URL en lugar del redirect_to que pasamos
           let finalUrl = url;
+          if (url && url.includes('redirect_to=')) {
+            // Verificar que el redirect_to en el link sea correcto
+            const redirectToMatch = url.match(/redirect_to=([^&]+)/);
+            if (redirectToMatch) {
+              const redirectToInUrl = decodeURIComponent(redirectToMatch[1]);
+              this.logger.log(
+                `redirect_to encontrado en el link: ${redirectToInUrl}`,
+              );
+              if (redirectToInUrl.includes('localhost') || redirectToInUrl.includes('127.0.0.1') || redirectToInUrl.includes('0.0.0.0')) {
+                this.logger.error(
+                  `❌ ERROR: El redirect_to en el link contiene dirección local: ${redirectToInUrl}`,
+                );
+                // Reemplazar el redirect_to incorrecto con el correcto
+                finalUrl = url.replace(
+                  /redirect_to=[^&]+/,
+                  `redirect_to=${encodeURIComponent(redirectUrl)}`,
+                );
+                this.logger.warn(
+                  `redirect_to corregido en el link: ${finalUrl}`,
+                );
+              }
+            }
+          }
+          
+          let finalUrlToSend = finalUrl;
           if (url) {
             this.logger.log(
               `URL completa del link de verificación (ANTES del reemplazo): ${url}`,
@@ -422,14 +450,17 @@ export class AuthController {
               );
             }
           }
-          if (finalUrl) {
+          if (finalUrlToSend) {
             this.logger.log(
               `Enviando correo de verificación con Resend a ${created.email}`,
+            );
+            this.logger.log(
+              `URL final que se enviará en el correo: ${finalUrlToSend}`,
             );
             const mailResult = await this.mail.sendVerification({
               to: created.email,
               fullName: created.fullName ?? 'Usuario',
-              url: finalUrl,
+              url: finalUrlToSend,
             });
             if (mailResult?.ok) {
               emailSent = true;
