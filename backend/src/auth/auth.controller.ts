@@ -338,34 +338,35 @@ export class AuthController {
             `Link generado: ${url ? 'presente' : 'faltante'}`,
           );
           
-          // IMPORTANTE: Asegurarse de que el redirect_to en el link sea correcto
-          // Supabase puede estar usando su Site URL en lugar del redirect_to que pasamos
-          let finalUrl = url;
-          if (url && url.includes('redirect_to=')) {
-            // Verificar que el redirect_to en el link sea correcto
-            const redirectToMatch = url.match(/redirect_to=([^&]+)/);
-            if (redirectToMatch) {
-              const redirectToInUrl = decodeURIComponent(redirectToMatch[1]);
+          // SOLUCIÓN: Construir nuestro propio link que redirija directamente al frontend
+          // Extraer el token del link de Supabase y construir un link que vaya a nuestro frontend
+          let finalUrlToSend = url;
+          if (url) {
+            // Extraer el token del link de Supabase
+            const tokenMatch = url.match(/[?&]token=([^&]+)/);
+            const typeMatch = url.match(/[?&]type=([^&]+)/);
+            const token = tokenMatch ? tokenMatch[1] : null;
+            const type = typeMatch ? typeMatch[1] : 'magiclink';
+            
+            if (token) {
               this.logger.log(
-                `redirect_to encontrado en el link: ${redirectToInUrl}`,
+                `Token extraído: ${token.substring(0, 20)}...`,
               );
-              if (redirectToInUrl.includes('localhost') || redirectToInUrl.includes('127.0.0.1') || redirectToInUrl.includes('0.0.0.0')) {
-                this.logger.error(
-                  `❌ ERROR: El redirect_to en el link contiene dirección local: ${redirectToInUrl}`,
-                );
-                // Reemplazar el redirect_to incorrecto con el correcto
-                finalUrl = url.replace(
-                  /redirect_to=[^&]+/,
-                  `redirect_to=${encodeURIComponent(redirectUrl)}`,
-                );
-                this.logger.warn(
-                  `redirect_to corregido en el link: ${finalUrl}`,
-                );
-              }
+              // Construir nuestro propio link que vaya directamente al frontend
+              // El frontend manejará la verificación del token con Supabase
+              finalUrlToSend = `${webUrl}/auth/verify-supabase?token=${encodeURIComponent(token)}&type=${type}`;
+              this.logger.log(
+                `✅ Link personalizado construido: ${finalUrlToSend}`,
+              );
+              this.logger.log(
+                `Este link redirigirá directamente al frontend sin pasar por Supabase para la redirección final.`,
+              );
+            } else {
+              this.logger.warn(
+                `⚠️ No se pudo extraer el token del link de Supabase. Usando link original.`,
+              );
             }
           }
-          
-          let finalUrlToSend = finalUrl;
           if (url) {
             this.logger.log(
               `URL completa del link de verificación (ANTES del reemplazo): ${url}`,
