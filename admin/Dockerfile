@@ -20,9 +20,11 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 EXPOSE 3002
-COPY --from=builder /app/package*.json ./
-RUN npm ci --omit=dev
-COPY --from=builder /app/.next ./.next
+
+# Next standalone output
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+
 USER node
-CMD ["sh", "-c", "next start -p ${PORT:-3002}"]
+CMD ["node", "server.js"]
