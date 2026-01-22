@@ -861,7 +861,24 @@ function CheckoutForm() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Representantes legales</label>
-                      <textarea readOnly value={(autoData.legalRepresentatives || []).map((r: any) => r?.nombre || r).join('\n')} rows={2} className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 border-gray-200" placeholder="No disponible" />
+                      <textarea 
+                        readOnly 
+                        value={
+                          (autoData.legalRepresentatives && autoData.legalRepresentatives.length > 0)
+                            ? autoData.legalRepresentatives.map((r: any) => {
+                                if (typeof r === 'string') return r;
+                                const nombre = r?.nombre || r?.name || '';
+                                const documento = r?.documento || r?.document || r?.dni || '';
+                                const cargo = r?.cargo || r?.position || '';
+                                const parts = [nombre, documento ? `(${documento})` : '', cargo ? `- ${cargo}` : ''].filter(Boolean);
+                                return parts.join(' ');
+                              }).join('\n')
+                            : 'No disponible'
+                        } 
+                        rows={3} 
+                        className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 border-gray-200" 
+                        placeholder="No disponible" 
+                      />
                     </div>
                   </div>
                 )}

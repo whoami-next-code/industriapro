@@ -55,14 +55,36 @@ export async function GET(req: Request) {
       }
       const data = await resp.json();
       // Ejemplo de respuesta esperada:
-      // { first_name, first_last_name, second_last_name, full_name, document_number }
-      const fullName = (data?.full_name || [data?.first_name, data?.first_last_name, data?.second_last_name].filter(Boolean).join(' ')).trim();
+      // { first_name, first_last_name, second_last_name, full_name, document_number, direccion }
+      
+      // Construir nombre completo desde diferentes formatos posibles
+      let fullName = '';
+      
+      if (data?.full_name) {
+        fullName = String(data.full_name).trim();
+      } else if (data?.nombres_completos) {
+        fullName = String(data.nombres_completos).trim();
+      } else if (data?.nombre_completo) {
+        fullName = String(data.nombre_completo).trim();
+      } else {
+        // Construir desde partes
+        const parts = [
+          data?.first_name || data?.nombres || data?.primer_nombre,
+          data?.first_last_name || data?.apellido_paterno || data?.primer_apellido,
+          data?.second_last_name || data?.apellido_materno || data?.segundo_apellido,
+        ].filter(Boolean);
+        fullName = parts.join(' ').trim();
+      }
+      
+      // Extraer dirección desde diferentes campos posibles
+      const address = data?.direccion || data?.address || data?.domicilio || data?.domicilio_fiscal || undefined;
+      
       return NextResponse.json({
         ok: true,
         type: 'DNI',
         name: fullName || 'Cliente',
-        document: String(data?.document_number || doc),
-        address: (data?.direccion ? String(data.direccion) : undefined),
+        document: String(data?.document_number || data?.numero_documento || data?.dni || doc),
+        address: address ? String(address) : undefined,
         civilStatus: (data?.estado_civil ? String(data.estado_civil) : undefined),
         raw: data,
       });
@@ -78,17 +100,57 @@ export async function GET(req: Request) {
       }
       const data = await resp.json();
       // Ejemplo de respuesta:
-      // { razon_social, numero_documento, direccion, ... }
+      // { razon_social, numero_documento, direccion, representantes_legales, ... }
+      
+      // Extraer representantes legales en diferentes formatos posibles
+      let legalRepresentatives: any[] = [];
+      
+      // Formato 1: Array directo
+      if (Array.isArray(data?.representantes_legales)) {
+        legalRepresentatives = data.representantes_legales;
+      }
+      // Formato 2: Campo con nombre alternativo
+      else if (Array.isArray(data?.representantes)) {
+        legalRepresentatives = data.representantes;
+      }
+      // Formato 3: Campo en data.representantes_legales
+      else if (Array.isArray((data as any)?.data?.representantes_legales)) {
+        legalRepresentatives = (data as any).data.representantes_legales;
+      }
+      // Formato 4: Campo representante_legal (singular) como objeto
+      else if (data?.representante_legal) {
+        legalRepresentatives = [data.representante_legal];
+      }
+      // Formato 5: Campo en formato de objeto con propiedades
+      else if (data?.representantes_legales && typeof data.representantes_legales === 'object') {
+        legalRepresentatives = Object.values(data.representantes_legales);
+      }
+      
+      // Normalizar representantes legales para que tengan formato consistente
+      const normalizedRepresentatives = legalRepresentatives.map((rep: any) => {
+        if (typeof rep === 'string') {
+          return { nombre: rep, documento: '' };
+        }
+        if (typeof rep === 'object' && rep !== null) {
+          return {
+            nombre: rep.nombre || rep.name || rep.nombres || rep.razon_social || '',
+            documento: rep.documento || rep.document || rep.dni || rep.numero_documento || '',
+            cargo: rep.cargo || rep.position || '',
+          };
+        }
+        return { nombre: String(rep || ''), documento: '' };
+      });
+      
       return NextResponse.json({
         ok: true,
         type: 'RUC',
-        businessName: String(data?.razon_social || ''),
-        document: String(data?.numero_documento || doc),
-        address: String(data?.direccion || ''),
+        businessName: String(data?.razon_social || data?.nombre_o_razon_social || ''),
+        document: String(data?.numero_documento || data?.ruc || doc),
+        address: String(data?.direccion || data?.domicilio_fiscal || ''),
         status: (data?.estado ? String(data.estado) : undefined),
         condition: (data?.condicion ? String(data.condicion) : undefined),
         activity: (data?.actividad_economica ? String(data.actividad_economica) : undefined),
-        legalRepresentatives: Array.isArray((data as any)?.representantes_legales) ? (data as any).representantes_legales : [],
+        legalRepresentatives: normalizedRepresentatives,
         raw: data,
       });
     }
