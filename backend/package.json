@@ -29,7 +29,9 @@
     "process:unverified": "ts-node ./scripts/process-unverified-users.ts",
     "test:connection": "ts-node ./scripts/test-connection.ts",
     "create:flutter-user": "ts-node ./scripts/create-flutter-user.ts",
-    "create:test-trabajo": "ts-node ./scripts/create-test-trabajo.ts"
+    "create:test-trabajo": "ts-node ./scripts/create-test-trabajo.ts",
+    "clean": "node -e \"const fs=require('fs');['dist','node_modules/.cache'].forEach(d=>{try{fs.rmSync(d,{recursive:true,force:true});console.log('Removed',d)}catch(e){}});console.log('✅ Cache cleaned')\"",
+    "clean:all": "npm run clean && npm cache clean --force"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
