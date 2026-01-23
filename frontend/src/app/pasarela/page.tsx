@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import DocumentInput from '@/components/DocumentInput';
 import OwnerAutocomplete from '@/components/OwnerAutocomplete';
-import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getImageUrl } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
 // Marca visual para confirmar que el deploy trae los últimos cambios
@@ -527,26 +527,73 @@ function CheckoutForm() {
 
     try {
       if (paymentMethod === 'cash_on_delivery') {
-        const response = await apiFetchAuth<{ orderId: string }>(`/checkout/cash-order`, {
+        const response = await apiFetchAuth<{ orderId: string }>(`/api/pedidos/contra-entrega`, {
           method: 'POST',
-          body: JSON.stringify(orderData),
+          body: JSON.stringify({
+            customerData: {
+              name: customerName,
+              phone: customerPhone,
+              document: doc,
+              documentType: docType.toLowerCase(),
+              address: shippingAddress,
+            },
+            items: itemsPayload,
+            total: total,
+          }),
         });
         const orderId = response.orderId;
         setResult({ orderId, message: "Pedido registrado. Pagarás al recibir." });
 
         // Generar comprobante
-        const comprobanteResponse = await apiFetchAuth<{ data: any }>('/checkout/generate-receipt', {
+        try {
+          const comprobanteResponse = await apiFetchAuth<{ data: any }>('/api/comprobantes/generar', {
+            method: 'POST',
+            body: JSON.stringify({
+              orderId: orderId,
+              documentType: docType === 'RUC' ? 'factura' : 'boleta'
+            }),
+          });
+
+          if (docType === 'RUC') {
+            setFacturaDoc(comprobanteResponse.data);
+          } else {
+            setComprobanteDoc(comprobanteResponse.data);
+          }
+        } catch (compErr) {
+          console.warn('No se pudo generar comprobante:', compErr);
+        }
+      } else if (paymentMethod === 'fake') {
+        // Pago ficticio - crea pedido y comprobante automáticamente
+        const response = await apiFetchAuth<{ 
+          orderId: string; 
+          orderNumber: string;
+          comprobante?: any;
+          factura?: any;
+        }>(`/api/pedidos/pago-ficticio`, {
           method: 'POST',
           body: JSON.stringify({
-            orderId: orderId,
-            documentType: docType === 'RUC' ? 'factura' : 'boleta'
+            customerData: {
+              name: customerName,
+              phone: customerPhone,
+              document: doc,
+              documentType: docType.toLowerCase(),
+              address: shippingAddress,
+            },
+            items: itemsPayload,
+            total: total,
           }),
         });
 
-        if (docType === 'RUC') {
-          setFacturaDoc(comprobanteResponse.data);
-        } else {
-          setComprobanteDoc(comprobanteResponse.data);
+        setResult({ 
+          orderId: response.orderId, 
+          message: "Pago ficticio completado exitosamente. Pedido registrado y comprobante generado." 
+        });
+
+        // El backend ya genera el comprobante/factura
+        if (docType === 'RUC' && response.factura) {
+          setFacturaDoc(response.factura);
+        } else if (response.comprobante) {
+          setComprobanteDoc(response.comprobante);
         }
       }
 
@@ -632,32 +679,56 @@ function CheckoutForm() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Columna de Resumen de Orden */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-medium text-gray-900 border-b pb-4 mb-4">Resumen de tu Orden</h3>
-              <div className="space-y-4">
+            <div className="bg-white p-6 rounded-lg shadow-md sticky top-4">
+              <h3 className="text-lg font-medium text-gray-900 border-b pb-4 mb-4 flex items-center">
+                <ShoppingCart className="w-5 h-5 mr-2 text-gray-600" />
+                Resumen de tu Orden
+              </h3>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
                 {items.map((item) => (
-                  <div key={item.productId} className="flex items-center space-x-4">
-                    <img src={item.imageUrl || item.thumbnailUrl || '/vercel.svg'} alt={item.name} className="w-16 h-16 rounded-md object-cover" />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{item.name}</p>
-                      <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
+                  <div key={item.productId} className="flex items-center space-x-4 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="relative">
+                      <img 
+                        src={getImageUrl(item.imageUrl || item.thumbnailUrl)} 
+                        alt={item.name} 
+                        className="w-16 h-16 rounded-md object-cover bg-gray-100 border border-gray-200"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/vercel.svg';
+                        }}
+                      />
+                      <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+                        {item.quantity}
+                      </div>
                     </div>
-                    <p className="font-medium text-gray-900">{formatCurrency(item.price * item.quantity)}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-800 truncate">{item.name}</p>
+                      <p className="text-sm text-gray-500">Precio unitario: {formatCurrency(item.price)}</p>
+                    </div>
+                    <p className="font-medium text-gray-900 whitespace-nowrap">{formatCurrency(item.price * item.quantity)}</p>
                   </div>
                 ))}
               </div>
-              <div className="border-t mt-6 pt-6 space-y-2">
+              <div className="border-t mt-6 pt-6 space-y-3">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span className="flex items-center">
+                    <FileText className="w-4 h-4 mr-1" />
+                    Subtotal
+                  </span>
+                  <span className="font-medium">{formatCurrency(total)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Envío</span>
-                  <span className="font-medium text-green-600">Gratis</span>
+                  <span className="flex items-center">
+                    <Truck className="w-4 h-4 mr-1" />
+                    Envío
+                  </span>
+                  <span className="font-medium text-green-600 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Gratis
+                  </span>
                 </div>
-                <div className="flex justify-between text-lg font-bold text-gray-900">
+                <div className="flex justify-between text-xl font-bold text-gray-900 pt-3 border-t">
                   <span>Total</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span className="text-blue-600">{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
@@ -683,7 +754,8 @@ function CheckoutForm() {
                 </div>
 
                 <div className="mb-4">
-                  <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <User className="w-4 h-4 mr-1" />
                     Nombre Completo / Razón Social
                   </label>
                   <input
@@ -699,7 +771,8 @@ function CheckoutForm() {
                 </div>
 
                 <div className="mb-4">
-                  <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
                     Teléfono de Contacto
                   </label>
                   <input
@@ -737,7 +810,8 @@ function CheckoutForm() {
                 </div>
 
                 <div className="mb-4">
-                  <label htmlFor="shippingAddress" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="shippingAddress" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <MapPin className="w-4 h-4 mr-1" />
                     Dirección de Envío
                   </label>
                   <input
@@ -754,7 +828,11 @@ function CheckoutForm() {
 
                 <h3 className="text-lg font-medium text-gray-900 my-4 pt-4 border-t">Método de Pago</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center p-3 border rounded-md bg-blue-50 border-blue-500">
+                  <div className={`flex items-center p-3 border rounded-md cursor-pointer transition-all ${
+                    paymentMethod === 'cash_on_delivery' 
+                      ? 'bg-blue-50 border-blue-500 shadow-sm' 
+                      : 'border-gray-300 hover:border-blue-300'
+                  }`}>
                     <input
                       id="cash_on_delivery"
                       name="paymentMethod"
@@ -764,8 +842,38 @@ function CheckoutForm() {
                       onChange={() => setPaymentMethod('cash_on_delivery')}
                       className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
-                    <label htmlFor="cash_on_delivery" className="ml-3 block text-sm font-medium text-gray-700">
-                      Pago Contra Entrega
+                    <label htmlFor="cash_on_delivery" className="ml-3 flex-1 cursor-pointer">
+                      <div className="flex items-center">
+                        <Truck className="w-5 h-5 text-gray-600 mr-2" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">Pago Contra Entrega</div>
+                          <div className="text-xs text-gray-500">Paga cuando recibas tu pedido</div>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  <div className={`flex items-center p-3 border rounded-md cursor-pointer transition-all ${
+                    paymentMethod === 'fake' 
+                      ? 'bg-green-50 border-green-500 shadow-sm' 
+                      : 'border-gray-300 hover:border-green-300'
+                  }`}>
+                    <input
+                      id="fake"
+                      name="paymentMethod"
+                      type="radio"
+                      value="fake"
+                      checked={paymentMethod === 'fake'}
+                      onChange={() => setPaymentMethod('fake')}
+                      className="h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                    />
+                    <label htmlFor="fake" className="ml-3 flex-1 cursor-pointer">
+                      <div className="flex items-center">
+                        <CheckCircle className="w-5 h-5 text-gray-600 mr-2" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">Pago Ficticio (Pruebas)</div>
+                          <div className="text-xs text-gray-500">Simula un pago completado para pruebas</div>
+                        </div>
+                      </div>
                     </label>
                   </div>
                 </div>
