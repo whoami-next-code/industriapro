@@ -40,7 +40,8 @@ export class AiService {
       'No incluyas nada fuera del JSON. ' +
       'Las categorías típicas pueden ser: "Ventas / Cotización", "Soporte Técnico", "Logística / Envíos", "Facturación", "Postventa / Reclamo", "Consulta General". ' +
       'La prioridad puede ser "Alta", "Media" o "Baja". ' +
-      'Varía el tono de la respuesta sugerida y evita repetir siempre la misma estructura.';
+      'La respuesta sugerida debe ser coherente con el mensaje y el servicio de interés. ' +
+      'Si el mensaje es de soporte técnico, sugiere de forma natural coordinar una visita técnica si aplica.';
 
     const userPrompt = [
       `Nombre: ${dto.nombre}`,
@@ -154,9 +155,9 @@ export class AiService {
         `Hola ${dto.nombre},\n\nPara avanzar con el presupuesto necesito: producto(s), cantidades y lugar de entrega.\n\nQuedo atento,`,
       ],
       'Soporte Técnico': [
-        `Hola ${dto.nombre},\n\nLamentamos el inconveniente. ¿Puedes describir el error, cuándo ocurre y adjuntar fotos o video?\n\nRevisaremos tu caso con prioridad.\n\nSaludos,`,
-        `Hola ${dto.nombre},\n\nPara ayudarte mejor, indícanos modelo, fecha de compra y el síntoma exacto. Con esa info podemos diagnosticar rápido.\n\nGracias,`,
-        `Hola ${dto.nombre},\n\nEstamos para ayudarte. ¿El equipo muestra algún código de error o sonido inusual? Envíanos detalles para escalarlo.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\nLamentamos el inconveniente. ¿Puedes describir el error, cuándo ocurre y adjuntar fotos o video? Si es necesario, podemos coordinar una visita técnica para revisarlo en sitio.\n\nRevisaremos tu caso con prioridad.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\nPara ayudarte mejor, indícanos modelo, fecha de compra y el síntoma exacto. Con esa info podemos diagnosticar rápido y, si aplica, programar una visita técnica.\n\nGracias,`,
+        `Hola ${dto.nombre},\n\nEstamos para ayudarte. ¿El equipo muestra algún código de error o sonido inusual? Envíanos detalles y coordinamos una visita técnica si se requiere.\n\nSaludos,`,
       ],
       'Logística / Envíos': [
         `Hola ${dto.nombre},\n\nVerificaremos el estado de tu envío y te compartiremos el tracking actualizado.\n\nSaludos cordiales,`,

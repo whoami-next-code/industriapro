@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { ColumnDef } from '@tanstack/react-table';
 import { PencilIcon, TrashIcon, PlusIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/store/useAppStore';
+import { useAdminSocket } from '@/lib/AdminSocketProvider';
 
 type Product = {
   id: number;
@@ -39,6 +40,7 @@ export default function AdminProductos() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const { addNotification } = useAppStore();
+  const { lastEvent } = useAdminSocket();
 
   const [formData, setFormData] = useState<FormData>({
     nombre: '',
@@ -52,6 +54,14 @@ export default function AdminProductos() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!lastEvent) return;
+    if (lastEvent.name === 'pedidos.updated' || lastEvent.name === 'productos.updated') {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastEvent]);
 
   const loadData = async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;

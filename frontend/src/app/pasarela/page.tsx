@@ -490,7 +490,7 @@ function CheckoutForm() {
               if (cleanPhone.length === 9) {
                 console.log('[Pasarela] ✏️ Estableciendo teléfono RUC:', cleanPhone);
                 setCustomerPhone(cleanPhone);
-              }
+        }
             }
           }
         } else {
@@ -539,19 +539,19 @@ function CheckoutForm() {
     }
 
     setLoading(true);
-
+    
     const doc = documentType === 'dni' ? dni : ruc;
     const docType = documentType.toUpperCase();
 
     const orderData = {
       customer: {
-        name: customerName,
-        phone: customerPhone,
+          name: customerName,
+          phone: customerPhone,
         document: doc,
         documentType: docType,
       },
       shipping: {
-        address: shippingAddress,
+          address: shippingAddress,
         cost: 0, // O el costo de envío calculado
       },
       items: itemsPayload,
@@ -564,13 +564,13 @@ function CheckoutForm() {
         const response = await apiFetchAuth<{ orderId: string }>(`pedidos/contra-entrega`, {
           method: 'POST',
           body: JSON.stringify({
-            customerData: {
-              name: customerName,
-              phone: customerPhone,
+        customerData: {
+          name: customerName,
+          phone: customerPhone,
               email: customerEmail,
               document: doc,
               documentType: docType.toLowerCase(),
-              address: shippingAddress,
+          address: shippingAddress,
             },
             items: itemsPayload,
             total: total,
@@ -578,7 +578,7 @@ function CheckoutForm() {
         });
         const orderId = response.orderId;
         setResult({ orderId, message: "Pedido registrado. Pagarás al recibir." });
-
+      
         // Generar comprobante
         try {
           const comprobanteResponse = await apiFetchAuth<{ data: any }>('comprobantes/generar', {
@@ -593,7 +593,7 @@ function CheckoutForm() {
             setFacturaDoc(comprobanteResponse.data);
           } else {
             setComprobanteDoc(comprobanteResponse.data);
-          }
+    }
         } catch (compErr) {
           console.warn('No se pudo generar comprobante:', compErr);
         }
@@ -605,20 +605,20 @@ function CheckoutForm() {
           comprobante?: any;
           factura?: any;
         }>(`pedidos/pago-ficticio`, {
-          method: 'POST',
-          body: JSON.stringify({
-            customerData: {
-              name: customerName,
-              phone: customerPhone,
+        method: 'POST',
+        body: JSON.stringify({
+          customerData: {
+            name: customerName,
+            phone: customerPhone,
               email: customerEmail,
               document: doc,
               documentType: docType.toLowerCase(),
-              address: shippingAddress,
-            },
+            address: shippingAddress,
+          },
             items: itemsPayload,
             total: total,
-          }),
-        });
+        }),
+      });
 
         console.log('[Pasarela] 📦 Respuesta completa de pago ficticio:', response);
         
@@ -656,7 +656,7 @@ function CheckoutForm() {
   if (!isHydrated) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
+          <div className="text-center">
           <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-700">Cargando Carrito...</h2>
           <p className="text-gray-500">Por favor, espere un momento.</p>
@@ -666,7 +666,7 @@ function CheckoutForm() {
   }
 
   if (items.length === 0 && !success) {
-    return (
+  return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center p-8 bg-white rounded-lg shadow-md">
           <ShoppingCart className="w-16 h-16 mx-auto text-gray-400" />
@@ -679,7 +679,7 @@ function CheckoutForm() {
             <ArrowLeft className="mr-2 -ml-1 h-5 w-5" />
             Volver a la tienda
           </button>
-        </div>
+          </div>
       </div>
     );
   }
@@ -688,12 +688,12 @@ function CheckoutForm() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8 flex items-center justify-center">
-          <div className={stepCircleClass(1)}>1</div>
-          <div className={stepBarClass(1)}></div>
-          <div className={stepCircleClass(2)}>2</div>
-          <div className={stepBarClass(2)}></div>
-          <div className={stepCircleClass(3)}>3</div>
-        </div>
+              <div className={stepCircleClass(1)}>1</div>
+            <div className={stepBarClass(1)}></div>
+              <div className={stepCircleClass(2)}>2</div>
+            <div className={stepBarClass(2)}></div>
+              <div className={stepCircleClass(3)}>3</div>
+            </div>
         <div className="grid grid-cols-3 mb-2 text-center text-sm font-medium">
           <div className={stepTextClass(1)}>Información</div>
           <div className={stepTextClass(2)}>Pago</div>
@@ -710,15 +710,15 @@ function CheckoutForm() {
             <div className="mt-6 border-t pt-6">
               {facturaDoc && renderComprobante(facturaDoc, "Factura Electrónica")}
               {comprobanteDoc && renderComprobante(comprobanteDoc, "Boleta Electrónica")}
-            </div>
-
-            <button
+              </div>
+                  
+                  <button
               onClick={() => router.push('/perfil')}
               className="mt-8 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Ver mis pedidos
-            </button>
-          </div>
+                  </button>
+                    </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Columna de Resumen de Orden */}
@@ -741,14 +741,14 @@ function CheckoutForm() {
                       />
                       <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
                         {item.quantity}
-                      </div>
-                    </div>
+                </div>
+              </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-800 truncate">{item.name}</p>
                       <p className="text-sm text-gray-500">Precio unitario: {formatCurrency(item.price)}</p>
-                    </div>
+            </div>
                     <p className="font-medium text-gray-900 whitespace-nowrap">{formatCurrency(item.price * item.quantity)}</p>
-                  </div>
+              </div>
                 ))}
               </div>
               <div className="border-t mt-6 pt-6 space-y-3">
@@ -773,8 +773,8 @@ function CheckoutForm() {
                   <span>Total</span>
                   <span className="text-blue-600">{formatCurrency(total)}</span>
                 </div>
-              </div>
-            </div>
+                  </div>
+                </div>
 
             {/* Columna de Formulario de Pago */}
             <div className="bg-white p-6 rounded-lg shadow-md">
@@ -868,13 +868,13 @@ function CheckoutForm() {
                     required
                   />
                   {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
-                </div>
+            </div>
 
-                <div className="mb-4">
+                    <div className="mb-4">
                   <label htmlFor="shippingAddress" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                     <MapPin className="w-4 h-4 mr-1" />
                     Dirección de Envío
-                  </label>
+                      </label>
                   <input
                     type="text"
                     id="shippingAddress"
@@ -885,8 +885,8 @@ function CheckoutForm() {
                     required
                   />
                   {addressError && <p className="text-red-500 text-xs mt-1">{addressError}</p>}
-                </div>
-
+                    </div>
+                    
                 <h3 className="text-lg font-medium text-gray-900 my-4 pt-4 border-t">Método de Pago</h3>
                 <div className="space-y-3">
                   <div className={`flex items-center p-3 border rounded-md cursor-pointer transition-all ${
@@ -909,10 +909,10 @@ function CheckoutForm() {
                         <div>
                           <div className="text-sm font-medium text-gray-700">Pago Contra Entrega</div>
                           <div className="text-xs text-gray-500">Paga cuando recibas tu pedido</div>
-                        </div>
-                      </div>
+                </div>
+              </div>
                     </label>
-                  </div>
+                </div>
                   <div className={`flex items-center p-3 border rounded-md cursor-pointer transition-all ${
                     paymentMethod === 'fake' 
                       ? 'bg-green-50 border-green-500 shadow-sm' 
@@ -930,31 +930,31 @@ function CheckoutForm() {
                     <label htmlFor="fake" className="ml-3 flex-1 cursor-pointer">
                       <div className="flex items-center">
                         <CheckCircle className="w-5 h-5 text-gray-600 mr-2" />
-                        <div>
+                      <div>
                           <div className="text-sm font-medium text-gray-700">Pago Ficticio (Pruebas)</div>
                           <div className="text-xs text-gray-500">Simula un pago completado para pruebas</div>
-                        </div>
+                      </div>
                       </div>
                     </label>
+                    </div>
                   </div>
-                </div>
-
+                  
                 {error && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error}</p>
-                  </div>
-                )}
+              </div>
+            )}
 
                 <div className="mt-6">
-                  <button
-                    type="submit"
+                    <button
+                      type="submit"
                     disabled={loading || !isHydrated}
                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
                   >
                     {loading ? 'Procesando...' : `Pagar ${formatCurrency(total)}`}
-                  </button>
+                    </button>
                 </div>
-              </form>
+                  </form>
             </div>
           </div>
         )}
@@ -965,8 +965,8 @@ function CheckoutForm() {
 
 export default function PasarelaPage() {
   return (
-    <Suspense fallback={<div>Cargando...</div>}>
-      <CheckoutForm />
-    </Suspense>
+      <Suspense fallback={<div>Cargando...</div>}>
+        <CheckoutForm />
+      </Suspense>
   );
 }

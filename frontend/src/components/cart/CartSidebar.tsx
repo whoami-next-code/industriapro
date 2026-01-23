@@ -7,7 +7,7 @@ import { useCart } from "@/components/cart/CartContext";
 import { useCartUI } from "@/components/cart/CartUIContext";
 import { API_URL, getImageUrl } from "@/lib/api";
 
-type Suggest = { id: number; name: string; price: number; thumbnailUrl?: string; imageUrl?: string; originalPrice?: number };
+type Suggest = { id: number; name: string; price: number; thumbnailUrl?: string; imageUrl?: string; originalPrice?: number; stock?: number };
 type ProductDetail = { id: number; name: string; price: number; originalPrice?: number; thumbnailUrl?: string; imageUrl?: string; stock?: number };
 
 export default function CartSidebar() {
@@ -16,6 +16,7 @@ export default function CartSidebar() {
   const [suggestions, setSuggestions] = useState<Suggest[]>([]);
   const [added, setAdded] = useState<ProductDetail | null>(null);
   const [imgFailed, setImgFailed] = useState<Record<number, boolean>>({});
+  const [stockError, setStockError] = useState<string | null>(null);
 
   const lastAddedId = useMemo(() => (items.length ? items[items.length - 1].productId : null), [items]);
   useEffect(() => {
@@ -32,7 +33,18 @@ export default function CartSidebar() {
             const r2 = await fetch(`${API_URL}/productos?category=${encodeURIComponent(cat)}`);
             if (r2.ok) {
               const data: any[] = await r2.json();
-              const mapped = data.filter(p => p.id !== lastAddedId).slice(0, 8).map(p => ({ id: p.id, name: p.name, price: Number(p.price||0), originalPrice: p.originalPrice, thumbnailUrl: p.thumbnailUrl, imageUrl: p.imageUrl }));
+              const mapped = data
+                .filter(p => p.id !== lastAddedId)
+                .slice(0, 8)
+                .map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  price: Number(p.price || 0),
+                  originalPrice: p.originalPrice,
+                  thumbnailUrl: p.thumbnailUrl,
+                  imageUrl: p.imageUrl,
+                  stock: Number(p.stock ?? 0),
+                }));
               if (!ignore) setSuggestions(mapped);
             } else {
               if (!ignore) setSuggestions([]);
@@ -52,6 +64,7 @@ export default function CartSidebar() {
   }, [lastAddedId]);
 
   const lastItemQty = items.find(i => i.productId === lastAddedId)?.quantity ?? 1;
+  const maxStock = added?.stock ?? 999;
   const imgSrc = (id: number | undefined, u?: string) => {
     if (id && imgFailed[id]) return "/vercel.svg";
     return getImageUrl(u);
@@ -115,16 +128,40 @@ export default function CartSidebar() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="inline-flex items-center rounded-md border bg-white">
-                    <button onClick={() => setQuantity(added.id, Math.max(1, lastItemQty - 1))} className="px-3 py-2 hover:bg-gray-50" aria-label="Disminuir">
+                    <button
+                      onClick={() => {
+                        setStockError(null);
+                        setQuantity(added.id, Math.max(1, lastItemQty - 1));
+                      }}
+                      className="px-3 py-2 hover:bg-gray-50"
+                      aria-label="Disminuir"
+                    >
                       <Minus className="w-4 h-4" />
                     </button>
                     <div className="px-3 py-2 w-12 text-center">{lastItemQty}</div>
-                    <button onClick={() => setQuantity(added.id, lastItemQty + 1)} className="px-3 py-2 hover:bg-gray-50" aria-label="Aumentar">
+                    <button
+                      onClick={() => {
+                        if (lastItemQty >= maxStock) {
+                          setStockError(`No hay stock suficiente. Máximo ${maxStock} unidades.`);
+                          return;
+                        }
+                        setStockError(null);
+                        setQuantity(added.id, lastItemQty + 1);
+                      }}
+                      className="px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Aumentar"
+                      disabled={lastItemQty >= maxStock}
+                    >
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="text-sm text-gray-600">Máximo {added.stock ?? 999} unidades.</div>
                 </div>
+              </div>
+            )}
+            {stockError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                {stockError}
               </div>
             )}
 
@@ -164,7 +201,14 @@ export default function CartSidebar() {
                           </div>
                           <div className="mt-3 flex items-center justify-between">
                             <button
-                              onClick={() =>
+                              onClick={() => {
+                                const currentQty = items.find((i) => i.productId === s.id)?.quantity ?? 0;
+                                const stock = Number((s as any).stock ?? 0);
+                                if (stock <= 0 || currentQty + 1 > stock) {
+                                  setStockError(`Stock insuficiente para "${s.name}".`);
+                                  return;
+                                }
+                                setStockError(null);
                                 addItem({
                                   productId: s.id,
                                   name: s.name,
@@ -172,8 +216,8 @@ export default function CartSidebar() {
                                   quantity: 1,
                                   imageUrl: s.imageUrl,
                                   thumbnailUrl: s.thumbnailUrl,
-                                })
-                              }
+                                });
+                              }}
                               className="text-sm rounded-md border px-3 py-2 hover:bg-gray-50"
                             >
                               Agregar
@@ -198,7 +242,13 @@ export default function CartSidebar() {
               <Link href="/catalogo" className="text-gray-700 hover:underline">Seguir comprando</Link>
               <div className="flex items-center gap-3">
                 <div className="text-sm text-gray-700 mr-4">Total: <span className="font-semibold">S/ {total.toFixed(2)}</span></div>
-                <Link href="/carrito" className="inline-flex items-center justify-center rounded-md bg-gray-800 text-white px-4 py-2 hover:bg-gray-900">Ir al Carro</Link>
+                <Link
+                  href="/carrito"
+                  onClick={closeCart}
+                  className="inline-flex items-center justify-center rounded-md bg-gray-800 text-white px-4 py-2 hover:bg-gray-900"
+                >
+                  Ir al Carro
+                </Link>
               </div>
             </div>
           </div>

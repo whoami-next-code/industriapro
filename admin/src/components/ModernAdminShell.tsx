@@ -107,7 +107,7 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
     : "relative";
 
   return (
-    <div className="sp-admin min-h-screen flex">
+    <div className="sp-admin h-screen flex overflow-hidden">
       {isMobile && !sidebarCollapsedState && (
         <button
           aria-label="Cerrar menú"
@@ -118,7 +118,7 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
 
       {/* Sidebar */}
       <aside
-        className={`sp-sidebar ${sidebarWidth} ${sidebarPosition} shrink-0 transition-all duration-200 ease-in-out`}
+        className={`sp-sidebar ${sidebarWidth} ${sidebarPosition} shrink-0 transition-all duration-200 ease-in-out h-screen overflow-y-auto`}
         aria-label="Menú lateral"
       >
         <div className="h-16 flex items-center gap-2 px-4 border-b border-[var(--border)]">
@@ -167,7 +167,7 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
       </aside>
 
       {/* Main */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Topbar */}
         <header className="sp-topbar h-16 flex items-center justify-between px-4 lg:px-6" role="banner">
           <div className="flex items-center gap-4">
@@ -214,7 +214,7 @@ export default function ModernAdminShell({ children }: { children: React.ReactNo
           </div>
         </header>
 
-        <main id="main" role="main" className="flex-1 min-w-0 p-4 lg:p-6">
+        <main id="main" role="main" className="flex-1 min-w-0 p-4 lg:p-6 overflow-y-auto">
           <div className="sp-main">
             {children}
           </div>

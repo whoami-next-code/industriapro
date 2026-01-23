@@ -23,6 +23,10 @@ export default function LineChart({
   height = 350,
   colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 }: LineChartProps) {
+  const hasData =
+    Array.isArray(data) &&
+    data.length > 0 &&
+    data.some((series) => Array.isArray(series.data) && series.data.some((v) => Number(v) > 0));
   const options: ApexOptions = {
     chart: {
       type: 'line',
@@ -105,7 +109,13 @@ export default function LineChart({
   return (
     <div className="sp-card sp-card-static">
       <div className="sp-card-body">
-        <Chart options={options} series={data} type="line" height={height} />
+        {hasData ? (
+          <Chart options={options} series={data} type="line" height={height} />
+        ) : (
+          <div className="flex h-[350px] items-center justify-center text-sm text-[var(--text-muted)]">
+            Sin datos para mostrar
+          </div>
+        )}
       </div>
     </div>
   );

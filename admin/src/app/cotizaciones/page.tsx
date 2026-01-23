@@ -402,6 +402,14 @@ export default function AdminCotizaciones() {
     }
   }
 
+  function getProgressPercent(q?: Quote) {
+    if (!q) return 0;
+    if (typeof q.progressPercent === "number") return q.progressPercent;
+    const timelineList = (q.timeline ?? q.progressUpdates ?? []) as ProgressUpdate[];
+    if (!timelineList.length) return 0;
+    return statusToPercent(q.status);
+  }
+
   function formatDate(date?: string | Date | null) {
     if (!date) return "—";
     const d = new Date(date);
@@ -827,12 +835,12 @@ export default function AdminCotizaciones() {
                               <div
                                 className="h-2 bg-[var(--brand-primary)] rounded-full"
                                 style={{
-                                  width: `${q.progressPercent ?? statusToPercent(q.status)}%`,
+                                  width: `${getProgressPercent(q)}%`,
                                 }}
                               ></div>
                             </div>
                             <div className="text-xs text-center mt-1">
-                              {q.progressPercent ?? statusToPercent(q.status)}%
+                              {getProgressPercent(q)}%
                             </div>
                           </div>
                         </Td>
@@ -919,7 +927,7 @@ export default function AdminCotizaciones() {
                       <div>
                         <div className="text-sm sp-muted">Progreso global</div>
                         <div className="text-2xl font-bold">
-                          {selected?.progressPercent ?? statusToPercent(selected?.status)}%
+                          {getProgressPercent(selected ?? undefined)}%
                         </div>
                         <div className="text-xs sp-muted mt-1">
                           Estado actual: {selected?.status}
@@ -949,7 +957,7 @@ export default function AdminCotizaciones() {
                         <div
                           className="h-2 bg-[var(--brand-primary)] rounded-full transition-all"
                           style={{
-                            width: `${selected?.progressPercent ?? statusToPercent(selected?.status)}%`,
+                            width: `${getProgressPercent(selected ?? undefined)}%`,
                           }}
                         />
                       </div>
