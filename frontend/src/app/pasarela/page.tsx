@@ -437,16 +437,37 @@ function CheckoutForm() {
         }
 
         setAutoData(data);
-        if (data.type === 'DNI') {
-          const name = data.name || data.nombre || 'Cliente';
-          console.error('[Pasarela] ✏️ Estableciendo nombre DNI:', name);
-          console.log('[Pasarela] ✏️ Estableciendo nombre DNI:', name);
-          setCustomerName(name);
-        } else if (data.type === 'RUC') {
-          const businessName = data.businessName || data.razonSocial || 'Empresa';
-          console.error('[Pasarela] ✏️ Estableciendo razón social RUC:', businessName);
-          console.log('[Pasarela] ✏️ Estableciendo razón social RUC:', businessName);
-          setCustomerName(businessName);
+        const isGeneric = (v: any) => {
+          const s = String(v || '').trim().toLowerCase();
+          return !s || s === 'cliente' || s === 'empresa' || s === 'demo' || s === 'test' || s.length < 4;
+        };
+
+        if (data?.type === 'DNI') {
+          const candidate = data.name ?? data.nombre ?? data.fullName ?? '';
+          if (isGeneric(candidate)) {
+            console.error('[Pasarela] ⚠️ DNI sin nombre válido en respuesta. No se autocompleta.', { candidate, data });
+            console.log('[Pasarela] ⚠️ DNI sin nombre válido en respuesta. No se autocompleta.', { candidate, data });
+            setAutoError('No se pudo obtener el nombre del DNI. Verifica el número o la configuración del backend.');
+          } else {
+            console.error('[Pasarela] ✏️ Estableciendo nombre DNI:', candidate);
+            console.log('[Pasarela] ✏️ Estableciendo nombre DNI:', candidate);
+            setCustomerName(String(candidate));
+          }
+        } else if (data?.type === 'RUC') {
+          const candidate = data.businessName ?? data.razonSocial ?? data.razon_social ?? '';
+          if (isGeneric(candidate)) {
+            console.error('[Pasarela] ⚠️ RUC sin razón social válida en respuesta. No se autocompleta.', { candidate, data });
+            console.log('[Pasarela] ⚠️ RUC sin razón social válida en respuesta. No se autocompleta.', { candidate, data });
+            setAutoError('No se pudo obtener la razón social del RUC. Verifica el número o la configuración del backend.');
+          } else {
+            console.error('[Pasarela] ✏️ Estableciendo razón social RUC:', candidate);
+            console.log('[Pasarela] ✏️ Estableciendo razón social RUC:', candidate);
+            setCustomerName(String(candidate));
+          }
+        } else {
+          console.error('[Pasarela] ⚠️ Respuesta inesperada de autocomplete (sin type).', data);
+          console.log('[Pasarela] ⚠️ Respuesta inesperada de autocomplete (sin type).', data);
+          setAutoError('Respuesta inesperada del servicio de autocomplete.');
         }
       } catch (e: any) {
         console.error('[Pasarela] ❌ Error en autocomplete:', e);
@@ -723,7 +744,13 @@ function CheckoutForm() {
                     type="tel"
                     id="customerPhone"
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={9}
+                    onChange={(e) => {
+                      const clean = (e.target.value || '').replace(/[^0-9]/g, '').slice(0, 9);
+                      setCustomerPhone(clean);
+                    }}
                     onBlur={validatePhone}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     required
