@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 
 class AppConfig {
   static const _prodFallbackBaseUrl =
@@ -53,31 +52,10 @@ class AppConfig {
 
     if (kReleaseMode) return _prodFallbackBaseUrl;
 
-    if (kIsWeb) return _normalizeApiBaseUrl('http://localhost:3001/api');
+    if (kIsWeb) return _normalizeApiBaseUrl(_prodFallbackBaseUrl);
     
-    // Para desarrollo en dispositivo físico, usar la IP local de tu máquina
-    // IP detectada automáticamente: 192.168.18.36
-    // Si estás usando emulador Android, usa 10.0.2.2
-    // Si estás usando dispositivo físico, usa tu IP local (ej. 192.168.1.X)
-    
-    // TODO: Cambiar esto según tu entorno (Emulador vs Dispositivo Físico)
-    const String localIp = '192.168.18.36';
-    final String physicalDeviceEnv = const String.fromEnvironment(
-      'USE_PHYSICAL_DEVICE',
-      defaultValue: 'true',
-    );
-    final bool usePhysicalDevice =
-        physicalDeviceEnv.toLowerCase() == 'true';
-    
-    if (defaultTargetPlatform == TargetPlatform.android) {
-       return _normalizeApiBaseUrl(
-        usePhysicalDevice 
-          ? 'http://$localIp:3001/api' 
-          : 'http://10.0.2.2:3001/api'
-      );
-    }
-    
-    return _normalizeApiBaseUrl('http://localhost:3001/api');
+    // En debug usamos Railway por defecto; puedes override con --dart-define=API_BASE_URL
+    return _normalizeApiBaseUrl(_prodFallbackBaseUrl);
   }
 
   static String get backendUrl {
