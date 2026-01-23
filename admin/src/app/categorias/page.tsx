@@ -191,8 +191,7 @@ export default function CategoriasPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={c.imageUrl ? (c.imageUrl.startsWith('http') ? c.imageUrl : (() => {
-                  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                  const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
+                  const BACKEND_BASE = API_URL.replace(/\/api\/?$/, '');
                   return `${BACKEND_BASE}${c.imageUrl.startsWith('/') ? c.imageUrl : '/' + c.imageUrl}`;
                 })()) : '/window.svg'}
                 alt={c.name}

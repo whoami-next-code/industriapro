@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pedido } from './pedido.entity';
 import { EventsPublisher } from '../events/events.publisher';
+import { ProductosService } from '../productos/productos.service';
 
 @Injectable()
 export class PedidosService {
@@ -10,9 +11,66 @@ export class PedidosService {
     @InjectRepository(Pedido)
     private readonly repo: Repository<Pedido>,
     @Optional() private readonly eventsPublisher?: EventsPublisher,
+    @Inject(forwardRef(() => ProductosService))
+    private readonly productosService?: ProductosService,
   ) {}
 
   async create(data: Partial<Pedido>) {
+    // Generar orderNumber si no viene en los datos
+    if (!data.orderNumber) {
+      data.orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    }
+    
+    // Validar y restar stock antes de crear el pedido
+    if (data.items) {
+      try {
+        const items = typeof data.items === 'string' ? JSON.parse(data.items) : data.items;
+        if (Array.isArray(items)) {
+          // Validar stock disponible para cada producto
+          for (const item of items) {
+            const productId = item.productId || item.id;
+            const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+            
+            if (productId && this.productosService) {
+              const product = await this.productosService.findOne(productId);
+              if (!product) {
+                throw new NotFoundException(`Producto con ID ${productId} no encontrado`);
+              }
+              
+              if (product.stock < quantity) {
+                throw new BadRequestException(
+                  `Stock insuficiente para ${product.name}. Disponible: ${product.stock}, Solicitado: ${quantity}`
+                );
+              }
+            }
+          }
+          
+          // Restar stock de cada producto
+          for (const item of items) {
+            const productId = item.productId || item.id;
+            const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+            
+            if (productId && this.productosService) {
+              const product = await this.productosService.findOne(productId);
+              if (product) {
+                const oldStock = product.stock;
+                const newStock = Math.max(0, oldStock - quantity);
+                await this.productosService.update(productId, { stock: newStock });
+                console.log(`[PedidosService] Stock actualizado: ${product.name} - ${oldStock} → ${newStock} (restado ${quantity})`);
+              }
+            }
+          }
+        }
+      } catch (error: any) {
+        // Si es un error de validación de stock, lanzarlo
+        if (error instanceof BadRequestException || error instanceof NotFoundException) {
+          throw error;
+        }
+        // Si hay error parseando items, continuar sin restar stock (compatibilidad hacia atrás)
+        console.warn('[PedidosService] Error procesando items para restar stock:', error.message);
+      }
+    }
+    
     const entity = this.repo.create(data);
     const saved = await this.repo.save(entity);
     
@@ -76,6 +134,43 @@ export class PedidosService {
 
   // Nuevos métodos para el sistema de ventas
   async createCashOnDeliveryOrder(orderData: any) {
+    // Validar y restar stock antes de crear el pedido
+    if (orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        const productId = item.productId || item.id;
+        const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+        
+        if (productId && this.productosService) {
+          const product = await this.productosService.findOne(productId);
+          if (!product) {
+            throw new NotFoundException(`Producto con ID ${productId} no encontrado`);
+          }
+          
+          if (product.stock < quantity) {
+            throw new BadRequestException(
+              `Stock insuficiente para ${product.name}. Disponible: ${product.stock}, Solicitado: ${quantity}`
+            );
+          }
+        }
+      }
+      
+      // Restar stock
+      for (const item of orderData.items) {
+        const productId = item.productId || item.id;
+        const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+        
+        if (productId && this.productosService) {
+          const product = await this.productosService.findOne(productId);
+          if (product) {
+            const oldStock = product.stock;
+            const newStock = Math.max(0, oldStock - quantity);
+            await this.productosService.update(productId, { stock: newStock });
+            console.log(`[PedidosService] Stock actualizado (contra entrega): ${product.name} - ${oldStock} → ${newStock} (restado ${quantity})`);
+          }
+        }
+      }
+    }
+    
     // Generar número de pedido único
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 

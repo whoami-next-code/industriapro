@@ -10,6 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 import { EventsModule } from '../events/events.module';
 import { ComprobantesModule } from '../comprobantes/comprobantes.module';
 import { CotizacionesModule } from '../cotizaciones/cotizaciones.module';
+import { ProductosModule } from '../productos/productos.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CotizacionesModule } from '../cotizaciones/cotizaciones.module';
     EventsModule,
     ComprobantesModule,
     CotizacionesModule,
+    ProductosModule,
   ],
   providers: [PedidosService],
   controllers: [PedidosController, TrabajosController],

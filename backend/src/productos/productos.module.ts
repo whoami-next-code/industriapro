@@ -11,5 +11,6 @@ import { EventsModule } from '../events/events.module';
   imports: [TypeOrmModule.forFeature([Product]), RealtimeModule, AuthModule, EventsModule],
   providers: [ProductosService],
   controllers: [ProductosController],
+  exports: [ProductosService], // Exportar para que otros módulos puedan usarlo
 })
 export class ProductosModule {}
