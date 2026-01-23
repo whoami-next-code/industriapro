@@ -513,9 +513,16 @@ function CotizacionComponent() {
                         </div>
                         {p.attachmentUrls?.length ? (
                           <ul className="mt-1 text-xs text-blue-700 underline space-y-1">
-                            {p.attachmentUrls.map((url, i) => (
-                              <li key={i}><a href={url} target="_blank" rel="noreferrer">Adjunto {i + 1}</a></li>
-                            ))}
+                            {p.attachmentUrls.map((url, i) => {
+                              const normalized = getImageUrl(url);
+                              return (
+                                <li key={i}>
+                                  <a href={normalized} target="_blank" rel="noreferrer">
+                                    Adjunto {i + 1}
+                                  </a>
+                                </li>
+                              );
+                            })}
                           </ul>
                         ) : null}
                       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getImageUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePublicSocket } from "@/lib/PublicSocketProvider";
 
@@ -105,6 +105,8 @@ export default function MisMensajesPage() {
     const clean = url.split("?")[0].split("#")[0];
     return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(clean);
   };
+
+  const normalizeEvidenceUrl = (url: string) => getImageUrl(url);
 
   useEffect(() => {
     setMessagePage(1);
@@ -371,19 +373,22 @@ export default function MisMensajesPage() {
                                     <div className="mt-2">
                                       <div className="text-xs font-semibold text-slate-500">Evidencias</div>
                                       <div className="grid grid-cols-2 gap-2 mt-2">
-                                        {r.evidenceUrls.map((u, i) => (
-                                          <a key={i} href={u} target="_blank" rel="noreferrer" className="block">
-                                            {isImageUrl(u) ? (
+                                      {r.evidenceUrls.map((u, i) => {
+                                        const normalized = normalizeEvidenceUrl(u);
+                                        return (
+                                          <a key={i} href={normalized} target="_blank" rel="noreferrer" className="block">
+                                            {isImageUrl(normalized) ? (
                                               <img
-                                                src={u}
+                                                src={normalized}
                                                 alt="evidencia"
                                                 className="h-24 w-full object-cover rounded border"
                                               />
                                             ) : (
-                                              <div className="text-[11px] underline break-all">{u}</div>
+                                              <div className="text-[11px] underline break-all">{normalized}</div>
                                             )}
                                           </a>
-                                        ))}
+                                        );
+                                      })}
                                       </div>
                                     </div>
                                   )}

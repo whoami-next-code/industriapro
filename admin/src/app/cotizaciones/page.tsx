@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_URL } from "@/lib/api";
 import Protected from "@/lib/Protected";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -264,6 +264,14 @@ export default function AdminCotizaciones() {
     if (url.startsWith("data:image")) return true;
     const clean = url.split("?")[0].split("#")[0];
     return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(clean);
+  };
+
+  const normalizeAttachmentUrl = (url: string) => {
+    if (!url) return url;
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
+    const base = API_URL.replace(/\/api\/?$/, "");
+    const clean = url.replace(/\\/g, "/").trim();
+    return `${base}${clean.startsWith("/") ? "" : "/"}${clean}`;
   };
 
   const updateFilters = (patch: Partial<Filters>) => {
@@ -992,9 +1000,13 @@ export default function AdminCotizaciones() {
                         <div className="space-y-4">
                           {pendingUpdates.map(({ update, index }) => {
                             const attachments = update.attachmentUrls ?? [];
-                            const imageAttachments = attachments.filter(isImageAttachment);
-                            const fileAttachments = attachments.filter((url) => !isImageAttachment(url));
+                            const normalizedAttachments = attachments.map(normalizeAttachmentUrl);
+                            const imageAttachments = normalizedAttachments.filter(isImageAttachment);
+                            const fileAttachments = normalizedAttachments.filter((url) => !isImageAttachment(url));
                             const signature = update.technicianSignature || selected?.technicianSignature;
+                            const normalizedSignature = signature
+                              ? normalizeAttachmentUrl(signature)
+                              : null;
                             return (
                               <div key={`${update.id ?? index}`} className="sp-panel space-y-4">
                                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -1054,11 +1066,11 @@ export default function AdminCotizaciones() {
                                   </div>
                                 )}
 
-                                {signature && (
+                                {normalizedSignature && (
                                   <div>
                                     <div className="text-sm font-semibold mb-2">Firma del técnico</div>
                                     <img
-                                      src={signature}
+                                      src={normalizedSignature}
                                       alt="Firma del técnico"
                                       className="h-24 w-auto rounded-xl border border-[var(--border)] bg-white"
                                     />
@@ -1119,9 +1131,12 @@ export default function AdminCotizaciones() {
                     <div className="space-y-4 max-h-96 overflow-y-auto">
                       {timeline.map((p, index) => {
                         const attachments = p.attachmentUrls ?? [];
-                        const imageAttachments = attachments.filter(isImageAttachment);
-                        const fileAttachments = attachments.filter((url) => !isImageAttachment(url));
-                        const signature = p.technicianSignature;
+                        const normalizedAttachments = attachments.map(normalizeAttachmentUrl);
+                        const imageAttachments = normalizedAttachments.filter(isImageAttachment);
+                        const fileAttachments = normalizedAttachments.filter((url) => !isImageAttachment(url));
+                        const signature = p.technicianSignature
+                          ? normalizeAttachmentUrl(p.technicianSignature)
+                          : null;
                         return (
                           <div key={index} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
                             <div className="flex flex-wrap items-center gap-2">

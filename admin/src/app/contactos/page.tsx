@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Protected from "@/lib/Protected";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_URL } from "@/lib/api";
 import AiAnalysisModal from "@/components/modals/AiAnalysisModal";
 import Modal from "@/components/modals/Modal";
 import { SparklesIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
@@ -196,6 +196,14 @@ export default function AdminContactosPage({ title = "Servicios técnicos" }: { 
   const isImageUrl = (url: string) => {
     const clean = url.split("?")[0].split("#")[0];
     return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(clean);
+  };
+
+  const normalizeEvidenceUrl = (url: string) => {
+    if (!url) return url;
+    if (url.startsWith("http")) return url;
+    const base = API_URL.replace(/\/api\/?$/, "");
+    const clean = url.replace(/\\/g, "/").trim();
+    return `${base}${clean.startsWith("/") ? "" : "/"}${clean}`;
   };
 
   return (
@@ -421,15 +429,24 @@ export default function AdminContactosPage({ title = "Servicios técnicos" }: { 
                     <div className="mt-2 text-sm">
                       <div className="font-medium">Evidencias</div>
                       <div className="grid grid-cols-2 gap-2 mt-2">
-                        {last.evidenceUrls.map((u, i) => (
-                          <a key={i} href={u} target="_blank" rel="noreferrer" className="block">
-                            {isImageUrl(u) ? (
-                              <img src={u} alt="evidencia" className="h-24 w-full object-cover rounded border" />
+                        {last.evidenceUrls.map((u, i) => {
+                          const normalized = normalizeEvidenceUrl(u);
+                          return (
+                            <a
+                              key={i}
+                              href={normalized}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block"
+                            >
+                              {isImageUrl(normalized) ? (
+                              <img src={normalized} alt="evidencia" className="h-24 w-full object-cover rounded border" />
                             ) : (
-                              <div className="text-xs underline break-all">{u}</div>
+                              <div className="text-xs underline break-all">{normalized}</div>
                             )}
-                          </a>
-                        ))}
+                            </a>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -526,15 +543,18 @@ export default function AdminContactosPage({ title = "Servicios técnicos" }: { 
                   <div className="mt-2 text-sm">
                     <div className="font-medium">Evidencias</div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                      {r.evidenceUrls.map((u, i) => (
-                        <a key={i} href={u} target="_blank" rel="noreferrer" className="block">
-                          {isImageUrl(u) ? (
-                            <img src={u} alt="evidencia" className="h-24 w-full object-cover rounded border" />
-                          ) : (
-                            <div className="text-xs underline break-all">{u}</div>
-                          )}
-                        </a>
-                      ))}
+                      {r.evidenceUrls.map((u, i) => {
+                        const normalized = normalizeEvidenceUrl(u);
+                        return (
+                          <a key={i} href={normalized} target="_blank" rel="noreferrer" className="block">
+                            {isImageUrl(normalized) ? (
+                              <img src={normalized} alt="evidencia" className="h-24 w-full object-cover rounded border" />
+                            ) : (
+                              <div className="text-xs underline break-all">{normalized}</div>
+                            )}
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
