@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb, kReleaseMode;
 
 class AppConfig {
-  static const _prodFallbackBaseUrl = 'https://api.tu-dominio.com/api';
+  static const _prodFallbackBaseUrl =
+      'https://backend-production-0c3e.up.railway.app/api';
 
   static String _normalizeApiBaseUrl(String url) {
     final raw = url.trim();
