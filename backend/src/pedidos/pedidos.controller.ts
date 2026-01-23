@@ -246,6 +246,23 @@ export class PedidosController {
 
     this.events.pedidosUpdated({ id: order.id, action: 'create' });
 
+    // Enviar comprobante por email si hay email del cliente
+    if (customerEmail && (comprobante || factura)) {
+      try {
+        await this.mail.sendComprobante({
+          to: customerEmail,
+          customerName,
+          orderNumber,
+          comprobante: factura || comprobante,
+          documentType: documentType === 'RUC' ? 'FACTURA' : 'BOLETA',
+        });
+        console.log(`[PedidosController] Comprobante enviado por email a ${customerEmail}`);
+      } catch (emailErr) {
+        console.error('[PedidosController] Error enviando comprobante por email:', emailErr);
+        // No fallar el pedido si falla el envío de email
+      }
+    }
+
     return {
       ok: true,
       orderId: order.id,

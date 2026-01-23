@@ -226,6 +226,7 @@ function CheckoutForm() {
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   
   const [customerData, setCustomerData] = useState({
@@ -252,6 +253,7 @@ function CheckoutForm() {
   const [documentError, setDocumentError] = useState("");
   const [nameError, setNameError] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [addressError, setAddressError] = useState("");
 
   // Autocompletado: estado, carga, cache
@@ -334,6 +336,20 @@ function CheckoutForm() {
     return true;
   };
 
+  const validateEmail = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!customerEmail.trim()) {
+      setEmailError("Email es requerido para enviar el comprobante");
+      return false;
+    }
+    if (!emailRegex.test(customerEmail.trim())) {
+      setEmailError("Email inválido");
+      return false;
+    }
+    setEmailError("");
+    return true;
+  };
+
   const validateAddress = () => {
     if (!shippingAddress.trim() || shippingAddress.trim().length < 10) {
       setAddressError("Dirección debe tener al menos 10 caracteres");
@@ -347,9 +363,10 @@ function CheckoutForm() {
     const isDocumentValid = validateDocument();
     const isNameValid = validateName();
     const isPhoneValid = validatePhone();
+    const isEmailValid = validateEmail();
     const isAddressValid = validateAddress();
     
-    return isDocumentValid && isNameValid && isPhoneValid && isAddressValid;
+    return isDocumentValid && isNameValid && isPhoneValid && isEmailValid && isAddressValid;
   };
 
   // Debounced autocompletado desde API interna protegida
@@ -550,6 +567,7 @@ function CheckoutForm() {
             customerData: {
               name: customerName,
               phone: customerPhone,
+              email: customerEmail,
               document: doc,
               documentType: docType.toLowerCase(),
               address: shippingAddress,
@@ -592,6 +610,7 @@ function CheckoutForm() {
             customerData: {
               name: customerName,
               phone: customerPhone,
+              email: customerEmail,
               document: doc,
               documentType: docType.toLowerCase(),
               address: shippingAddress,
@@ -831,6 +850,24 @@ function CheckoutForm() {
                     required
                   />
                   {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+                </div>
+
+                <div className="mb-4">
+                  <label htmlFor="customerEmail" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <User className="w-4 h-4 mr-1" />
+                    Email (para enviar comprobante)
+                  </label>
+                  <input
+                    type="email"
+                    id="customerEmail"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    onBlur={validateEmail}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="correo@ejemplo.com"
+                    required
+                  />
+                  {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
                 </div>
 
                 <div className="mb-4">

@@ -709,6 +709,72 @@ export class MailService {
     });
   }
 
+  async sendComprobante(params: {
+    to: string;
+    customerName: string;
+    orderNumber: string;
+    comprobante: any;
+    documentType: 'BOLETA' | 'FACTURA';
+  }) {
+    const docType = params.documentType === 'FACTURA' ? 'Factura Electrónica' : 'Boleta de Venta';
+    const docId = params.comprobante?.id || params.comprobante?.numero || params.orderNumber;
+    
+    const itemsHtml = (params.comprobante?.items || []).map((item: any) => `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #eee;">${item.description || item.name || 'Producto'}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity || item.cantidad || 1}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">S/ ${(item.unitPrice || item.price || 0).toFixed(2)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">S/ ${(item.total || (item.unitPrice || item.price || 0) * (item.quantity || item.cantidad || 1)).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const content = `
+      <p>Estimado/a <strong>${params.customerName}</strong>,</p>
+      <p>Adjuntamos su ${docType} correspondiente al pedido <strong>#${params.orderNumber}</strong>.</p>
+      
+      <div style="background-color:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:20px 0;">
+        <h3 style="margin-top:0;color:#1e293b;">Detalles del ${docType}</h3>
+        <p style="margin:8px 0;"><strong>Número:</strong> ${docId}</p>
+        <p style="margin:8px 0;"><strong>Pedido:</strong> ${params.orderNumber}</p>
+        <p style="margin:8px 0;"><strong>Fecha:</strong> ${new Date(params.comprobante?.issueDate || Date.now()).toLocaleDateString('es-PE')}</p>
+        <p style="margin:8px 0;"><strong>Total:</strong> S/ ${(params.comprobante?.totals?.total || params.comprobante?.total || 0).toFixed(2)}</p>
+      </div>
+
+      <h4 style="margin-top:24px;color:#1e293b;">Items:</h4>
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <thead>
+          <tr style="background-color:#f1f5f9;">
+            <th style="text-align:left;padding:8px;border-bottom:2px solid #cbd5e1;">Producto</th>
+            <th style="text-align:center;padding:8px;border-bottom:2px solid #cbd5e1;">Cantidad</th>
+            <th style="text-align:right;padding:8px;border-bottom:2px solid #cbd5e1;">Precio Unit.</th>
+            <th style="text-align:right;padding:8px;border-bottom:2px solid #cbd5e1;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" style="text-align:right;padding:8px;font-weight:bold;border-top:2px solid #cbd5e1;">Total:</td>
+            <td style="text-align:right;padding:8px;font-weight:bold;border-top:2px solid #cbd5e1;">S/ ${(params.comprobante?.totals?.total || params.comprobante?.total || 0).toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <p style="margin-top:24px;">Gracias por su compra.</p>
+      <p>Equipo Industrias SP</p>
+    `;
+
+    const html = renderBaseTemplate(content, `${docType} - Pedido #${params.orderNumber}`);
+    
+    return this._send({
+      to: params.to,
+      subject: `${docType} - Pedido #${params.orderNumber}`,
+      html,
+      type: 'ORDER_REGISTERED',
+    });
+  }
+
   async listLogs(limit = 20) {
     return this.logs.find({
       order: { createdAt: 'DESC' },

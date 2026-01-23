@@ -21,11 +21,15 @@ import {
 } from '@nestjs/swagger';
 import { ComprobantesService } from './comprobantes.service';
 import type { ComprobanteData } from './comprobantes.service';
+import { MailService } from '../mail/mail.service';
 
 @ApiTags('comprobantes')
 @Controller('api/comprobantes')
 export class ComprobantesController {
-  constructor(private readonly comprobantesService: ComprobantesService) {}
+  constructor(
+    private readonly comprobantesService: ComprobantesService,
+    private readonly mailService: MailService,
+  ) {}
 
   @Post('generar')
   @ApiOperation({ summary: 'Generar comprobante electrónico (voucher/boleta)' })
@@ -38,10 +42,29 @@ export class ComprobantesController {
     try {
       const comprobante =
         await this.comprobantesService.generateComprobante(comprobanteData);
+      
+      // Enviar comprobante por email si hay email del cliente
+      if (comprobanteData.customerEmail && comprobante) {
+        try {
+          const documentType = comprobanteData.customerDni?.length === 11 ? 'FACTURA' : 'BOLETA';
+          await this.mailService.sendComprobante({
+            to: comprobanteData.customerEmail,
+            customerName: comprobanteData.customerName,
+            orderNumber: comprobanteData.orderNumber,
+            comprobante,
+            documentType,
+          });
+          console.log(`[ComprobantesController] Comprobante enviado por email a ${comprobanteData.customerEmail}`);
+        } catch (emailErr) {
+          console.error('[ComprobantesController] Error enviando comprobante por email:', emailErr);
+          // No fallar la generación del comprobante si falla el envío de email
+        }
+      }
+      
       return {
         ok: true,
         message: 'Comprobante generado exitosamente',
-        comprobante,
+        data: comprobante,
       };
     } catch (error) {
       throw new HttpException(
