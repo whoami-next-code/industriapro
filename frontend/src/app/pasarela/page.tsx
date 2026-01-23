@@ -359,22 +359,47 @@ function CheckoutForm() {
 
   // Debounced autocompletado desde API interna protegida
   useEffect(() => {
+    console.error('[Pasarela] 🔄 useEffect AUTocomplete EJECUTADO');
+    console.log('[Pasarela] 🔄 useEffect AUTocomplete EJECUTADO');
+    
     const doc = documentType === 'dni' ? dni : ruc;
     const cleanDoc = (doc || '').replace(/[^0-9]/g, '');
+    
+    console.error('[Pasarela] Estado:', {
+      documentType,
+      doc,
+      cleanDoc,
+      cleanDocLength: cleanDoc.length,
+      documentValidation,
+      isValid: documentValidation.isValid,
+    });
+    console.log('[Pasarela] Estado:', {
+      documentType,
+      doc,
+      cleanDoc,
+      cleanDocLength: cleanDoc.length,
+      documentValidation,
+      isValid: documentValidation.isValid,
+    });
+    
     setAutoError(null);
 
     const isValidLength = cleanDoc.length === 8 || cleanDoc.length === 11;
 
     if (!isValidLength || !cleanDoc) {
+      console.error('[Pasarela] ❌ Longitud inválida:', cleanDoc.length);
+      console.log('[Pasarela] ❌ Longitud inválida:', cleanDoc.length);
       setAutoLoading(false);
       setAutoData(null);
       return;
     }
 
+    // Ejecutar autocomplete si el documento tiene la longitud correcta
+    // No esperar a documentValidation.isValid para permitir que funcione
     if (!documentValidation.isValid) {
-      setAutoLoading(false);
-      setAutoData(null);
-      return;
+      console.error('[Pasarela] ⏳ Validación pendiente, pero continuando con autocomplete...');
+      console.log('[Pasarela] ⏳ Validación pendiente, pero continuando con autocomplete...');
+      // No retornar, continuar con el autocomplete
     }
 
     setAutoLoading(true);
