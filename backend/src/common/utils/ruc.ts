@@ -56,7 +56,86 @@ export async function obtenerDatosPorRUC(
   const token =
     process.env.API_TOKEN_SUNAT || process.env.API_TOKEN_RENIEC || '';
 
-  // Intento con Decolecta API (Prioridad)
+  console.log(`[SUNAT] ========== INICIANDO CONSULTA RUC: ${clean} ==========`);
+
+  // PRIORIDAD 1: APIs.NET.PE - API pública gratuita de Perú
+  try {
+    const apisNetPeUrl = `https://api.apis.net.pe/v1/ruc?numero=${clean}`;
+    console.log(`[SUNAT] Consultando APIs.NET.PE para RUC: ${clean}`);
+    
+    const response = await fetch(apisNetPeUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Referer': 'https://apis.net.pe',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`[SUNAT] ✅ Respuesta recibida de APIs.NET.PE (status: ${response.status})`);
+      console.log(`[SUNAT] Respuesta completa:`, JSON.stringify(data, null, 2));
+
+      const responseData = data.data || data;
+      const razonSocial = responseData.nombre || responseData.nombre_o_razon_social || responseData.razonSocial || '';
+      
+      if (razonSocial && razonSocial.trim().length > 0) {
+        const result: DatosRUC = {
+          ruc: clean,
+          razonSocial: String(razonSocial).trim(),
+          nombreComercial: responseData.nombreComercial || responseData.nombre_comercial,
+          direccion: responseData.direccion || responseData.direccionCompleta || responseData.domicilio_fiscal,
+          estado: responseData.estado || responseData.estadoContribuyente,
+          condicion: responseData.condicion || responseData.condicionContribuyente,
+          actividadEconomica: responseData.actividadEconomica || responseData.actividad_economica,
+        };
+        
+        console.log(`[SUNAT] ✅ Resultado válido de APIs.NET.PE:`, JSON.stringify(result, null, 2));
+        return result;
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[SUNAT] ⚠️ APIs.NET.PE no disponible:`, e.message);
+    // Continuar con otras opciones
+  }
+
+  // PRIORIDAD 2: APISPERU - Otra API pública gratuita
+  try {
+    const apisPeruUrl = `https://dniruc.apisperu.com/api/ruc/${clean}`;
+    console.log(`[SUNAT] Consultando APISPERU para RUC: ${clean}`);
+    
+    const response = await fetch(apisPeruUrl, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`[SUNAT] ✅ Respuesta recibida de APISPERU (status: ${response.status})`);
+      
+      const razonSocial = data.razonSocial || data.nombre_o_razon_social || data.nombre || '';
+      
+      if (razonSocial && razonSocial.trim().length > 0) {
+        const result: DatosRUC = {
+          ruc: clean,
+          razonSocial: String(razonSocial).trim(),
+          nombreComercial: data.nombreComercial || data.nombre_comercial,
+          direccion: data.direccion || data.direccionCompleta || data.domicilio_fiscal,
+          estado: data.estado || data.estadoContribuyente,
+          condicion: data.condicion || data.condicionContribuyente,
+          actividadEconomica: data.actividadEconomica || data.actividad_economica,
+        };
+        
+        console.log(`[SUNAT] ✅ Resultado válido de APISPERU:`, JSON.stringify(result, null, 2));
+        return result;
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[SUNAT] ⚠️ APISPERU no disponible:`, e.message);
+    // Continuar con otras opciones
+  }
+
+  // PRIORIDAD 3: Decolecta API (si hay token)
   if (token && token.startsWith('sk_')) {
     try {
       const url = `https://api.decolecta.com/v1/sunat/ruc/full?numero=${clean}`;
@@ -119,45 +198,7 @@ export async function obtenerDatosPorRUC(
     }
   }
 
-  // Intento con proveedor público si hay base configurada
-  if (base) {
-    const url = `${base}/ruc/${clean}`;
-    try {
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Normalización defensiva
-        const razon =
-          data?.razonSocial ||
-          data?.nombre_o_razon_social ||
-          data?.data?.nombre_o_razon_social;
-        const comercio = data?.nombreComercial || data?.data?.nombre_comercial;
-        const direccion = data?.direccion || data?.data?.direccion;
-        const estado = data?.estado || data?.data?.estado;
-        if (razon) {
-          return {
-            ruc: clean,
-            razonSocial: String(razon),
-            nombreComercial: comercio ? String(comercio) : undefined,
-            direccion: direccion ? String(direccion) : undefined,
-            estado: estado ? String(estado) : undefined,
-          };
-        }
-      }
-    } catch (err) {
-      // Ignorar y seguir al fallback
-      console.warn('obtenerDatosPorRUC: error consultando proveedor', err);
-    }
-  }
-
-  // Fallback: datos simulados
-  return {
-    ruc: clean,
-    razonSocial: 'Empresa Demo S.A.C.',
-    nombreComercial: 'Industrias Demo',
-    direccion: 'Av. Ejemplo 123, Lima',
-    estado: 'ACTIVO',
-  };
+  // Si llegamos aquí, todas las APIs fallaron
+  console.error(`[SUNAT] ❌ No se pudo obtener datos de ningún servicio para RUC: ${clean}`);
+  return null;
 }

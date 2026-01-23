@@ -62,7 +62,7 @@ export async function GET(req: Request) {
       resp = await fetch(backendUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+      'Content-Type': 'application/json',
         },
         signal: controller.signal,
       });
@@ -81,23 +81,23 @@ export async function GET(req: Request) {
     
     console.log('[Frontend Autocomplete] Respuesta del backend - status:', resp.status, resp.statusText);
 
-    if (!resp.ok) {
-      const text = await resp.text();
+      if (!resp.ok) {
+        const text = await resp.text();
       console.error('[Frontend Autocomplete] Error del backend:', text);
       return NextResponse.json({ 
         ok: false, 
         error: `Error del backend (${resp.status}): ${text || resp.statusText}` 
       }, { status: resp.status || 502 });
-    }
+      }
 
-    const data = await resp.json();
+      const data = await resp.json();
     console.log('[Frontend Autocomplete] Respuesta del backend (datos):', JSON.stringify(data, null, 2));
     
     // Verificar que la respuesta tenga los campos esperados
     if (!data.ok && data.error) {
       console.error('[Frontend Autocomplete] Backend devolvió error:', data.error);
       return NextResponse.json(data, { status: 400 });
-    }
+      }
     
     // Verificar que los datos no sean genéricos
     if (data.ok && data.type === 'DNI' && (!data.name || data.name === 'Cliente')) {

@@ -19,7 +19,80 @@ export async function obtenerDatosPorDNI(dni: string): Promise<ReniecResponse> {
   console.log(`[RENIEC] ========== INICIANDO CONSULTA DNI: ${dni} ==========`);
   console.log(`[RENIEC] Token configurado: ${token ? (token.substring(0, 10) + '...') : 'NO CONFIGURADO'}`);
 
-  // Prioridad: Decolecta API
+  // PRIORIDAD 1: APIs.NET.PE - API pública gratuita de Perú
+  try {
+    const apisNetPeUrl = `https://api.apis.net.pe/v1/dni?numero=${dni}`;
+    console.log(`[RENIEC] Consultando APIs.NET.PE para DNI: ${dni}`);
+    
+    const response = await axios.get(apisNetPeUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Referer': 'https://apis.net.pe',
+      },
+      timeout: 8000,
+    });
+
+    const data = response.data;
+    console.log(`[RENIEC] ✅ Respuesta recibida de APIs.NET.PE (status: ${response.status})`);
+    console.log(`[RENIEC] Respuesta completa:`, JSON.stringify(data, null, 2));
+
+    // APIs.NET.PE devuelve los datos directamente o en data.data
+    const responseData = data.data || data;
+    
+    const nombres = responseData.nombres || responseData.nombre || '';
+    const apellidoPaterno = responseData.apellidoPaterno || responseData.apellido_paterno || '';
+    const apellidoMaterno = responseData.apellidoMaterno || responseData.apellido_materno || '';
+    const direccion = responseData.direccion || responseData.direccionCompleta || '';
+
+    if (nombres && nombres.trim().length > 0) {
+      const result = {
+        nombres: String(nombres).trim(),
+        apellidoPaterno: String(apellidoPaterno).trim(),
+        apellidoMaterno: String(apellidoMaterno).trim(),
+        direccion: direccion ? String(direccion).trim() : undefined,
+        estadoCivil: responseData.estadoCivil || responseData.estado_civil,
+      };
+      
+      console.log(`[RENIEC] ✅ Resultado válido de APIs.NET.PE:`, JSON.stringify(result, null, 2));
+      return result;
+    }
+  } catch (e: any) {
+    console.warn(`[RENIEC] ⚠️ APIs.NET.PE no disponible:`, e.message);
+    // Continuar con otras opciones
+  }
+
+  // PRIORIDAD 2: APISPERU - Otra API pública gratuita
+  try {
+    const apisPeruUrl = `https://dniruc.apisperu.com/api/dni/${dni}`;
+    console.log(`[RENIEC] Consultando APISPERU para DNI: ${dni}`);
+    
+    const response = await axios.get(apisPeruUrl, {
+      timeout: 8000,
+    });
+
+    const data = response.data;
+    console.log(`[RENIEC] ✅ Respuesta recibida de APISPERU (status: ${response.status})`);
+    
+    if (data.nombres || data.nombre) {
+      const result = {
+        nombres: String(data.nombres || data.nombre || '').trim(),
+        apellidoPaterno: String(data.apellidoPaterno || data.apellido_paterno || '').trim(),
+        apellidoMaterno: String(data.apellidoMaterno || data.apellido_materno || '').trim(),
+        direccion: data.direccion || data.direccionCompleta,
+        estadoCivil: data.estadoCivil || data.estado_civil,
+      };
+      
+      if (result.nombres.length > 0) {
+        console.log(`[RENIEC] ✅ Resultado válido de APISPERU:`, JSON.stringify(result, null, 2));
+        return result;
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[RENIEC] ⚠️ APISPERU no disponible:`, e.message);
+    // Continuar con otras opciones
+  }
+
+  // PRIORIDAD 3: Decolecta API (si hay token)
   if (token && token.startsWith('sk_')) {
     try {
       const url = `https://api.decolecta.com/v1/reniec/dni?numero=${dni}`;
@@ -137,46 +210,7 @@ export async function obtenerDatosPorDNI(dni: string): Promise<ReniecResponse> {
     }
   }
 
-  // Candidatos comunes
-  urls.push(
-    `https://api.apis.net.pe/v1/dni?numero=${dni}${token ? `&token=${token}` : ''}`,
-  );
-  urls.push(
-    `https://dniruc.apisperu.com/api/DNI/${dni}${token ? `?token=${token}` : ''}`,
-  );
-
-  for (const url of urls) {
-    try {
-      const { data } = await axios.get(url, { timeout: 5000 });
-      // Normalizar campos según proveedor
-      const nombres = data.nombres ?? data.nombresCompleto ?? data.nombre;
-      const apellidoPaterno = data.apellidoPaterno ?? data.apellido_paterno;
-      const apellidoMaterno = data.apellidoMaterno ?? data.apellido_materno;
-      if (nombres) {
-        return {
-          nombres: String(nombres),
-          apellidoPaterno: String(apellidoPaterno ?? ''),
-          apellidoMaterno: String(apellidoMaterno ?? ''),
-        };
-      }
-      if (data.success && data.data) {
-        return {
-          nombres: String(data.data.nombres ?? ''),
-          apellidoPaterno: String(data.data.apellidoPaterno ?? ''),
-          apellidoMaterno: String(data.data.apellidoMaterno ?? ''),
-        };
-      }
-    } catch (err) {
-      // continuar con siguiente URL
-    }
-  }
-
-  // Fallback: datos simulados solo si no hay token configurado
-  // Si hay token pero falló, no devolver datos genéricos
-  console.warn(`[RENIEC] ⚠️ No se pudo obtener datos de ningún servicio para DNI: ${dni}. Usando fallback genérico.`);
-  return {
-    nombres: 'Cliente',
-    apellidoPaterno: 'Demo',
-    apellidoMaterno: dni?.slice(-2) || 'XX',
-  };
+  // Si llegamos aquí, todas las APIs fallaron
+  console.error(`[RENIEC] ❌ No se pudo obtener datos de ningún servicio para DNI: ${dni}`);
+  throw new Error(`No se pudieron obtener datos del DNI ${dni}. Por favor, verifique que el DNI sea correcto.`);
 }
