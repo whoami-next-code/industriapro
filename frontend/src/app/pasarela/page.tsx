@@ -498,8 +498,8 @@ function CheckoutForm() {
     }
   };
 
-  const handleValidationChange = (validation: { isValid: boolean; documentType: 'DNI' | 'RUC' | null }) => {
-    setDocumentValidation(validation);
+  const handleValidationChange = (isValid: boolean, documentType: 'DNI' | 'RUC' | null) => {
+    setDocumentValidation({ isValid, documentType });
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -556,15 +556,18 @@ function CheckoutForm() {
         }
 
         const { id } = stripePaymentMethod;
-        const response = await apiFetchAuth.post(`/checkout/create-payment-intent`, {
-          paymentMethodId: id,
-          amount: Math.round(total * 100), // En centavos
-          customer: orderData.customer,
-          shipping: orderData.shipping,
-          items: orderData.items,
+        const response = await apiFetchAuth<{ clientSecret: string; orderId: string }>(`/checkout/create-payment-intent`, {
+          method: 'POST',
+          body: JSON.stringify({
+            paymentMethodId: id,
+            amount: Math.round(total * 100), // En centavos
+            customer: orderData.customer,
+            shipping: orderData.shipping,
+            items: orderData.items,
+          }),
         });
 
-        const { clientSecret, orderId } = response.data;
+        const { clientSecret, orderId } = response;
 
         const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
 
@@ -574,21 +577,43 @@ function CheckoutForm() {
         
         setResult({ orderId, message: "Pago completado con éxito." });
 
-      } else if (paymentMethod === 'cash_on_delivery') {
-        const response = await apiFetchAuth.post(`/checkout/cash-order`, orderData);
-        setResult({ orderId: response.data.orderId, message: "Pedido registrado. Pagarás al recibir." });
-      }
-      
-      // Generar comprobante
-      const comprobanteResponse = await apiFetchAuth.post('/checkout/generate-receipt', {
-        orderId: result.orderId,
-        documentType: docType === 'RUC' ? 'factura' : 'boleta'
-      });
+        // Generar comprobante
+        const comprobanteResponse = await apiFetchAuth<{ data: any }>('/checkout/generate-receipt', {
+          method: 'POST',
+          body: JSON.stringify({
+            orderId: orderId,
+            documentType: docType === 'RUC' ? 'factura' : 'boleta'
+          }),
+        });
 
-      if (docType === 'RUC') {
-        setFacturaDoc(comprobanteResponse.data);
-      } else {
-        setComprobanteDoc(comprobanteResponse.data);
+        if (docType === 'RUC') {
+          setFacturaDoc(comprobanteResponse.data);
+        } else {
+          setComprobanteDoc(comprobanteResponse.data);
+        }
+
+      } else if (paymentMethod === 'cash_on_delivery') {
+        const response = await apiFetchAuth<{ orderId: string }>(`/checkout/cash-order`, {
+          method: 'POST',
+          body: JSON.stringify(orderData),
+        });
+        const orderId = response.orderId;
+        setResult({ orderId, message: "Pedido registrado. Pagarás al recibir." });
+
+        // Generar comprobante
+        const comprobanteResponse = await apiFetchAuth<{ data: any }>('/checkout/generate-receipt', {
+          method: 'POST',
+          body: JSON.stringify({
+            orderId: orderId,
+            documentType: docType === 'RUC' ? 'factura' : 'boleta'
+          }),
+        });
+
+        if (docType === 'RUC') {
+          setFacturaDoc(comprobanteResponse.data);
+        } else {
+          setComprobanteDoc(comprobanteResponse.data);
+        }
       }
 
       setSuccess(true);
@@ -677,8 +702,8 @@ function CheckoutForm() {
               <h3 className="text-lg font-medium text-gray-900 border-b pb-4 mb-4">Resumen de tu Orden</h3>
               <div className="space-y-4">
                 {items.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-4">
-                    <img src={item.image} alt={item.name} className="w-16 h-16 rounded-md object-cover" />
+                  <div key={item.productId} className="flex items-center space-x-4">
+                    <img src={item.imageUrl || item.thumbnailUrl || '/vercel.svg'} alt={item.name} className="w-16 h-16 rounded-md object-cover" />
                     <div className="flex-1">
                       <p className="font-medium text-gray-800">{item.name}</p>
                       <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
