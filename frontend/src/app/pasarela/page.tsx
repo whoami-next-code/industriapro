@@ -381,6 +381,9 @@ function CheckoutForm() {
     const t = setTimeout(async () => {
       try {
         const url = `/api/clientes/autocomplete?doc=${encodeURIComponent(cleanDoc)}`;
+        console.error('[Pasarela] 🌐 Iniciando fetch a:', url);
+        console.log('[Pasarela] 🌐 Iniciando fetch a:', url);
+        
         const res = await fetch(url, {
           method: 'GET',
           headers: {
@@ -388,10 +391,18 @@ function CheckoutForm() {
           },
         });
 
+        console.error('[Pasarela] 📥 Respuesta recibida - status:', res.status, res.statusText);
+        console.log('[Pasarela] 📥 Respuesta recibida - status:', res.status, res.statusText);
+
         if (!res.ok) {
-          throw new Error(await res.text());
+          const errorText = await res.text();
+          console.error('[Pasarela] ❌ Error en respuesta:', errorText);
+          throw new Error(errorText || `Error ${res.status}: ${res.statusText}`);
         }
+        
         const data = await res.json();
+        console.error('[Pasarela] 📦 Datos recibidos:', JSON.stringify(data, null, 2));
+        console.log('[Pasarela] 📦 Datos recibidos:', JSON.stringify(data, null, 2));
 
         cacheRef.current.set(cleanDoc, data);
         try {
@@ -402,11 +413,19 @@ function CheckoutForm() {
 
         setAutoData(data);
         if (data.type === 'DNI') {
-          setCustomerName(data.name || data.nombre || 'Cliente');
+          const name = data.name || data.nombre || 'Cliente';
+          console.error('[Pasarela] ✏️ Estableciendo nombre DNI:', name);
+          console.log('[Pasarela] ✏️ Estableciendo nombre DNI:', name);
+          setCustomerName(name);
         } else if (data.type === 'RUC') {
-          setCustomerName(data.businessName || data.razonSocial || 'Empresa');
+          const businessName = data.businessName || data.razonSocial || 'Empresa';
+          console.error('[Pasarela] ✏️ Estableciendo razón social RUC:', businessName);
+          console.log('[Pasarela] ✏️ Estableciendo razón social RUC:', businessName);
+          setCustomerName(businessName);
         }
       } catch (e: any) {
+        console.error('[Pasarela] ❌ Error en autocomplete:', e);
+        console.log('[Pasarela] ❌ Error en autocomplete:', e);
         setAutoError(e?.message || 'No se pudo obtener datos');
       } finally {
         setAutoLoading(false);

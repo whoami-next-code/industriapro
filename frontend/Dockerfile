@@ -42,9 +42,13 @@ COPY --from=builder /app/public ./public
 
 # Crear directorio de caché con permisos correctos ANTES de cambiar a usuario node
 RUN mkdir -p /app/.next/cache && \
+    chmod -R 777 /app/.next/cache && \
+    chmod -R 755 /app/.next && \
     chown -R node:node /app/.next && \
     chown -R node:node /app
 
 USER node
-CMD ["node", "server.js"]
+
+# Usar sh para ejecutar comandos múltiples
+CMD ["sh", "-c", "mkdir -p /app/.next/cache && chmod 777 /app/.next/cache 2>/dev/null || true; node server.js"]
 
