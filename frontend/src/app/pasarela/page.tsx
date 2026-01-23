@@ -449,7 +449,7 @@ function CheckoutForm() {
             setCustomerName(String(candidate));
           }
         } else if (data?.type === 'RUC') {
-          const candidate = data.businessName ?? data.razonSocial ?? data.razon_social ?? '';
+          const candidate = data.businessName ?? data.razonSocial ?? data.razon_social ?? data.nombreComercial ?? '';
           if (isGeneric(candidate)) {
             console.error('[Pasarela] ⚠️ RUC sin razón social válida en respuesta. No se autocompleta.', { candidate, data });
             console.log('[Pasarela] ⚠️ RUC sin razón social válida en respuesta. No se autocompleta.', { candidate, data });
@@ -458,6 +458,23 @@ function CheckoutForm() {
             console.error('[Pasarela] ✏️ Estableciendo razón social RUC:', candidate);
             console.log('[Pasarela] ✏️ Estableciendo razón social RUC:', candidate);
             setCustomerName(String(candidate));
+            
+            // Autocompletar dirección si está disponible
+            const address = data.address ?? data.direccion ?? data.direccionCompleta ?? '';
+            if (address && !isGeneric(address) && address.length > 5) {
+              console.log('[Pasarela] ✏️ Estableciendo dirección RUC:', address);
+              setShippingAddress(String(address));
+            }
+            
+            // Autocompletar teléfono si está disponible (representante legal)
+            const phone = data.phone ?? data.telefono ?? data.representantesLegales?.[0]?.telefono ?? '';
+            if (phone && !customerPhone) {
+              const cleanPhone = String(phone).replace(/[^0-9]/g, '').slice(0, 9);
+              if (cleanPhone.length === 9) {
+                console.log('[Pasarela] ✏️ Estableciendo teléfono RUC:', cleanPhone);
+                setCustomerPhone(cleanPhone);
+              }
+            }
           }
         } else {
           console.error('[Pasarela] ⚠️ Respuesta inesperada de autocomplete (sin type).', data);
@@ -527,7 +544,7 @@ function CheckoutForm() {
 
     try {
       if (paymentMethod === 'cash_on_delivery') {
-        const response = await apiFetchAuth<{ orderId: string }>(`/api/pedidos/contra-entrega`, {
+        const response = await apiFetchAuth<{ orderId: string }>(`pedidos/contra-entrega`, {
           method: 'POST',
           body: JSON.stringify({
             customerData: {
@@ -546,7 +563,7 @@ function CheckoutForm() {
 
         // Generar comprobante
         try {
-          const comprobanteResponse = await apiFetchAuth<{ data: any }>('/api/comprobantes/generar', {
+          const comprobanteResponse = await apiFetchAuth<{ data: any }>('comprobantes/generar', {
             method: 'POST',
             body: JSON.stringify({
               orderId: orderId,
@@ -569,7 +586,7 @@ function CheckoutForm() {
           orderNumber: string;
           comprobante?: any;
           factura?: any;
-        }>(`/api/pedidos/pago-ficticio`, {
+        }>(`pedidos/pago-ficticio`, {
           method: 'POST',
           body: JSON.stringify({
             customerData: {
@@ -584,16 +601,23 @@ function CheckoutForm() {
           }),
         });
 
+        console.log('[Pasarela] 📦 Respuesta completa de pago ficticio:', response);
+        
         setResult({ 
           orderId: response.orderId, 
+          orderNumber: response.orderNumber,
           message: "Pago ficticio completado exitosamente. Pedido registrado y comprobante generado." 
         });
 
-        // El backend ya genera el comprobante/factura
+        // El backend ya genera el comprobante/factura en la respuesta
         if (docType === 'RUC' && response.factura) {
+          console.log('[Pasarela] ✅ Factura recibida:', response.factura);
           setFacturaDoc(response.factura);
         } else if (response.comprobante) {
+          console.log('[Pasarela] ✅ Comprobante recibido:', response.comprobante);
           setComprobanteDoc(response.comprobante);
+        } else {
+          console.warn('[Pasarela] ⚠️ No se recibió comprobante/factura en la respuesta');
         }
       }
 
