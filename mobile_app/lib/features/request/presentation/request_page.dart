@@ -154,7 +154,9 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _buildSummaryPill(
                   context,
@@ -162,14 +164,12 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
                   value: pending.toString(),
                   color: const Color(0xFFFFB54A),
                 ),
-                const SizedBox(width: 8),
                 _buildSummaryPill(
                   context,
                   label: 'En proceso',
                   value: inProcess.toString(),
                   color: const Color(0xFF5CC8FF),
                 ),
-                const SizedBox(width: 8),
                 _buildSummaryPill(
                   context,
                   label: 'Terminados',
@@ -256,34 +256,33 @@ class _RequestPageState extends ConsumerState<RequestPage> with SingleTickerProv
     required String value,
     required Color color,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 6),
-            Text(
-              '$label $value',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$label $value',
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
       ),
     );
   }

@@ -18,15 +18,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    const navVerticalPadding = 8.0 + 12.0;
-    final navTotalHeight = kBottomNavigationBarHeight + navVerticalPadding + bottomInset;
-
     return Scaffold(
-      body: Padding(
-        padding: EdgeInsets.only(bottom: navTotalHeight),
-        child: navigationShell,
-      ),
+      extendBody: true,
+      body: navigationShell,
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
