@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'quotation_image.dart';
 
 class CotizacionDetalle {
@@ -34,16 +35,31 @@ class CotizacionDetalle {
   final List<QuotationImage> images;
 
   factory CotizacionDetalle.fromJson(Map<String, dynamic> json) {
-    final items = (json['items'] as List<dynamic>? ?? [])
-        .map((e) => CotizacionItemDetalle.fromJson(e as Map<String, dynamic>))
+    List<dynamic> parseList(dynamic raw) {
+      if (raw is List) return raw;
+      if (raw is String) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) return decoded;
+        } catch (_) {}
+      }
+      return [];
+    }
+
+    final items = parseList(json['items'])
+        .where((e) => e is Map)
+        .map((e) =>
+            CotizacionItemDetalle.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
 
-    final progress = (json['progressUpdates'] as List<dynamic>? ?? [])
-        .map((e) => ProgressUpdate.fromJson(e as Map<String, dynamic>))
+    final progress = parseList(json['progressUpdates'])
+        .where((e) => e is Map)
+        .map((e) => ProgressUpdate.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
 
-    final images = (json['images'] as List<dynamic>? ?? [])
-        .map((e) => QuotationImage.fromJson(e as Map<String, dynamic>))
+    final images = parseList(json['images'])
+        .where((e) => e is Map)
+        .map((e) => QuotationImage.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
 
     int normalizeProgress(dynamic value) {
@@ -123,9 +139,22 @@ class ProgressUpdate {
   final String? author;
 
   factory ProgressUpdate.fromJson(Map<String, dynamic> json) {
-    final attachments = (json['attachmentUrls'] as List<dynamic>? ?? [])
-        .map((e) => e.toString())
-        .toList();
+    List<String> parseAttachments(dynamic raw) {
+      if (raw is List) {
+        return raw.map((e) => e.toString()).toList();
+      }
+      if (raw is String) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) {
+            return decoded.map((e) => e.toString()).toList();
+          }
+        } catch (_) {}
+      }
+      return [];
+    }
+
+    final attachments = parseAttachments(json['attachmentUrls']);
     int? pct;
     final rawPct = json['progressPercent'];
     if (rawPct is num) pct = rawPct.clamp(0, 100).toInt();

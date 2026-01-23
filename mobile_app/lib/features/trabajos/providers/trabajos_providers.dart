@@ -16,7 +16,9 @@ final trabajosAsignadosProvider = FutureProvider<List<Trabajo>>((ref) async {
   try {
     // Usa cotizaciones (para técnicos) si el repo de trabajos falla o no existe.
     try {
-      return await ref.watch(trabajosRepositoryProvider).obtenerAsignados();
+      return await ref
+          .watch(trabajosRepositoryProvider)
+          .obtenerAsignados(forceRefresh: true);
     } catch (_) {
       return await ref.watch(cotizacionesProvider.future);
     }

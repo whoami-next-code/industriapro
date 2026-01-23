@@ -6,5 +6,5 @@ import '../../../domain/entities/contacto_tecnico.dart';
 final contactosTecnicosProvider =
     FutureProvider.autoDispose<List<ContactoTecnico>>((ref) async {
   final repo = ref.watch(contactosTecnicosRepositoryProvider);
-  return repo.obtenerAsignados();
+  return repo.obtenerAsignados(forceRefresh: true);
 });

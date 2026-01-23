@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,12 +104,47 @@ class CotizacionesRepository {
     if (!forceRefresh) {
       final cachedData = _cache.get(cacheKey);
       if (cachedData != null) {
-        return CotizacionDetalle.fromJson(cachedData as Map<String, dynamic>);
+        if (cachedData is Map<String, dynamic>) {
+          return CotizacionDetalle.fromJson(cachedData);
+        }
+        // Cache inválido: limpiar para forzar recarga
+        await _cache.save(cacheKey, null, expiration: Duration.zero);
       }
     }
 
     final response = await _api.get('cotizaciones/$id');
-    final data = response.data as Map<String, dynamic>;
+    final raw = response.data;
+    Map<String, dynamic>? data;
+
+    if (raw is Map<String, dynamic>) {
+      if (raw['data'] is Map) {
+        data = Map<String, dynamic>.from(raw['data'] as Map);
+      } else if (raw['cotizacion'] is Map) {
+        data = Map<String, dynamic>.from(raw['cotizacion'] as Map);
+      } else {
+        data = raw;
+      }
+    } else if (raw is String) {
+      // A veces el backend devuelve JSON como string o HTML en errores.
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          if (decoded['data'] is Map) {
+            data = Map<String, dynamic>.from(decoded['data'] as Map);
+          } else if (decoded['cotizacion'] is Map) {
+            data = Map<String, dynamic>.from(decoded['cotizacion'] as Map);
+          } else {
+            data = decoded;
+          }
+        }
+      } catch (_) {
+        // Ignorar, se lanzará error abajo
+      }
+    }
+
+    if (data == null) {
+      throw Exception('Respuesta inválida al cargar cotización');
+    }
     
     await _cache.save(cacheKey, data, expiration: _cacheDuration);
     

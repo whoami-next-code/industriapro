@@ -14,12 +14,17 @@ class QuotationImage {
   final String? userId;
 
   factory QuotationImage.fromJson(Map<String, dynamic> json) {
+    final rawApproved = json['is_approved'] ?? json['isApproved'];
     return QuotationImage(
       id: json['id']?.toString() ?? '',
-      imageUrl: json['image_url']?.toString() ?? '',
-      uploadedAt: json['uploaded_at']?.toString() ?? '',
-      isApproved: json['is_approved'] == true || json['is_approved'] == 1,
-      userId: json['user_id']?.toString(),
+      imageUrl: json['image_url']?.toString() ??
+          json['imageUrl']?.toString() ??
+          '',
+      uploadedAt: json['uploaded_at']?.toString() ??
+          json['uploadedAt']?.toString() ??
+          '',
+      isApproved: rawApproved == true || rawApproved == 1,
+      userId: json['user_id']?.toString() ?? json['userId']?.toString(),
     );
   }
 }

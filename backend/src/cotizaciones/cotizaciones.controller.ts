@@ -306,11 +306,15 @@ export class CotizacionesController {
   upload(
     @UploadedFiles()
     files: Express.Multer.File[],
+    @Req() req: any,
   ) {
+    const forwardedProto =
+      (req.headers['x-forwarded-proto'] as string) || req.protocol;
+    const host = req.get('host');
     const baseUrl =
       process.env.PUBLIC_BASE_URL ||
       process.env.WEB_URL ||
-      'http://localhost:3001';
+      `${forwardedProto}://${host}`;
     const urls = (files || []).map(
       (f) => `${baseUrl}/uploads/cotizaciones/${f.filename}`,
     );
