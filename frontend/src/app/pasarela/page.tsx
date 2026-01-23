@@ -1,12 +1,9 @@
 "use client";
 import React, { useMemo, useState, useEffect, Suspense } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import axios from "axios";
 import { useCart } from "@/components/cart/CartContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
-  CreditCard, 
   Truck, 
   Shield, 
   CheckCircle, 
@@ -22,8 +19,6 @@ import DocumentInput from '@/components/DocumentInput';
 import OwnerAutocomplete from '@/components/OwnerAutocomplete';
 import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
 
-const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "";
-const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
 // Marca visual para confirmar que el deploy trae los últimos cambios
 const PASARELA_BUILD_TAG = "2026-01-23-phone9-autocomplete-v2";
@@ -50,7 +45,7 @@ function validarDNI(dni: string) {
   return clean.length === 8;
 }
 
-type PaymentMethod = 'card' | 'cash_on_delivery' | 'fake';
+type PaymentMethod = 'cash_on_delivery' | 'fake';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(
@@ -220,14 +215,12 @@ const renderComprobante = (doc: any, title: string) => {
 };
 
 function CheckoutForm() {
-  const stripe = useStripe();
-  const elements = useElements();
   const { items, total, isHydrated, clear } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
   
   // Estados principales
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash_on_delivery');
   const [ruc, setRuc] = useState("");
   const [dni, setDni] = useState("");
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
@@ -533,66 +526,7 @@ function CheckoutForm() {
     };
 
     try {
-      if (paymentMethod === 'card') {
-        if (!stripe || !elements) {
-          throw new Error("Stripe no está listo.");
-        }
-        const cardElement = elements.getElement(CardElement);
-        if (!cardElement) {
-          throw new Error("Elemento de tarjeta no encontrado.");
-        }
-
-        const { error: stripeError, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-          billing_details: {
-            name: customerName,
-            phone: customerPhone,
-          },
-        });
-
-        if (stripeError) {
-          throw new Error(stripeError.message || "Error al crear método de pago.");
-        }
-
-        const { id } = stripePaymentMethod;
-        const response = await apiFetchAuth<{ clientSecret: string; orderId: string }>(`/checkout/create-payment-intent`, {
-          method: 'POST',
-          body: JSON.stringify({
-            paymentMethodId: id,
-            amount: Math.round(total * 100), // En centavos
-            customer: orderData.customer,
-            shipping: orderData.shipping,
-            items: orderData.items,
-          }),
-        });
-
-        const { clientSecret, orderId } = response;
-
-        const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
-
-        if (confirmError) {
-          throw new Error(confirmError.message || "Error al confirmar el pago.");
-        }
-        
-        setResult({ orderId, message: "Pago completado con éxito." });
-
-        // Generar comprobante
-        const comprobanteResponse = await apiFetchAuth<{ data: any }>('/checkout/generate-receipt', {
-          method: 'POST',
-          body: JSON.stringify({
-            orderId: orderId,
-            documentType: docType === 'RUC' ? 'factura' : 'boleta'
-          }),
-        });
-
-        if (docType === 'RUC') {
-          setFacturaDoc(comprobanteResponse.data);
-        } else {
-          setComprobanteDoc(comprobanteResponse.data);
-        }
-
-      } else if (paymentMethod === 'cash_on_delivery') {
+      if (paymentMethod === 'cash_on_delivery') {
         const response = await apiFetchAuth<{ orderId: string }>(`/checkout/cash-order`, {
           method: 'POST',
           body: JSON.stringify(orderData),
@@ -820,21 +754,7 @@ function CheckoutForm() {
 
                 <h3 className="text-lg font-medium text-gray-900 my-4 pt-4 border-t">Método de Pago</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500">
-                    <input
-                      id="card"
-                      name="paymentMethod"
-                      type="radio"
-                      value="card"
-                      checked={paymentMethod === 'card'}
-                      onChange={() => setPaymentMethod('card')}
-                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <label htmlFor="card" className="ml-3 block text-sm font-medium text-gray-700">
-                      Tarjeta de Crédito/Débito
-                    </label>
-                  </div>
-                  <div className="flex items-center p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500">
+                  <div className="flex items-center p-3 border rounded-md bg-blue-50 border-blue-500">
                     <input
                       id="cash_on_delivery"
                       name="paymentMethod"
@@ -849,25 +769,6 @@ function CheckoutForm() {
                     </label>
                   </div>
                 </div>
-
-                {paymentMethod === 'card' && (
-                  <div className="mt-4 p-4 border rounded-lg">
-                    <CardElement options={{
-                      style: {
-                        base: {
-                          fontSize: '16px',
-                          color: '#424770',
-                          '::placeholder': {
-                            color: '#aab7c4',
-                          },
-                        },
-                        invalid: {
-                          color: '#9e2146',
-                        },
-                      },
-                    }} />
-                  </div>
-                )}
 
                 {error && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -894,19 +795,9 @@ function CheckoutForm() {
 }
 
 export default function PasarelaPage() {
-  if (!stripePromise) {
-    return (
-      <div className="text-center py-10">
-        <p className="text-red-500">La clave de Stripe no está configurada. El pago no puede continuar.</p>
-      </div>
-    );
-  }
-
   return (
     <Suspense fallback={<div>Cargando...</div>}>
-      <Elements stripe={stripePromise}>
-        <CheckoutForm />
-      </Elements>
+      <CheckoutForm />
     </Suspense>
   );
 }
