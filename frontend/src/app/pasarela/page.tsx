@@ -25,6 +25,8 @@ import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
 const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "";
 const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
+// Marca visual para confirmar que el deploy trae los últimos cambios
+const PASARELA_BUILD_TAG = "2026-01-23-phone9-autocomplete-v2";
 
 function validarRUC(ruc: string) {
   const clean = (ruc || '').replace(/[^0-9]/g, '');
@@ -705,6 +707,7 @@ function CheckoutForm() {
             <div className="bg-white p-6 rounded-lg shadow-md">
               <form onSubmit={handleSubmit}>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Información del Cliente</h3>
+                <p className="text-[11px] text-gray-400 mb-3">build: {PASARELA_BUILD_TAG}</p>
                 
                 <div className="mb-4">
                   <label htmlFor="document" className="block text-sm font-medium text-gray-700 mb-1">
@@ -741,15 +744,31 @@ function CheckoutForm() {
                     Teléfono de Contacto
                   </label>
                   <input
-                    type="tel"
+                    type="text"
                     id="customerPhone"
                     value={customerPhone}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={9}
+                    minLength={9}
+                    placeholder="987654321 (9 dígitos)"
                     onChange={(e) => {
                       const clean = (e.target.value || '').replace(/[^0-9]/g, '').slice(0, 9);
                       setCustomerPhone(clean);
+                    }}
+                    onKeyDown={(e) => {
+                      // Permitir teclas de control/navegación
+                      const allowed = [
+                        'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End',
+                      ];
+                      if (allowed.includes(e.key)) return;
+                      // Bloquear cualquier tecla no numérica
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const text = (e.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 9);
+                      setCustomerPhone(text);
                     }}
                     onBlur={validatePhone}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
