@@ -77,33 +77,50 @@ export class ClientesMeController {
       if (cleanDoc.length === 8) {
         // DNI - RENIEC
         console.log(`[ClientesController] Consultando DNI: ${cleanDoc}`);
-        const datos = await obtenerDatosPorDNI(cleanDoc);
-        console.log(`[ClientesController] Datos recibidos de RENIEC:`, datos);
-        
-        // Construir nombre completo de manera más robusta
-        const partesNombre = [
-          datos.apellidoPaterno,
-          datos.apellidoMaterno,
-          datos.nombres,
-        ].filter(Boolean);
-        const fullName = partesNombre.length > 0 
-          ? partesNombre.join(' ').trim()
-          : (datos.nombres || 'Cliente');
-        
-        console.log(`[ClientesController] Nombre completo construido: "${fullName}"`);
-        console.log(`[ClientesController] Partes: apellidoPaterno="${datos.apellidoPaterno}", apellidoMaterno="${datos.apellidoMaterno}", nombres="${datos.nombres}"`);
-        
-        const result = {
-          ok: true,
-          type: 'DNI',
-          name: fullName,
-          document: cleanDoc,
-          address: datos.direccion,
-          civilStatus: datos.estadoCivil,
-          raw: datos,
-        };
-        console.log(`[ClientesController] Respuesta DNI completa:`, JSON.stringify(result, null, 2));
-        return result;
+        try {
+          const datos = await obtenerDatosPorDNI(cleanDoc);
+          console.log(`[ClientesController] Datos recibidos de RENIEC:`, JSON.stringify(datos, null, 2));
+          
+          // Construir nombre completo de manera más robusta
+          const partesNombre = [
+            datos.apellidoPaterno,
+            datos.apellidoMaterno,
+            datos.nombres,
+          ].filter(Boolean);
+          const fullName = partesNombre.length > 0 
+            ? partesNombre.join(' ').trim()
+            : (datos.nombres || 'Cliente');
+          
+          console.log(`[ClientesController] Nombre completo construido: "${fullName}"`);
+          console.log(`[ClientesController] Partes: apellidoPaterno="${datos.apellidoPaterno}", apellidoMaterno="${datos.apellidoMaterno}", nombres="${datos.nombres}"`);
+          
+          // Validar que el nombre no sea genérico
+          if (!fullName || fullName === 'Cliente' || fullName.includes('Demo') || fullName.length < 3) {
+            console.error(`[ClientesController] ❌ Nombre genérico o inválido recibido: "${fullName}"`);
+            return { 
+              ok: false, 
+              error: 'No se pudieron obtener datos válidos del DNI. Verifique que el DNI sea correcto y que las credenciales de RENIEC estén configuradas.' 
+            };
+          }
+          
+          const result = {
+            ok: true,
+            type: 'DNI',
+            name: fullName,
+            document: cleanDoc,
+            address: datos.direccion,
+            civilStatus: datos.estadoCivil,
+            raw: datos,
+          };
+          console.log(`[ClientesController] ✅ Respuesta DNI completa:`, JSON.stringify(result, null, 2));
+          return result;
+        } catch (error: any) {
+          console.error(`[ClientesController] ❌ Error al consultar DNI ${cleanDoc}:`, error.message);
+          return { 
+            ok: false, 
+            error: error.message || 'Error al consultar datos del DNI. Verifique que las credenciales de RENIEC estén configuradas correctamente.' 
+          };
+        }
       } else if (cleanDoc.length === 11) {
         // RUC - SUNAT
         console.log(`[ClientesController] Consultando RUC: ${cleanDoc}`);
