@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import axios from 'axios';
 
 export interface ComprobanteData {
   orderNumber: string;
@@ -135,6 +136,69 @@ export class ComprobantesService {
     };
 
     return comprobante;
+  }
+
+  async generateFacturaNubefact(orderData: ComprobanteData) {
+    const apiUrl = process.env.NUBEFACT_API_URL;
+    const token = process.env.NUBEFACT_TOKEN;
+    if (!apiUrl || !token) {
+      return { ok: false, error: 'NUBEFACT no configurado' };
+    }
+
+    const items = orderData.items.map((item) => {
+      const quantity = Number(item.quantity) || 0;
+      const price = Number(item.price) || 0;
+      const total = price * quantity;
+      const valorUnitario = price / 1.18;
+      const subtotal = valorUnitario * quantity;
+      const igv = total - subtotal;
+      return {
+        unidad_de_medida: 'NIU',
+        codigo: String(item.productId || ''),
+        descripcion: item.name,
+        cantidad: quantity,
+        valor_unitario: Number(valorUnitario.toFixed(2)),
+        precio_unitario: Number(price.toFixed(2)),
+        subtotal: Number(subtotal.toFixed(2)),
+        tipo_de_igv: '1',
+        igv: Number(igv.toFixed(2)),
+        total: Number(total.toFixed(2)),
+      };
+    });
+
+    const now = new Date();
+    const numberSeed = String(now.getTime()).slice(-6);
+    const payload = {
+      operacion: 'generar_comprobante',
+      tipo_de_comprobante: '1',
+      serie: 'F001',
+      numero: Number(numberSeed),
+      sunat_transaction: 1,
+      cliente_tipo_de_documento: '6',
+      cliente_numero_de_documento: orderData.customerDni,
+      cliente_denominacion: orderData.customerName,
+      cliente_direccion: orderData.shippingAddress,
+      cliente_email: orderData.customerEmail,
+      cliente_telefono: orderData.customerPhone,
+      fecha_de_emision: now.toISOString().slice(0, 10),
+      moneda: '1',
+      porcentaje_de_igv: 18,
+      total_igv: Number((orderData.total - orderData.subtotal).toFixed(2)),
+      total_gravada: Number(orderData.subtotal.toFixed(2)),
+      total: Number(orderData.total.toFixed(2)),
+      enviar_automaticamente_al_cliente: false,
+      items,
+    };
+
+    const { data } = await axios.post(apiUrl.trim(), payload, {
+      headers: {
+        Authorization: `Token token=${token}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    });
+
+    return { ok: true, data };
   }
 
   private getDocumentType(document: string): 'DNI' | 'RUC' {

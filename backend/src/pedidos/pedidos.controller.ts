@@ -28,6 +28,7 @@ import * as fs from 'fs';
 import { PedidosService } from './pedidos.service';
 import { EventsService } from '../realtime/events.service';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { MailService } from '../mail/mail.service';
@@ -148,7 +149,7 @@ export class PedidosController {
   }
 
   @Post('pago-ficticio')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Registrar pago ficticio y generar comprobante/factura' })
   async createFakePayment(@Req() req: any, @Body() body: any) {
     const userId = req.user?.userId;
@@ -211,11 +212,7 @@ export class PedidosController {
       : null;
 
     const factura = documentType === 'RUC'
-      ? {
-          ...(await this.comprobantes.generateComprobante(baseDocPayload)),
-          type: 'FACTURA',
-          id: `F001-${Math.floor(Math.random() * 999999).toString().padStart(6, '0')}`,
-        }
+      ? await this.comprobantes.generateFacturaNubefact(baseDocPayload)
       : null;
 
     const notes = JSON.stringify({
