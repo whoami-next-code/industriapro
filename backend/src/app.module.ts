@@ -75,6 +75,8 @@ import { HealthModule } from './health/health.module';
             database: sqlitePath,
             autoLoadEntities: true,
             synchronize: !isProd,
+            migrations: [join(__dirname, 'migrations/*{.ts,.js}')],
+            migrationsRun: false,
           };
         }
 
@@ -138,6 +140,8 @@ import { HealthModule } from './health/health.module';
               database: url.pathname.slice(1) || 'postgres',
               autoLoadEntities: true,
               synchronize: !isProd,
+              migrations: [join(__dirname, 'migrations/*{.ts,.js}')],
+              migrationsRun: isProd,
               ssl:
                 url.searchParams.get('sslmode') === 'require' ||
                 url.searchParams.get('sslmode') === 'prefer' ||
@@ -201,6 +205,8 @@ import { HealthModule } from './health/health.module';
           database: dbName,
           autoLoadEntities: true,
           synchronize: !isProd,
+          migrations: [join(__dirname, 'migrations/*{.ts,.js}')],
+          migrationsRun: isProd,
           ssl:
             (process.env.DB_SSL ?? 'true') === 'true'
               ? { rejectUnauthorized: false }
