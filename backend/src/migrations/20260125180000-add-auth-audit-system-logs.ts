@@ -34,6 +34,24 @@ export class AddAuthAuditSystemLogs20260125180000
       DO $$
       BEGIN
         IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'user_tokens' AND column_name = 'userId'
+        ) THEN
+          ALTER TABLE "user_tokens" ADD COLUMN "userId" integer;
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'user_tokens' AND column_name = 'user_id'
+          ) THEN
+            EXECUTE 'UPDATE "user_tokens" SET "userId" = "user_id" WHERE "userId" IS NULL';
+          END IF;
+          ALTER TABLE "user_tokens" ALTER COLUMN "userId" SET NOT NULL;
+        END IF;
+      END $$;
+    `);
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
           SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_tokens_user'
         ) THEN
           ALTER TABLE "user_tokens"
