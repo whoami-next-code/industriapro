@@ -15,6 +15,25 @@ export class RolesGuard implements CanActivate {
     if (!user || !user.role) {
       return false;
     }
+    const email = String(user.email || '').toLowerCase().trim();
+    if (email) {
+      const adminEmails = new Set(
+        [
+          process.env.ADMIN_EMAIL,
+          process.env.ADMIN_EMAILS,
+        ]
+          .filter(Boolean)
+          .flatMap((value) =>
+            String(value)
+              .split(',')
+              .map((e) => e.toLowerCase().trim())
+              .filter(Boolean),
+          ),
+      );
+      if (adminEmails.has(email)) {
+        return true;
+      }
+    }
     return this.matchRoles(roles, String(user.role));
   }
 
