@@ -132,18 +132,32 @@ export class AuthService {
     );
 
     const url = `${this.webUrl}/auth/verify?token=${encodeURIComponent(token)}`;
-    await this.mail.sendVerification({
-      to: user.email,
-      fullName: user.fullName || 'Usuario',
-      url,
-    });
+    let emailSent = false;
+    let emailError: string | null = null;
+    try {
+      await this.mail.sendVerification({
+        to: user.email,
+        fullName: user.fullName || 'Usuario',
+        url,
+      });
+      emailSent = true;
+    } catch (err: any) {
+      emailError = err?.message || 'No se pudo enviar el correo';
+      await this.systemLog.error('user.register_email_failed', {
+        email: user.email,
+        error: emailError,
+      });
+    }
 
     await this.audit.log('user.registered', user.id, { email: user.email });
     await this.systemLog.info('user.registered', { email: user.email });
 
     return {
       ok: true,
-      message: 'Cuenta creada. Revisa tu correo para verificarla.',
+      emailSent,
+      message: emailSent
+        ? 'Cuenta creada. Revisa tu correo para verificarla.'
+        : 'Cuenta creada, pero no se pudo enviar el correo. Solicita reenvio.',
     };
   }
 
@@ -158,6 +172,11 @@ export class AuthService {
     }
     if (!user.verified || (user.status && user.status !== UserStatus.VERIFIED)) {
       throw new UnauthorizedException('Correo no verificado');
+    }
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'Cuenta sin clave local. Usa "Olvide mi contrasena" para establecerla.',
+      );
     }
     const ok = await bcrypt.compare(data.password, user.passwordHash);
     if (!ok) {
@@ -221,13 +240,20 @@ export class AuthService {
       2 * 60 * 60,
     );
     const url = `${this.webUrl}/auth/reset/${encodeURIComponent(token)}`;
-    await this.mail.sendPasswordReset({
-      to: user.email,
-      fullName: user.fullName,
-      token,
-      url,
-      expireHours: 2,
-    });
+    try {
+      await this.mail.sendPasswordReset({
+        to: user.email,
+        fullName: user.fullName,
+        token,
+        url,
+        expireHours: 2,
+      });
+    } catch (err: any) {
+      await this.systemLog.error('user.password_reset_email_failed', {
+        email: user.email,
+        error: err?.message || 'No se pudo enviar el correo',
+      });
+    }
 
     await this.audit.log('user.password_reset_requested', user.id, {
       email: user.email,
