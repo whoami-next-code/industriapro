@@ -11,6 +11,7 @@ function LoginComponent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -24,6 +25,7 @@ function LoginComponent() {
     setError('');
     setSuccess('');
     setIsLoading(true);
+    setNeedsVerification(false);
 
     try {
       await signIn(email.trim(), password);
@@ -35,6 +37,7 @@ function LoginComponent() {
       const msg = String(error?.message || '');
       if (msg.toLowerCase().includes('no verificado')) {
         setError('Tu correo no ha sido verificado. Revisa tu bandeja de entrada o solicita un nuevo enlace.');
+        setNeedsVerification(true);
       } else if (msg.toLowerCase().includes('inactivo') || msg.toLowerCase().includes('suspendido')) {
         setError('Tu cuenta está suspendida. Contacta al soporte.');
       } else if (msg.toLowerCase().includes('credenciales')) {
@@ -67,6 +70,16 @@ function LoginComponent() {
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center">
               <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
               <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+          {needsVerification && (
+            <div className="mb-4 text-sm text-blue-700">
+              <Link
+                href={`/auth/verify?email=${encodeURIComponent(email.trim())}`}
+                className="underline"
+              >
+                Reenviar verificación
+              </Link>
             </div>
           )}
 

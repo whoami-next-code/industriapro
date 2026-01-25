@@ -13,6 +13,10 @@ function VerifyComponent() {
 
   useEffect(() => {
     const token = params?.get('token');
+    const emailParam = params?.get('email');
+    if (emailParam && !resendEmail) {
+      setResendEmail(emailParam);
+    }
     if (!token) {
       setStatus('error');
       setMessage('Token de verificación faltante');

@@ -10,7 +10,7 @@ import { MailService } from '../mail/mail.service';
 import { AuditService } from '../audit/audit.service';
 import { randomBytes, createHash } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { User, UserRole, UserStatus } from '../users/user.entity';
 import { UserToken, UserTokenType } from './user-token.entity';
 import * as bcrypt from 'bcrypt';
@@ -170,12 +170,7 @@ export class AuthService {
     if (!user.active || user.status === UserStatus.SUSPENDED) {
       throw new UnauthorizedException('Usuario inactivo');
     }
-    const skipVerification =
-      (process.env.AUTH_SKIP_EMAIL_VERIFICATION ?? '').toLowerCase() === 'true';
-    if (
-      !skipVerification &&
-      (!user.verified || (user.status && user.status !== UserStatus.VERIFIED))
-    ) {
+    if (!user.verified || (user.status && user.status !== UserStatus.VERIFIED)) {
       throw new UnauthorizedException('Correo no verificado');
     }
     if (!user.passwordHash) {
@@ -364,6 +359,10 @@ export class AuthService {
     type: UserTokenType,
     ttlSeconds: number,
   ) {
+    await this.tokens.update(
+      { userId: user.id, type, usedAt: IsNull() },
+      { usedAt: new Date() } as any,
+    );
     const raw = randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(raw);
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
