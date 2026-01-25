@@ -7,11 +7,18 @@ import {
 } from 'typeorm';
 
 export enum UserRole {
+  SUPERADMIN = 'SUPERADMIN',
   ADMIN = 'ADMIN',
   VENDEDOR = 'VENDEDOR',
   TECNICO = 'TECNICO',
   OPERARIO = 'OPERARIO',
   CLIENTE = 'CLIENTE',
+}
+
+export enum UserStatus {
+  PENDING = 'PENDING',
+  VERIFIED = 'VERIFIED',
+  SUSPENDED = 'SUSPENDED',
 }
 
 @Entity('users')
@@ -45,6 +52,12 @@ export class User {
 
   @Column({ type: 'boolean', default: false })
   verified: boolean;
+
+  @Column({ type: 'varchar', default: UserStatus.PENDING })
+  status: UserStatus;
+
+  @Column({ type: 'int', default: 0 })
+  tokenVersion: number;
 
   @Column({ type: 'boolean', default: true })
   active: boolean;

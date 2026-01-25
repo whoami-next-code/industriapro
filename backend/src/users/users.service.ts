@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
-import { User, UserRole } from './user.entity';
+import { User, UserRole, UserStatus } from './user.entity';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
@@ -22,6 +22,7 @@ export class UsersService {
     supabaseUid?: string;
     active?: boolean;
     mustChangePassword?: boolean;
+    status?: User['status'];
   }) {
     const rawPassword = data.password ?? randomBytes(12).toString('hex');
     const passwordHash = await bcrypt.hash(rawPassword, 10);
@@ -31,10 +32,12 @@ export class UsersService {
       role: data.role ?? UserRole.CLIENTE,
       fullName: data.fullName,
       verified: data.verified ?? false,
+      status: data.status ?? (data.verified ? UserStatus.VERIFIED : UserStatus.PENDING),
       phone: data.phone,
       supabaseUid: data.supabaseUid,
       active: data.active ?? true,
       mustChangePassword: data.mustChangePassword ?? false,
+      tokenVersion: 0,
     });
     return this.repo.save(entity);
   }
@@ -61,6 +64,12 @@ export class UsersService {
   async update(id: number, data: Partial<User>) {
     const found = await this.repo.findOneBy({ id });
     if (!found) throw new NotFoundException('Usuario no encontrado');
+    if (data.status === UserStatus.VERIFIED) {
+      data.verified = true;
+    }
+    if (data.status === UserStatus.PENDING) {
+      data.verified = false;
+    }
     if ((data as any).password) {
       (data as any).passwordHash = await bcrypt.hash(
         (data as any).password,

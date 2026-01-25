@@ -24,6 +24,7 @@ export function AuthLoginForm() {
       });
       const storage = remember ? window.localStorage : window.sessionStorage;
       storage.setItem('token', data.access_token);
+      document.cookie = `auth_token=${data.access_token}; path=/; max-age=${remember ? 604800 : 3600}`;
       router.push('/');
     } catch (err: any) {
       setError('Credenciales inválidas');
@@ -41,7 +42,7 @@ export function AuthLoginForm() {
           <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} />
           Recordar sesión
         </label>
-        <a href="/auth/forgot" className="text-emerald-700 hover:underline">¿Olvidaste tu contraseña?</a>
+        <a href="/auth/forgot-password" className="text-emerald-700 hover:underline">¿Olvidaste tu contraseña?</a>
       </div>
       <button disabled={loading} className="inline-flex items-center justify-center rounded-md bg-black text-white px-3 py-2 text-sm disabled:opacity-50">{loading ? 'Ingresando...' : 'Ingresar'}</button>
       {error && <div className="text-sm text-red-600">{error}</div>}

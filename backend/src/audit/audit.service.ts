@@ -13,4 +13,8 @@ export class AuditService {
     const entity = this.repo.create({ action, userId, meta });
     await this.repo.save(entity);
   }
+
+  list(params: { take: number }) {
+    return this.repo.find({ order: { createdAt: 'DESC' }, take: params.take });
+  }
 }

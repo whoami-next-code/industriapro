@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const isAuthenticated = request.cookies.get('sb-mleboibcchxdaxwtnsut-auth-token')
+  const isAuthenticated = request.cookies.get('auth_token');
   
   // Protect dashboard routes
   if (request.nextUrl.pathname.startsWith('/dashboard')) {

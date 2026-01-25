@@ -4,22 +4,34 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { createClient } from '@supabase/supabase-js';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
 import { AuditService } from '../audit/audit.service';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User, UserRole, UserStatus } from '../users/user.entity';
+import { UserToken, UserTokenType } from './user-token.entity';
+import * as bcrypt from 'bcrypt';
+import { RedisService } from '../redis/redis.service';
+import { SystemLogService } from '../system-log/system-log.service';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('AuthService');
+  private readonly webUrl =
+    process.env.WEB_URL || process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
 
   constructor(
     private users: UsersService,
     private jwt: JwtService,
     private mail: MailService,
     private audit: AuditService,
+    private readonly redis: RedisService,
+    private readonly systemLog: SystemLogService,
+    @InjectRepository(UserToken)
+    private readonly tokens: Repository<UserToken>,
   ) {}
 
   private generateTempPassword(length = 12) {
@@ -45,78 +57,7 @@ export class AuthService {
     role?: string;
     active?: boolean;
   }) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-
-    if (!supabaseUrl || !serviceKey) {
-      throw new BadRequestException(
-        'Configuración de Supabase incompleta en el servidor',
-      );
-    }
-
     const tempPassword = this.generateTempPassword();
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
-    const { data: userData, error } = await supabase.auth.admin.createUser({
-      email: data.email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        fullName: data.fullName,
-        phone: data.phone,
-        role: data.role ?? 'CLIENTE',
-        mustChangePassword: true,
-      },
-    });
-
-    let supabaseUser = userData?.user;
-    let created = true;
-    if (error) {
-      if (error.message.includes('already been registered')) {
-        created = false;
-        const { data: listData, error: listError } =
-          await supabase.auth.admin.listUsers({
-            page: 1,
-            perPage: 1000,
-          });
-        if (listError) {
-          throw new BadRequestException(
-            `Error de Supabase: ${listError.message}`,
-          );
-        }
-        supabaseUser =
-          listData?.users?.find(
-            (u) => u.email?.toLowerCase() === data.email.toLowerCase(),
-          ) ?? null;
-        if (!supabaseUser) {
-          throw new BadRequestException(
-            'Error de Supabase: usuario ya registrado pero no encontrado',
-          );
-        }
-        const { error: updateError } =
-          await supabase.auth.admin.updateUserById(supabaseUser.id, {
-            password: tempPassword,
-            user_metadata: {
-              fullName: data.fullName,
-              phone: data.phone,
-              role: data.role ?? 'CLIENTE',
-              mustChangePassword: true,
-            },
-          });
-        if (updateError) {
-          throw new BadRequestException(
-            `Error de Supabase: ${updateError.message}`,
-          );
-        }
-      } else {
-        throw new BadRequestException(`Error de Supabase: ${error.message}`);
-      }
-    }
 
     const email = data.email.toLowerCase().trim();
     const existing = await this.users.findByEmail(email);
@@ -124,9 +65,9 @@ export class AuthService {
       email,
       fullName: data.fullName,
       phone: data.phone,
-      role: data.role as any,
+      role: (data.role as any) ?? UserRole.CLIENTE,
       verified: true,
-      supabaseUid: supabaseUser?.id,
+      status: UserStatus.VERIFIED,
       active: data.active ?? true,
       mustChangePassword: true,
     };
@@ -144,12 +85,9 @@ export class AuthService {
       ok: true,
       user,
       tempPassword,
-      created,
+      created: !existing,
     };
   }
-
-  // Nota: Login/Registro principal debe ocurrir en el Frontend (Cliente Supabase).
-  // Estos métodos quedan como soporte para flujos legacy o administrativos.
 
   async register(data: {
     email: string;
@@ -157,190 +95,87 @@ export class AuthService {
     fullName?: string;
     phone?: string;
   }) {
-    // Delegar a Supabase
-    return this.registerWithSupabase(data);
-  }
-
-  async registerWithSupabase(data: {
-    email: string;
-    password: string;
-    fullName?: string;
-    phone?: string;
-  }) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-
-    if (!supabaseUrl || !serviceKey) {
-      throw new BadRequestException(
-        'Configuración de Supabase incompleta en el servidor',
-      );
+    const email = data.email.toLowerCase().trim();
+    const existing = await this.users.findByEmail(email);
+    if (existing) {
+      if (existing.status === UserStatus.SUSPENDED || !existing.active) {
+        throw new UnauthorizedException('Usuario suspendido');
+      }
+      if (existing.status === UserStatus.VERIFIED && existing.verified) {
+        throw new BadRequestException('El correo ya está registrado');
+      }
+      const resend = await this.resendVerificationByEmail(email);
+      return {
+        ok: true,
+        alreadyExists: true,
+        emailSent: resend.sent,
+        message:
+          'El correo ya estaba registrado. Se reenvió la verificación si era necesario.',
+      };
     }
 
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
-    // Crear usuario via Admin API (confirma automáticamente si se desea, o envía correos)
-    const { data: userData, error } = await supabase.auth.admin.createUser({
-      email: data.email,
+    const user = await this.users.create({
+      email,
       password: data.password,
-      email_confirm: true, // Auto-confirmar si lo crea un admin, o false si requiere verificación
-      user_metadata: {
-        fullName: data.fullName,
-        phone: data.phone,
-        role: 'CLIENTE', // Default
-      },
+      fullName: data.fullName,
+      phone: data.phone,
+      role: UserRole.CLIENTE,
+      verified: false,
+      status: UserStatus.PENDING,
+      active: true,
     });
 
-    if (error) {
-      if (error.message.includes('already registered')) {
-        // Si ya existe, intentar re-enviar verificación y devolver respuesta OK
-        let resendResult: { sent?: boolean } = {};
-        try {
-          resendResult = await this.resendVerificationByEmail(data.email);
-        } catch (resendErr: any) {
-          this.logger.warn(
-            `Error reenviando verificación a ${data.email}: ${resendErr?.message || resendErr}`,
-          );
-        }
-        await this.audit.log('user.register_already_exists', 0, {
-          email: data.email,
-          method: 'backend_admin_api',
-          resent: !!resendResult?.sent,
-        });
-        return {
-          ok: true,
-          alreadyExists: true,
-          emailSent: !!resendResult?.sent,
-          message:
-            'El correo ya estaba registrado. Se intentó reenviar la verificación.',
-        };
-      }
-      throw new BadRequestException(`Error de Supabase: ${error.message}`);
-    }
+    const token = await this.createUserToken(
+      user,
+      UserTokenType.EMAIL_VERIFICATION,
+      24 * 60 * 60,
+    );
 
-    // La sincronización ocurrirá vía Trigger en la DB.
-    // Sin embargo, para responder rápido, podemos devolver el usuario local si ya se sincronizó,
-    // o el objeto de Supabase.
-
-    // Esperar brevemente a que el trigger se ejecute (opcional)
-    const delayMs =
-      process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID ? 0 : 1000;
-    if (delayMs > 0) {
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-
-    const localUser = await this.users.findBySupabaseUid(userData.user.id);
-
-    // Generar link de verificación y enviar correo vía Resend
-    try {
-      const { data: linkData } = await supabase.auth.admin.generateLink({
-        type: 'signup',
-        email: data.email,
-        password: data.password,
-        options: {
-          redirectTo: `${process.env.WEB_URL || 'http://localhost:3000'}/auth/login`,
-        },
-      });
-      const url = linkData?.properties?.action_link;
-      if (url) {
-        await this.mail.sendVerification({
-          to: data.email,
-          fullName: data.fullName || 'Usuario',
-          url,
-        });
-      } else {
-        await this.mail.sendAccountCreation({
-          to: data.email,
-          fullName: data.fullName || 'Usuario',
-        });
-      }
-    } catch {
-      await this.mail.sendAccountCreation({
-        to: data.email,
-        fullName: data.fullName || 'Usuario',
-      });
-    }
-
-    await this.audit.log('user.registered_backend', localUser?.id || 0, {
-      email: data.email,
-      method: 'backend_admin_api',
+    const url = `${this.webUrl}/auth/verify?token=${encodeURIComponent(token)}`;
+    await this.mail.sendVerification({
+      to: user.email,
+      fullName: user.fullName || 'Usuario',
+      url,
     });
+
+    await this.audit.log('user.registered', user.id, { email: user.email });
+    await this.systemLog.info('user.registered', { email: user.email });
 
     return {
       ok: true,
-      message: 'Usuario creado exitosamente.',
-      user: localUser || userData.user,
+      message: 'Cuenta creada. Revisa tu correo para verificarla.',
     };
   }
 
   async login(data: { email: string; password: string }) {
-    // Proxy a Supabase Auth (SignIn)
-    // Útil si el frontend no usa el SDK de Supabase directamente aún
-    const supabaseUrl = process.env.SUPABASE_URL;
-    // Usar ANON key para login normal, o Service Role si es admin simulando
-    // Lo ideal es que el login sea client-side.
-    // Aquí usaremos la API REST de Supabase para sign-in
-
-    // NOTA: No podemos loguear usuarios con Service Key fácilmente sin ser admin.
-    // Se requiere la Anon Key para 'signInWithPassword' público.
-    const anonKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      process.env.SUPABASE_ANON_KEY;
-
-    if (!anonKey) {
-      throw new BadRequestException('Falta SUPABASE_ANON_KEY para login proxy');
-    }
-
-    if (!supabaseUrl) {
-      throw new BadRequestException('Falta SUPABASE_URL');
-    }
-
-    const supabase = createClient(supabaseUrl, anonKey);
-
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-
-    if (error) {
-      throw new UnauthorizedException('Credenciales inválidas (Supabase)');
-    }
-
-    const user = await this.users.findBySupabaseUid(authData.user.id);
-
+    const email = data.email.toLowerCase().trim();
+    const user = await this.users.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException(
-        'Usuario no registrado en el sistema. Contacte al administrador.',
-      );
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+    if (!user.active || user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException('Usuario inactivo');
+    }
+    if (!user.verified || (user.status && user.status !== UserStatus.VERIFIED)) {
+      throw new UnauthorizedException('Correo no verificado');
+    }
+    const ok = await bcrypt.compare(data.password, user.passwordHash);
+    if (!ok) {
+      throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    if (!user.active) {
-      throw new UnauthorizedException('Usuario inactivo. Contacte al administrador.');
-    }
+    const { token, jti } = await this.issueJwt(user);
+    await this.audit.log('user.logged_in', user.id, { email: user.email });
 
-    await this.audit.log('user.logged_in_proxy', user.id, {
-      email: user.email,
-    });
-
-    // Retornar el token de Supabase directamente
     return {
-      access_token: authData.session.access_token,
-      refresh_token: authData.session.refresh_token,
+      access_token: token,
       user,
       mustChangePassword: !!user.mustChangePassword,
     };
   }
 
-  async changePasswordFirst(
-    userId: number,
-    supabaseUid: string,
-    newPassword: string,
-  ) {
-    if (!userId || !supabaseUid) {
+  async changePasswordFirst(userId: number, newPassword: string) {
+    if (!userId) {
       throw new BadRequestException('Usuario inválido');
     }
     if (!newPassword || newPassword.length < 8) {
@@ -355,30 +190,13 @@ export class AuthService {
       return { ok: true, changed: false };
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-    if (!supabaseUrl || !serviceKey) {
-      throw new BadRequestException('Configuración Supabase incompleta');
-    }
-
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
-    const { error } = await supabase.auth.admin.updateUserById(supabaseUid, {
-      password: newPassword,
-    });
-    if (error) {
-      throw new BadRequestException(`Error de Supabase: ${error.message}`);
-    }
-
     await this.users.update(user.id, {
       password: newPassword,
       mustChangePassword: false,
+      tokenVersion: user.tokenVersion + 1,
     } as any);
+
+    await this.invalidateSessions(user.id);
 
     await this.audit.log('user.password_changed_first', user.id, {
       email: user.email,
@@ -387,93 +205,184 @@ export class AuthService {
     return { ok: true, changed: true };
   }
 
-  // Métodos legacy simplificados o eliminados
-
   async forgotPassword(email: string) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-
-    if (!supabaseUrl || !serviceKey)
-      throw new BadRequestException('Configuración Supabase incompleta');
-
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    // 1. Generar Link de Recuperación (Magic Link)
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${process.env.WEB_URL || 'http://localhost:3000'}/auth/reset-password`,
-      },
-    });
-
-    if (error) {
-      // Si el usuario no existe, Supabase devuelve error.
-      // Por seguridad, a veces es mejor no revelar si existe o no, pero aquí seguiremos el error.
-      throw new BadRequestException(error.message);
+    const normalized = email.toLowerCase().trim();
+    const user = await this.users.findByEmail(normalized);
+    if (!user) {
+      return { sent: true };
+    }
+    if (!user.active || user.status === UserStatus.SUSPENDED) {
+      return { sent: true };
     }
 
-    // 2. Enviar correo usando MailService (Resend)
-    const { user, properties } = data;
-
-    // action_link contiene la URL completa con token y redirect
+    const token = await this.createUserToken(
+      user,
+      UserTokenType.PASSWORD_RESET,
+      2 * 60 * 60,
+    );
+    const url = `${this.webUrl}/auth/reset/${encodeURIComponent(token)}`;
     await this.mail.sendPasswordReset({
-      to: email,
-      fullName: user.user_metadata?.fullName,
-      token: 'token_oculto_en_url',
-      url: properties.action_link,
+      to: user.email,
+      fullName: user.fullName,
+      token,
+      url,
+      expireHours: 2,
+    });
+
+    await this.audit.log('user.password_reset_requested', user.id, {
+      email: user.email,
+    });
+    await this.systemLog.info('user.password_reset_requested', {
+      email: user.email,
     });
 
     return { sent: true };
   }
 
   async resetPassword(token: string, newPassword: string) {
-    throw new BadRequestException(
-      'El reset de password debe hacerse en el Frontend con Supabase SDK (updateUser).',
-    );
+    if (!token || token.length < 20) {
+      throw new BadRequestException('Token inválido');
+    }
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('La contraseña es muy corta');
+    }
+
+    const record = await this.findValidToken(token, UserTokenType.PASSWORD_RESET);
+    const user = await this.users.findOne(record.userId);
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    await this.users.update(user.id, {
+      password: newPassword,
+      mustChangePassword: false,
+      tokenVersion: user.tokenVersion + 1,
+    } as any);
+
+    await this.invalidateSessions(user.id);
+    record.usedAt = new Date();
+    await this.tokens.save(record);
+
+    await this.audit.log('user.password_reset_completed', user.id, {
+      email: user.email,
+    });
+    await this.systemLog.info('user.password_reset_completed', {
+      email: user.email,
+    });
+
+    return { ok: true };
   }
 
   async verifyEmail(token: string) {
-    throw new BadRequestException(
-      'La verificación de email es manejada por Supabase Auth.',
+    const record = await this.findValidToken(
+      token,
+      UserTokenType.EMAIL_VERIFICATION,
     );
+    const user = await this.users.findOne(record.userId);
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    await this.users.update(user.id, {
+      verified: true,
+      status: UserStatus.VERIFIED,
+    } as any);
+
+    record.usedAt = new Date();
+    await this.tokens.save(record);
+
+    await this.audit.log('user.email_verified', user.id, { email: user.email });
+    await this.systemLog.info('user.email_verified', { email: user.email });
+
+    const { token: accessToken } = await this.issueJwt({
+      ...user,
+      verified: true,
+      status: UserStatus.VERIFIED,
+    } as User);
+    return { ok: true, access_token: accessToken, user };
   }
 
   async resendVerificationByEmail(email: string) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-    if (!supabaseUrl || !serviceKey) {
-      throw new BadRequestException('Configuración Supabase incompleta');
+    const normalized = email.toLowerCase().trim();
+    const user = await this.users.findByEmail(normalized);
+    if (!user) return { sent: true };
+    if (user.verified && user.status === UserStatus.VERIFIED) {
+      return { sent: true };
     }
-    const supabase = createClient(supabaseUrl, serviceKey);
-    let sentByResend = false;
-    try {
-      const genMagic = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: {
-          redirectTo: `${process.env.WEB_URL || 'http://localhost:3000'}/auth/login`,
-        },
-      });
-      const magicUrl = genMagic?.data?.properties?.action_link;
-      if (magicUrl) {
-        await this.mail.sendVerification({
-          to: email,
-          fullName: genMagic.data?.user?.user_metadata?.fullName || 'Usuario',
-          url: magicUrl,
-        });
-        sentByResend = true;
-      }
-    } catch {}
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-      });
-      if (error) {
-        // No interrumpir si Supabase no puede enviar; ya enviamos con Resend
-      }
-    } catch {}
-    return { sent: sentByResend };
+
+    const token = await this.createUserToken(
+      user,
+      UserTokenType.EMAIL_VERIFICATION,
+      24 * 60 * 60,
+    );
+    const url = `${this.webUrl}/auth/verify?token=${encodeURIComponent(token)}`;
+    await this.mail.sendVerification({
+      to: user.email,
+      fullName: user.fullName || 'Usuario',
+      url,
+    });
+    return { sent: true };
+  }
+
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async createUserToken(
+    user: User,
+    type: UserTokenType,
+    ttlSeconds: number,
+  ) {
+    const raw = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(raw);
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    const record = this.tokens.create({
+      userId: user.id,
+      type,
+      tokenHash,
+      expiresAt,
+    });
+    await this.tokens.save(record);
+    await this.redis.set(`${type}:${raw}`, String(user.id), ttlSeconds);
+    return raw;
+  }
+
+  private async findValidToken(raw: string, type: UserTokenType) {
+    const tokenHash = this.hashToken(raw);
+    const record = await this.tokens.findOne({
+      where: { tokenHash, type },
+      order: { createdAt: 'DESC' },
+    });
+    if (!record || record.usedAt) {
+      throw new BadRequestException('Token inválido o usado');
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('Token expirado');
+    }
+    return record;
+  }
+
+  private async issueJwt(user: User) {
+    const jti = randomBytes(12).toString('hex');
+    const token = await this.jwt.signAsync({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
+      jti,
+    });
+    const ttl = Number(process.env.JWT_EXPIRES_IN ?? 604800);
+    await this.redis.set(`session:${jti}`, String(user.id), ttl);
+    await this.redis.sadd(`user_sessions:${user.id}`, jti);
+    return { token, jti };
+  }
+
+  private async invalidateSessions(userId: number) {
+    const sessionKey = `user_sessions:${userId}`;
+    const sessions = await this.redis.smembers(sessionKey);
+    for (const jti of sessions) {
+      await this.redis.del(`session:${jti}`);
+    }
+    await this.redis.del(sessionKey);
   }
 }

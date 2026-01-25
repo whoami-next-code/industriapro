@@ -27,6 +27,7 @@ function VerifyComponent() {
       .then((data) => {
         if (data.access_token) {
           localStorage.setItem('token', data.access_token);
+          document.cookie = `auth_token=${data.access_token}; path=/; max-age=604800`;
           if (data.user) {
             localStorage.setItem('user', JSON.stringify(data.user));
           }

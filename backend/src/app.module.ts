@@ -24,6 +24,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { MailModule } from './mail/mail.module';
 import { AiModule } from './ai/ai.module';
 import { EventsModule } from './events/events.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -73,7 +74,7 @@ import { EventsModule } from './events/events.module';
             type: 'better-sqlite3' as const,
             database: sqlitePath,
             autoLoadEntities: true,
-            synchronize: true,
+            synchronize: !isProd,
           };
         }
 
@@ -136,7 +137,7 @@ import { EventsModule } from './events/events.module';
               password: password,
               database: url.pathname.slice(1) || 'postgres',
               autoLoadEntities: true,
-              synchronize: true,
+              synchronize: !isProd,
               ssl:
                 url.searchParams.get('sslmode') === 'require' ||
                 url.searchParams.get('sslmode') === 'prefer' ||
@@ -199,7 +200,7 @@ import { EventsModule } from './events/events.module';
           password: pass,
           database: dbName,
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: !isProd,
           ssl:
             (process.env.DB_SSL ?? 'true') === 'true'
               ? { rejectUnauthorized: false }
@@ -228,6 +229,7 @@ import { EventsModule } from './events/events.module';
     RealtimeModule,
     MailModule,
     EventsModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

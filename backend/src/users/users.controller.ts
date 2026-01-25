@@ -6,6 +6,7 @@ import {
   Param,
   Delete,
   Put,
+  Req,
   UseGuards,
   Query,
   ForbiddenException,
@@ -24,7 +25,7 @@ export class UsersController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPERADMIN')
   create(
     @Body()
     body: {
@@ -41,7 +42,7 @@ export class UsersController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPERADMIN')
   findAll(@Query('role') role?: string, @Query('verified') verified?: string) {
     const v =
       typeof verified === 'string' ? /^(1|true)$/i.test(verified) : undefined;
@@ -62,28 +63,36 @@ export class UsersController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPERADMIN')
   findOne(@Param('id') id: string) {
     return this.service.findOne(Number(id));
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  update(@Param('id') id: string, @Body() body: any) {
+  @Roles('ADMIN', 'SUPERADMIN')
+  update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    const requesterRole = req.user?.role;
+    const targetRole = body?.role;
+    if (
+      (targetRole === UserRole.ADMIN || targetRole === UserRole.SUPERADMIN) &&
+      requesterRole !== UserRole.SUPERADMIN
+    ) {
+      throw new ForbiddenException('Solo SUPERADMIN puede asignar roles elevados');
+    }
     return this.service.update(Number(id), body);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPERADMIN')
   remove(@Param('id') id: string) {
     return this.service.remove(Number(id));
   }
 
   @Post('cleanup-unverified')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPERADMIN')
   async cleanupUnverified(@Query('days') days: string) {
     const d = days
       ? Number(days)

@@ -87,7 +87,7 @@ export default function Home2Header() {
                 <Link href="/perfil" className="flex items-center space-x-2 p-2 text-gray-700 hover:text-orange-500">
                   <User className="w-6 h-6" />
                   <span className="hidden sm:block text-sm font-medium">
-                    {user.user_metadata?.name || user.email?.split('@')[0]}
+                    {user.email?.split('@')[0]}
                   </span>
                 </Link>
                 <button

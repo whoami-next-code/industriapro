@@ -12,6 +12,7 @@ type User = {
   role: string;
   fullName?: string;
   verified: boolean;
+  status?: string;
   active: boolean;
   mustChangePassword?: boolean;
 };
@@ -27,6 +28,7 @@ export default function AdminUsuarios() {
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profileRole, setProfileRole] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -41,6 +43,9 @@ export default function AdminUsuarios() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) { setLoading(false); return; }
     setError(null);
+    apiFetch<{ role: string }>('/auth/profile')
+      .then((p) => setProfileRole(p.role))
+      .catch(() => setProfileRole(null));
     apiFetch<User[]>('/users')
       .then(setItems)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error cargando usuarios'))
@@ -62,6 +67,18 @@ export default function AdminUsuarios() {
       setItems(prev => prev.map(u => u.id === id ? { ...u, active: updated.active } : u));
     } catch {
       alert('No se pudo actualizar el estado');
+    }
+  }
+
+  async function changeStatus(id: number, status: string) {
+    try {
+      const updated = await apiFetch<{ status: string }>(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      });
+      setItems(prev => prev.map(u => u.id === id ? { ...u, status: updated.status } : u));
+    } catch {
+      alert('No se pudo actualizar el estado de cuenta');
     }
   }
 
@@ -138,7 +155,8 @@ export default function AdminUsuarios() {
                 value={form.role}
                 onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))}
               >
-                <option value="ADMIN">ADMIN</option>
+                {profileRole === 'SUPERADMIN' && <option value="SUPERADMIN">SUPERADMIN</option>}
+                {profileRole === 'SUPERADMIN' && <option value="ADMIN">ADMIN</option>}
                 <option value="VENDEDOR">VENDEDOR</option>
                 <option value="TECNICO">TECNICO</option>
                 <option value="OPERARIO">OPERARIO</option>
@@ -181,17 +199,18 @@ export default function AdminUsuarios() {
                   <Th>Nombre</Th>
                   <Th>Email</Th>
                   <Th>Estado</Th>
+                  <Th>Cuenta</Th>
                   <Th>Rol</Th>
                   <Th>Acciones</Th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><Td className="p-3" colSpan={6}>Cargando...</Td></tr>
+                  <tr><Td className="p-3" colSpan={7}>Cargando...</Td></tr>
                 ) : error ? (
-                  <tr><Td className="p-3 text-red-600" colSpan={6}>{error}</Td></tr>
+                  <tr><Td className="p-3 text-red-600" colSpan={7}>{error}</Td></tr>
                 ) : items.length === 0 ? (
-                  <tr><Td className="p-3" colSpan={6}>No hay usuarios</Td></tr>
+                  <tr><Td className="p-3" colSpan={7}>No hay usuarios</Td></tr>
                 ) : items.map(u => (
                   <tr key={u.id}>
                     <Td>{u.id}</Td>
@@ -210,6 +229,17 @@ export default function AdminUsuarios() {
                         ) : null}
                       </div>
                     </Td>
+                    <Td>
+                      <select
+                        className="sp-select text-sm"
+                        value={u.status || (u.verified ? 'VERIFIED' : 'PENDING')}
+                        onChange={(e) => changeStatus(u.id, e.target.value)}
+                      >
+                        <option value="PENDING">PENDIENTE</option>
+                        <option value="VERIFIED">VERIFICADO</option>
+                        <option value="SUSPENDED">SUSPENDIDO</option>
+                      </select>
+                    </Td>
                     <Td>{u.role}</Td>
                     <Td>
                       <div className="flex items-center gap-2">
@@ -218,7 +248,8 @@ export default function AdminUsuarios() {
                           value={u.role} 
                           onChange={(e) => changeRole(u.id, e.target.value)}
                         >
-                          <option value="ADMIN">ADMIN</option>
+                          {profileRole === 'SUPERADMIN' && <option value="SUPERADMIN">SUPERADMIN</option>}
+                          {profileRole === 'SUPERADMIN' && <option value="ADMIN">ADMIN</option>}
                           <option value="VENDEDOR">VENDEDOR</option>
                           <option value="TECNICO">TECNICO</option>
                           <option value="OPERARIO">OPERARIO</option>

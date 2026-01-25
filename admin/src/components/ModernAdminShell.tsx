@@ -18,6 +18,7 @@ import {
   ShoppingCartIcon,
   EnvelopeIcon,
   ChartPieIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 
 // Evitar hidratación inconsistente en HeadlessUI cuando se renderiza en SSR
@@ -41,6 +42,8 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/usuarios", label: "Usuarios", icon: UsersIcon },
       { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
+      { href: "/auditoria", label: "Auditoría", icon: ShieldCheckIcon },
+      { href: "/system-logs", label: "Logs", icon: DocumentTextIcon },
     ],
   },
   {

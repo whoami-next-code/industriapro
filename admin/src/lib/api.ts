@@ -56,6 +56,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
       if (res.status === 401) {
         if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/login')) {
           localStorage.removeItem('token');
+          document.cookie = 'auth_token=; path=/; max-age=0';
           window.location.href = '/auth/login';
         }
         // No loguear error en consola para 401, es flujo esperado

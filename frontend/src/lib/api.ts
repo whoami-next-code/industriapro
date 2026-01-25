@@ -85,6 +85,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
         ) {
           localStorage.removeItem('token');
           sessionStorage.removeItem('token');
+          document.cookie = 'auth_token=; path=/; max-age=0';
           window.location.href = '/auth/login';
         }
         throw new Error('Sesión expirada o credenciales inválidas');

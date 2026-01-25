@@ -22,6 +22,7 @@ export default function AdminLogin() {
         })
       });
       localStorage.setItem('token', data.access_token);
+      document.cookie = `auth_token=${data.access_token}; path=/; max-age=604800`;
       window.dispatchEvent(new Event('auth-token-changed'));
       router.push('/');
     } catch (err: unknown) {

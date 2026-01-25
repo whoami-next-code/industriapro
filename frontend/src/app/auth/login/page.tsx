@@ -32,10 +32,13 @@ function LoginComponent() {
         router.push(next);
       }, 1500);
     } catch (error: any) {
-      if (error.message.includes('Email not confirmed')) {
-        setError('Tu correo no ha sido verificado. Por favor revisa tu bandeja de entrada o spam.');
-      } else if (error.message.includes('Invalid login credentials') || error.message.includes('invalid') || error.message.includes('credentials')) {
-        setError('Credenciales inválidas. Si acabas de verificar tu correo, es posible que necesites establecer tu contraseña. Usa "¿Olvidaste tu contraseña?" para crear una nueva.');
+      const msg = String(error?.message || '');
+      if (msg.toLowerCase().includes('no verificado')) {
+        setError('Tu correo no ha sido verificado. Revisa tu bandeja de entrada o solicita un nuevo enlace.');
+      } else if (msg.toLowerCase().includes('inactivo') || msg.toLowerCase().includes('suspendido')) {
+        setError('Tu cuenta está suspendida. Contacta al soporte.');
+      } else if (msg.toLowerCase().includes('credenciales')) {
+        setError('Credenciales inválidas.');
       } else {
         setError(error.message || 'Error al iniciar sesión');
       }

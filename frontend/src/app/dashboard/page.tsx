@@ -150,7 +150,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {user.user_metadata?.name || user.email}
+                      {user.email}
                     </p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Bienvenido, {user.user_metadata?.name || 'Cliente'}
+            Bienvenido, {user.email || 'Cliente'}
           </h2>
           <p className="text-gray-600">
             Aquí puedes gestionar tus proyectos, ver cotizaciones y mantenerte informado sobre nuestros servicios.

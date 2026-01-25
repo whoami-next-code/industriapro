@@ -5,11 +5,14 @@ import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
-import { SupabaseAuthGuard } from './supabase-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { MailModule } from '../mail/mail.module';
 import { AuditModule } from '../audit/audit.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { UserToken } from './user-token.entity';
+import { RedisModule } from '../redis/redis.module';
+import { SystemLogModule } from '../system-log/system-log.module';
 
 @Module({
   imports: [
@@ -17,7 +20,12 @@ import { ThrottlerModule } from '@nestjs/throttler';
     PassportModule,
     JwtModule.registerAsync({
       useFactory: () => ({
-        secret: process.env.JWT_SECRET ?? 'supersecret_industriassp',
+        secret: (() => {
+          if (!process.env.JWT_SECRET) {
+            throw new Error('JWT_SECRET requerido');
+          }
+          return process.env.JWT_SECRET;
+        })(),
         // usar segundos para cumplir con el tipo de Nest JWT (number)
         signOptions: {
           expiresIn: Number(process.env.JWT_EXPIRES_IN ?? 604800),
@@ -26,6 +34,9 @@ import { ThrottlerModule } from '@nestjs/throttler';
     }),
     MailModule,
     AuditModule,
+    SystemLogModule,
+    RedisModule,
+    TypeOrmModule.forFeature([UserToken]),
     ThrottlerModule.forRoot([
       {
         ttl: 60,
@@ -33,8 +44,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
       },
     ]),
   ],
-  providers: [AuthService, JwtStrategy, SupabaseAuthGuard, JwtAuthGuard],
-  exports: [AuthService, SupabaseAuthGuard, JwtAuthGuard, UsersModule],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  exports: [AuthService, JwtAuthGuard, UsersModule],
   controllers: [AuthController],
 })
 export class AuthModule {}

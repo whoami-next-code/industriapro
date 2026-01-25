@@ -30,6 +30,6 @@ import { AuditModule } from '../audit/audit.module';
     EventsPublisher,
     EventsConsumer,
   ],
-  exports: [EventsPublisher], // Exportar para que otros módulos puedan publicar eventos
+  exports: [EventsPublisher, RabbitMQService], // Exportar para salud y publicación de eventos
 })
 export class EventsModule {}

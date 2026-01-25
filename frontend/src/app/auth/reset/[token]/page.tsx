@@ -23,6 +23,11 @@ export default function ResetPasswordTokenPage() {
       setLoading(false);
       return;
     }
+    if (pw.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      setLoading(false);
+      return;
+    }
     try {
       await apiFetch('/api/auth/reset-password', {
         method: 'POST',
