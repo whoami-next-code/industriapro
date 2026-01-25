@@ -16,6 +16,8 @@ export class AppService implements OnApplicationBootstrap {
     // Seed admin user if it does not exist
     const email = process.env.ADMIN_EMAIL ?? 'admin@industriasp.local';
     const password = process.env.ADMIN_PASSWORD ?? 'admin123';
+    const forceReset =
+      (process.env.ADMIN_FORCE_PASSWORD_RESET ?? '').toLowerCase() === 'true';
     const existing = await this.users.findByEmail(email);
     if (!existing) {
       await this.users.create({
@@ -29,12 +31,17 @@ export class AppService implements OnApplicationBootstrap {
       });
       this.logger.log(`Usuario admin creado: ${email}`);
     } else {
-      if (!existing.verified || existing.status !== 'VERIFIED') {
+      const needsVerify = !existing.verified || existing.status !== 'VERIFIED';
+      if (needsVerify || forceReset) {
         await this.users.update(existing.id, {
+          password: forceReset ? password : undefined,
           verified: true,
           status: 'VERIFIED' as any,
           active: true,
         } as any);
+        this.logger.log(
+          `Usuario admin actualizado: ${email} (forceReset=${forceReset})`,
+        );
       }
       this.logger.log(`Usuario admin existente: ${email}`);
     }
