@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState, memo } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiFetchAuth } from "@/lib/api";
 
 type QuoteItem = { productId: number; quantity: number };
 type Quote = {
@@ -105,7 +105,7 @@ function printQuote(q: Quote, products: Product[]) {
 }
 
 export interface QuotesViewProps {
-  email?: string; // correo para filtrar; si se omite o es inválido, no se muestran datos
+  email?: string;
   pageSize?: number;
 }
 
@@ -118,21 +118,27 @@ function QuotesViewBase({ email, pageSize = 20 }: QuotesViewProps) {
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const [page, setPage] = useState<number>(1);
 
-  const validEmail = !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
   useEffect(() => {
     async function load() {
       setLoading(true);
       setError(null);
       try {
+        const quotesEndpoint = "/api/cotizaciones/mias";
         const [allQuotes, prods] = await Promise.all([
-          apiFetch('/api/cotizaciones'),
+          apiFetchAuth(quotesEndpoint),
           apiFetch('/api/productos'),
         ]);
         setProducts(Array.isArray(prods) ? prods : []);
         const list = Array.isArray(allQuotes) ? allQuotes : [];
-        const filtered = validEmail
-          ? list.filter((q: Quote) => q.customerEmail?.toLowerCase() === (email as string).toLowerCase())
+        const normalizedEmail =
+          email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+            ? email.toLowerCase()
+            : null;
+        const filtered = normalizedEmail
+          ? list.filter(
+              (q: Quote) =>
+                q.customerEmail?.toLowerCase() === normalizedEmail,
+            )
           : list;
         setQuotes(filtered);
         setPage(1);
@@ -144,7 +150,7 @@ function QuotesViewBase({ email, pageSize = 20 }: QuotesViewProps) {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, validEmail]);
+  }, [email]);
 
   const pricesById = useMemo(() => {
     const map: Record<number, number> = {};
@@ -188,7 +194,6 @@ function QuotesViewBase({ email, pageSize = 20 }: QuotesViewProps) {
 
   return (
     <div>
-      {/* Mostrar todas las cotizaciones si no hay email válido; por eso no bloqueamos la vista */}
       {loading && <p>Cargando cotizaciones...</p>}
       {error && (
         <div role="alert" className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded">
@@ -196,7 +201,7 @@ function QuotesViewBase({ email, pageSize = 20 }: QuotesViewProps) {
         </div>
       )}
 
-      {!loading && !error && quotes.length === 0 && validEmail && (
+      {!loading && !error && quotes.length === 0 && (
         <div className="text-zinc-600 mb-6">No hay cotizaciones disponibles.</div>
       )}
 

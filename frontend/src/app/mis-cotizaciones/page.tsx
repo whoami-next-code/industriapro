@@ -1,7 +1,6 @@
 "use client";
 import { Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import QuotesView from "@/components/QuotesView";
 
 export default function MisCotizacionesPage() {
@@ -19,7 +18,5 @@ export default function MisCotizacionesPage() {
 }
 
 function MisCotizacionesContent() {
-  const searchParams = useSearchParams();
-  const emailParam = searchParams?.get("email") || undefined;
-  return <QuotesView email={emailParam} />;
+  return <QuotesView />;
 }
