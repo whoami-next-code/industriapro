@@ -23,9 +23,19 @@ export class AppService implements OnApplicationBootstrap {
         password,
         role: UserRole.ADMIN,
         fullName: 'Administrador',
+        verified: true,
+        status: 'VERIFIED' as any,
+        active: true,
       });
       this.logger.log(`Usuario admin creado: ${email}`);
     } else {
+      if (!existing.verified || existing.status !== 'VERIFIED') {
+        await this.users.update(existing.id, {
+          verified: true,
+          status: 'VERIFIED' as any,
+          active: true,
+        } as any);
+      }
       this.logger.log(`Usuario admin existente: ${email}`);
     }
   }

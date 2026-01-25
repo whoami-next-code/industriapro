@@ -170,7 +170,12 @@ export class AuthService {
     if (!user.active || user.status === UserStatus.SUSPENDED) {
       throw new UnauthorizedException('Usuario inactivo');
     }
-    if (!user.verified || (user.status && user.status !== UserStatus.VERIFIED)) {
+    const skipVerification =
+      (process.env.AUTH_SKIP_EMAIL_VERIFICATION ?? '').toLowerCase() === 'true';
+    if (
+      !skipVerification &&
+      (!user.verified || (user.status && user.status !== UserStatus.VERIFIED))
+    ) {
       throw new UnauthorizedException('Correo no verificado');
     }
     if (!user.passwordHash) {
