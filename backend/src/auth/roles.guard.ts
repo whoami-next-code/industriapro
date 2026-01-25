@@ -12,8 +12,11 @@ export class RolesGuard implements CanActivate {
     }
     const request = context.switchToHttp().getRequest();
     const user = request.user;
+    const authHeader =
+      request?.headers?.authorization || request?.headers?.Authorization;
     if (!user || !user.role) {
-      return false;
+      // Si hay Authorization, dejar pasar para que JwtAuthGuard valide primero.
+      return Boolean(authHeader);
     }
     const email = String(user.email || '').toLowerCase().trim();
     if (email) {
