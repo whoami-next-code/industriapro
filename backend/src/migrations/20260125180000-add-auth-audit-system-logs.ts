@@ -19,15 +19,15 @@ export class AddAuthAuditSystemLogs20260125180000
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "user_tokens" (
         "id" SERIAL PRIMARY KEY,
-        "userId" integer NOT NULL,
+        "user_id" integer NOT NULL,
         "type" varchar NOT NULL,
-        "tokenHash" varchar NOT NULL,
-        "expiresAt" timestamp NOT NULL,
-        "usedAt" timestamp NULL,
+        "token_hash" varchar NOT NULL,
+        "expires_at" timestamp NOT NULL,
+        "used_at" timestamp NULL,
         "ip" varchar NULL,
-        "userAgent" varchar NULL,
+        "user_agent" varchar NULL,
         "meta" json NULL,
-        "createdAt" timestamp NOT NULL DEFAULT now()
+        "created_at" timestamp NOT NULL DEFAULT now()
       )
     `);
     await queryRunner.query(`
@@ -35,16 +35,22 @@ export class AddAuthAuditSystemLogs20260125180000
       BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_tokens' AND column_name = 'userId'
+          WHERE table_name = 'user_tokens' AND column_name = 'user_id'
         ) THEN
-          ALTER TABLE "user_tokens" ADD COLUMN "userId" integer;
+          ALTER TABLE "user_tokens" ADD COLUMN "user_id" integer;
           IF EXISTS (
             SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'user_tokens' AND column_name = 'user_id'
+            WHERE table_name = 'user_tokens' AND column_name = 'userId'
           ) THEN
-            EXECUTE 'UPDATE "user_tokens" SET "userId" = "user_id" WHERE "userId" IS NULL';
+            EXECUTE 'UPDATE "user_tokens" SET "user_id" = "userId" WHERE "user_id" IS NULL';
           END IF;
-          ALTER TABLE "user_tokens" ALTER COLUMN "userId" SET NOT NULL;
+        END IF;
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'user_tokens' AND column_name = 'user_id'
+            AND is_nullable = 'NO'
+        ) THEN
+          ALTER TABLE "user_tokens" ALTER COLUMN "user_id" SET NOT NULL;
         END IF;
       END $$;
     `);
@@ -56,7 +62,7 @@ export class AddAuthAuditSystemLogs20260125180000
         ) THEN
           ALTER TABLE "user_tokens"
           ADD CONSTRAINT "fk_user_tokens_user"
-          FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE;
+          FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE;
         END IF;
       END $$;
     `);
@@ -65,9 +71,15 @@ export class AddAuthAuditSystemLogs20260125180000
       BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_tokens' AND column_name = 'tokenHash'
+          WHERE table_name = 'user_tokens' AND column_name = 'token_hash'
         ) THEN
-          ALTER TABLE "user_tokens" ADD COLUMN "tokenHash" varchar;
+          ALTER TABLE "user_tokens" ADD COLUMN "token_hash" varchar;
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'user_tokens' AND column_name = 'tokenHash'
+          ) THEN
+            EXECUTE 'UPDATE "user_tokens" SET "token_hash" = "tokenHash" WHERE "token_hash" IS NULL';
+          END IF;
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
@@ -77,15 +89,27 @@ export class AddAuthAuditSystemLogs20260125180000
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_tokens' AND column_name = 'expiresAt'
+          WHERE table_name = 'user_tokens' AND column_name = 'expires_at'
         ) THEN
-          ALTER TABLE "user_tokens" ADD COLUMN "expiresAt" timestamp;
+          ALTER TABLE "user_tokens" ADD COLUMN "expires_at" timestamp;
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'user_tokens' AND column_name = 'expiresAt'
+          ) THEN
+            EXECUTE 'UPDATE "user_tokens" SET "expires_at" = "expiresAt" WHERE "expires_at" IS NULL';
+          END IF;
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_tokens' AND column_name = 'usedAt'
+          WHERE table_name = 'user_tokens' AND column_name = 'used_at'
         ) THEN
-          ALTER TABLE "user_tokens" ADD COLUMN "usedAt" timestamp NULL;
+          ALTER TABLE "user_tokens" ADD COLUMN "used_at" timestamp NULL;
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'user_tokens' AND column_name = 'usedAt'
+          ) THEN
+            EXECUTE 'UPDATE "user_tokens" SET "used_at" = "usedAt" WHERE "used_at" IS NULL';
+          END IF;
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
@@ -95,9 +119,15 @@ export class AddAuthAuditSystemLogs20260125180000
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_tokens' AND column_name = 'userAgent'
+          WHERE table_name = 'user_tokens' AND column_name = 'user_agent'
         ) THEN
-          ALTER TABLE "user_tokens" ADD COLUMN "userAgent" varchar NULL;
+          ALTER TABLE "user_tokens" ADD COLUMN "user_agent" varchar NULL;
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'user_tokens' AND column_name = 'userAgent'
+          ) THEN
+            EXECUTE 'UPDATE "user_tokens" SET "user_agent" = "userAgent" WHERE "user_agent" IS NULL';
+          END IF;
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
@@ -107,14 +137,20 @@ export class AddAuthAuditSystemLogs20260125180000
         END IF;
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_tokens' AND column_name = 'createdAt'
+          WHERE table_name = 'user_tokens' AND column_name = 'created_at'
         ) THEN
-          ALTER TABLE "user_tokens" ADD COLUMN "createdAt" timestamp NOT NULL DEFAULT now();
+          ALTER TABLE "user_tokens" ADD COLUMN "created_at" timestamp NOT NULL DEFAULT now();
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'user_tokens' AND column_name = 'createdAt'
+          ) THEN
+            EXECUTE 'UPDATE "user_tokens" SET "created_at" = "createdAt" WHERE "created_at" IS NULL';
+          END IF;
         END IF;
       END $$;
     `);
     await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "idx_user_tokens_hash_type" ON "user_tokens" ("tokenHash", "type")`,
+      `CREATE INDEX IF NOT EXISTS "idx_user_tokens_hash_type" ON "user_tokens" ("token_hash", "type")`,
     );
 
     await queryRunner.query(`
