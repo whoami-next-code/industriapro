@@ -56,7 +56,7 @@ export class User {
   @Column({ type: 'varchar', default: UserStatus.PENDING })
   status: UserStatus;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'token_version', type: 'int', default: 0 })
   tokenVersion: number;
 
   @Column({ type: 'boolean', default: true })
