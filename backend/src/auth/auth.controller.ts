@@ -235,12 +235,27 @@ export class AuthController {
 
   // Desarrollo: restablecer contraseña del admin según ADMIN_PASSWORD
   @Post('dev-reset-admin')
-  async devResetAdmin() {
+  async devResetAdmin(@Headers('x-admin-reset-secret') secret?: string) {
+    const isProd = (process.env.NODE_ENV ?? '').toLowerCase() === 'production';
+    const expected = process.env.ADMIN_RESET_SECRET ?? '';
+    if (isProd) {
+      if (!expected || secret !== expected) {
+        throw new ForbiddenException('No autorizado');
+      }
+    }
+
     const email = process.env.ADMIN_EMAIL ?? 'admin@industriasp.local';
     const password = process.env.ADMIN_PASSWORD ?? 'admin123';
     const existing = await this.users.findByEmail(email);
     if (!existing) return { reset: false, error: 'admin_not_found', email };
-    await this.users.update(existing.id, { password } as any);
+
+    await this.users.update(existing.id, {
+      password,
+      verified: true,
+      status: UserStatus.VERIFIED,
+      active: true,
+      mustChangePassword: false,
+    } as any);
     return { reset: true, email };
   }
 }
