@@ -42,11 +42,27 @@ async function bootstrap() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+  const derivedOrigins = [
+    process.env.WEB_URL,
+    process.env.NEXT_PUBLIC_WEB_URL,
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+    process.env.ADMIN_URL,
+    process.env.NEXT_PUBLIC_ADMIN_URL,
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean) as string[];
+  const allowedOrigins = Array.from(
+    new Set([...corsOriginsEnv, ...derivedOrigins]),
+  );
 
   const isProd = (process.env.NODE_ENV ?? '').toLowerCase() === 'production';
 
   console.log('[CORS] Environment:', process.env.NODE_ENV);
-  console.log('[CORS] Allowed Origins:', corsOriginsEnv.length ? corsOriginsEnv : 'NONE');
+  console.log(
+    '[CORS] Allowed Origins:',
+    allowedOrigins.length ? allowedOrigins : 'NONE',
+  );
 
   app.enableCors({
     origin: (
@@ -57,10 +73,10 @@ async function bootstrap() {
       if (!origin) return cb(null, true);
 
       // Permitir wildcard
-      if (corsOriginsEnv.includes('*')) return cb(null, true);
+      if (allowedOrigins.includes('*')) return cb(null, true);
 
       // Permitir si está en la lista
-      if (corsOriginsEnv.includes(origin)) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
 
       try {
         const hostname = new URL(origin).hostname;
