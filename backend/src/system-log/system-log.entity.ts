@@ -19,6 +19,6 @@ export class SystemLog {
   @Column({ type: 'json', nullable: true })
   context?: Record<string, any>;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }
