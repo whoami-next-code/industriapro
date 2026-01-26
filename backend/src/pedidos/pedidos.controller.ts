@@ -213,6 +213,25 @@ export class PedidosController {
       ? await this.comprobantes.generateFacturaNubefact(baseDocPayload)
       : null;
 
+    if (documentType === 'DNI' && !boletaResult?.ok) {
+      throw new HttpException(
+        {
+          ok: false,
+          error: boletaResult?.error ?? 'No se pudo generar la boleta en Nubefact',
+        },
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+    if (documentType === 'RUC' && !facturaResult?.ok) {
+      throw new HttpException(
+        {
+          ok: false,
+          error: facturaResult?.error ?? 'No se pudo generar la factura en Nubefact',
+        },
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
     const comprobante = documentType === 'DNI' && boletaResult?.ok
       ? this.comprobantes.normalizeNubefactForEmail(
           boletaResult.data,
