@@ -88,6 +88,7 @@ const renderComprobante = (doc: any, title: string) => {
     paymentInfo: { ...defaultComprobante.paymentInfo, ...(doc?.paymentInfo || {}) },
     totals: { ...defaultComprobante.totals, ...(doc?.totals || {}) },
   };
+  const pdfUrl = data.pdfUrl || data.enlace_pdf || data.raw?.enlace_pdf;
   const items = Array.isArray(data.items) ? data.items : [];
 
   return (
@@ -96,7 +97,9 @@ const renderComprobante = (doc: any, title: string) => {
         <div>
           <div className="text-xs uppercase tracking-widest text-gray-400">Comprobante electrónico</div>
           <h4 className="text-lg font-semibold text-gray-900">{title}</h4>
-          <p className="text-xs text-gray-500">Documento generado automáticamente</p>
+          <p className="text-xs text-gray-500">
+            {data.source === 'NUBEFACT' ? 'Documento Nubefact' : 'Documento generado automáticamente'}
+          </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-right text-xs text-gray-600">
           <div className="font-semibold text-gray-900">N° {data.id || "—"}</div>
@@ -171,6 +174,13 @@ const renderComprobante = (doc: any, title: string) => {
           {data.hash && (
             <div className="mt-3 text-[11px] text-gray-500">
               Hash: <span className="font-mono">{data.hash}</span>
+            </div>
+          )}
+          {pdfUrl && (
+            <div className="mt-3 text-xs">
+              <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline text-blue-700">
+                Ver PDF Nubefact
+              </a>
             </div>
           )}
         </div>

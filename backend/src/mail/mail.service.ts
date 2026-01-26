@@ -717,7 +717,8 @@ export class MailService {
     documentType: 'BOLETA' | 'FACTURA';
   }) {
     const docType = params.documentType === 'FACTURA' ? 'Factura Electrónica' : 'Boleta de Venta';
-    const docId = params.comprobante?.id || params.comprobante?.numero || params.orderNumber;
+    const docId =
+      params.comprobante?.id || params.comprobante?.numero || params.orderNumber;
     
     const itemsHtml = (params.comprobante?.items || []).map((item: any) => `
       <tr>
@@ -739,6 +740,11 @@ export class MailService {
         <p style="margin:8px 0;"><strong>Fecha:</strong> ${new Date(params.comprobante?.issueDate || Date.now()).toLocaleDateString('es-PE')}</p>
         <p style="margin:8px 0;"><strong>Total:</strong> S/ ${(params.comprobante?.totals?.total || params.comprobante?.total || 0).toFixed(2)}</p>
       </div>
+      ${
+        params.comprobante?.pdfUrl
+          ? `<p><a href="${params.comprobante.pdfUrl}" target="_blank">Ver PDF Nubefact</a></p>`
+          : ''
+      }
 
       <h4 style="margin-top:24px;color:#1e293b;">Items:</h4>
       <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0;">

@@ -250,8 +250,12 @@ export class ComprobantesService {
     return {
       id,
       type: documentType,
+      source: 'NUBEFACT',
       orderNumber: orderData.orderNumber,
       issueDate,
+      pdfUrl: nubefactData?.enlace_pdf,
+      xmlUrl: nubefactData?.enlace_xml,
+      cdrUrl: nubefactData?.enlace_cdr,
       customerInfo: {
         name: orderData.customerName,
         document: orderData.customerDni,
@@ -279,6 +283,7 @@ export class ComprobantesService {
         status: orderData.paymentStatus,
       },
       hash: nubefactData?.hash ?? '',
+      raw: nubefactData,
     };
   }
 
