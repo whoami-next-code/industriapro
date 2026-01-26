@@ -27,7 +27,6 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { PedidosService } from './pedidos.service';
 import { EventsService } from '../realtime/events.service';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -45,7 +44,7 @@ export class PedidosController {
   ) {}
 
   @Post()
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   create(@Req() req: any, @Body() body: any) {
     // Asegurar que el pedido se asocie al usuario autenticado
     const userId = req.user?.userId;
@@ -86,20 +85,20 @@ export class PedidosController {
 
   // Pedidos del usuario autenticado
   @Get('mios')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   findMine(@Req() req: any) {
     const userId = req.user?.userId;
     return this.service.findByUserId(Number(userId));
   }
 
   @Get(':id')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string) {
     return this.service.findOne(Number(id));
   }
 
   @Put(':id')
-  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'VENDEDOR')
   update(@Param('id') id: string, @Body() body: any) {
     return this.service.update(Number(id), body).then((order) => {
@@ -109,7 +108,7 @@ export class PedidosController {
   }
 
   @Delete(':id')
-  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   remove(@Param('id') id: string) {
     return this.service.remove(Number(id)).then(() => {
@@ -207,17 +206,40 @@ export class PedidosController {
       notes: 'Pago ficticio',
     };
 
+    const boletaResult = documentType === 'DNI'
+      ? await this.comprobantes.generateBoletaNubefact(baseDocPayload)
+      : null;
+    const facturaResult = documentType === 'RUC'
+      ? await this.comprobantes.generateFacturaNubefact(baseDocPayload)
+      : null;
+
     const comprobante = documentType === 'DNI'
-      ? await this.comprobantes.generateComprobante(baseDocPayload)
+      ? (boletaResult?.ok
+          ? this.comprobantes.normalizeNubefactForEmail(
+              boletaResult.data,
+              baseDocPayload,
+              'BOLETA',
+            )
+          : await this.comprobantes.generateComprobante(baseDocPayload))
       : null;
 
     const factura = documentType === 'RUC'
-      ? await this.comprobantes.generateFacturaNubefact(baseDocPayload)
+      ? (facturaResult?.ok
+          ? this.comprobantes.normalizeNubefactForEmail(
+              facturaResult.data,
+              baseDocPayload,
+              'FACTURA',
+            )
+          : { ok: false, error: facturaResult?.error ?? 'Factura no generada' })
       : null;
 
     const notes = JSON.stringify({
       comprobante,
       factura,
+      nubefact: {
+        boleta: boletaResult,
+        factura: facturaResult,
+      },
       payment: { method: 'FAKE', id: paymentId },
     });
 
@@ -349,7 +371,7 @@ export class PedidosController {
   }
 
   @Post(':id/avances')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Agregar avance a un pedido' })
   @ApiResponse({ status: 201, description: 'Avance agregado exitosamente' })
   @ApiResponse({ status: 404, description: 'Pedido no encontrado' })
@@ -406,7 +428,7 @@ export class PedidosController {
   }
 
   @Post(':id/evidencias')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: diskStorage({

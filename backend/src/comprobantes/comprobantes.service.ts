@@ -138,14 +138,8 @@ export class ComprobantesService {
     return comprobante;
   }
 
-  async generateFacturaNubefact(orderData: ComprobanteData) {
-    const apiUrl = process.env.NUBEFACT_API_URL;
-    const token = process.env.NUBEFACT_TOKEN;
-    if (!apiUrl || !token) {
-      return { ok: false, error: 'NUBEFACT no configurado' };
-    }
-
-    const items = orderData.items.map((item) => {
+  private buildNubefactItems(orderData: ComprobanteData) {
+    return orderData.items.map((item) => {
       const quantity = Number(item.quantity) || 0;
       const price = Number(item.price) || 0;
       const total = price * quantity;
@@ -165,16 +159,29 @@ export class ComprobantesService {
         total: Number(total.toFixed(2)),
       };
     });
+  }
+
+  private async sendToNubefact(
+    orderData: ComprobanteData,
+    tipoComprobante: '1' | '2',
+    serie: string,
+    clienteTipoDocumento: '6' | '1',
+  ) {
+    const apiUrl = process.env.NUBEFACT_API_URL;
+    const token = process.env.NUBEFACT_TOKEN;
+    if (!apiUrl || !token) {
+      return { ok: false, error: 'NUBEFACT no configurado' };
+    }
 
     const now = new Date();
     const numberSeed = String(now.getTime()).slice(-6);
     const payload = {
       operacion: 'generar_comprobante',
-      tipo_de_comprobante: '1',
-      serie: 'F001',
+      tipo_de_comprobante: tipoComprobante,
+      serie,
       numero: Number(numberSeed),
       sunat_transaction: 1,
-      cliente_tipo_de_documento: '6',
+      cliente_tipo_de_documento: clienteTipoDocumento,
       cliente_numero_de_documento: orderData.customerDni,
       cliente_denominacion: orderData.customerName,
       cliente_direccion: orderData.shippingAddress,
@@ -187,18 +194,54 @@ export class ComprobantesService {
       total_gravada: Number(orderData.subtotal.toFixed(2)),
       total: Number(orderData.total.toFixed(2)),
       enviar_automaticamente_al_cliente: false,
-      items,
+      items: this.buildNubefactItems(orderData),
     };
 
-    const { data } = await axios.post(apiUrl.trim(), payload, {
-      headers: {
-        Authorization: `Token token=${token}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 15000,
-    });
+    try {
+      const { data } = await axios.post(apiUrl.trim(), payload, {
+        headers: {
+          Authorization: `Token token=${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 20000,
+      });
+      return { ok: true, data };
+    } catch (err: any) {
+      const message = err?.response?.data ?? err?.message ?? 'NUBEFACT error';
+      return { ok: false, error: message };
+    }
+  }
 
-    return { ok: true, data };
+  async generateFacturaNubefact(orderData: ComprobanteData) {
+    return this.sendToNubefact(orderData, '1', 'F001', '6');
+  }
+
+  async generateBoletaNubefact(orderData: ComprobanteData) {
+    return this.sendToNubefact(orderData, '2', 'B001', '1');
+  }
+
+  normalizeNubefactForEmail(
+    nubefactData: any,
+    orderData: ComprobanteData,
+    documentType: 'BOLETA' | 'FACTURA',
+  ) {
+    return {
+      id: nubefactData?.numero ?? nubefactData?.id ?? orderData.orderNumber,
+      type: documentType,
+      orderNumber: orderData.orderNumber,
+      issueDate: new Date(),
+      items: orderData.items.map((item) => ({
+        description: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        total: item.total,
+      })),
+      totals: {
+        subtotal: orderData.subtotal,
+        shipping: orderData.shipping,
+        total: orderData.total,
+      },
+    };
   }
 
   private getDocumentType(document: string): 'DNI' | 'RUC' {
