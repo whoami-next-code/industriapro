@@ -174,6 +174,9 @@ export class ComprobantesService {
     }
 
     const now = new Date();
+    const fechaEmision = now.toLocaleDateString('en-CA', {
+      timeZone: 'America/Lima',
+    });
     const numberSeed = String(now.getTime()).slice(-6);
     const numero = (Number(numberSeed) % 200) + 1;
     const items = this.buildNubefactItems(orderData);
@@ -198,7 +201,7 @@ export class ComprobantesService {
       cliente_direccion: orderData.shippingAddress,
       cliente_email: orderData.customerEmail,
       cliente_telefono: orderData.customerPhone,
-      fecha_de_emision: now.toISOString().slice(0, 10),
+      fecha_de_emision: fechaEmision,
       moneda: '1',
       porcentaje_de_igv: 18,
       total_igv: Number(totalIgv.toFixed(2)),
