@@ -77,6 +77,20 @@ export class AuthController {
     return this.auth.createUserByAdmin(body);
   }
 
+  @Post('admin/reset-password')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
+  async adminResetPassword(
+    @Req() req: any,
+    @Body() body: { email: string },
+  ) {
+    if (!body?.email) {
+      throw new BadRequestException('Email requerido');
+    }
+    return this.auth.adminResetPassword(body.email, req.user);
+  }
+
+
   @Post('login')
   login(@Body() body: { email: string; password: string }) {
     return this.auth.login(body);

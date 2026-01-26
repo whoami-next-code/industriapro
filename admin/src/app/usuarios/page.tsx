@@ -4,7 +4,8 @@ import { apiFetch } from "@/lib/api";
 import Protected from "@/lib/Protected";
 import Card from "@/components/ui/Card";
 import Table, { Th, Td } from "@/components/ui/Table";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { KeyIcon, TrashIcon } from "@heroicons/react/24/outline";
+import Modal from "@/components/modals/Modal";
 
 type User = {
   id: number;
@@ -32,6 +33,12 @@ export default function AdminUsuarios() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [form, setForm] = useState<CreateUserForm>({
     fullName: "",
     email: "",
@@ -110,14 +117,49 @@ export default function AdminUsuarios() {
     }
   }
 
-  async function deleteUser(id: number) {
-    if (!window.confirm('¿Estás seguro de eliminar este usuario? Esta acción es irreversible.')) return;
+  function openDelete(user: User) {
+    setDeleteTarget(user);
+    setShowDeleteModal(true);
+  }
+
+  async function deleteUser() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiFetch(`/users/${id}`, { method: 'DELETE' });
-      setItems(prev => prev.filter(u => u.id !== id));
+      await apiFetch(`/users/${deleteTarget.id}`, { method: "DELETE" });
+      setItems(prev => prev.filter(u => u.id !== deleteTarget.id));
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error al eliminar usuario');
+      alert(err instanceof Error ? err.message : "Error al eliminar usuario");
+    } finally {
+      setDeleting(false);
     }
+  }
+
+  function openReset(user: User) {
+    setResetTarget(user);
+    setShowResetModal(true);
+  }
+
+  async function sendReset() {
+    if (!resetTarget) return;
+    setResetting(true);
+    try {
+      await apiFetch("/auth/admin/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ email: resetTarget.email }),
+      });
+      alert(`Se envio el correo de restablecimiento a ${resetTarget.email}`);
+      setShowResetModal(false);
+      setResetTarget(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "No se pudo enviar el correo");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   }
 
   return (
@@ -247,6 +289,7 @@ export default function AdminUsuarios() {
                           className="sp-select text-sm" 
                           value={u.role} 
                           onChange={(e) => changeRole(u.id, e.target.value)}
+                          disabled={u.role === "CLIENTE"}
                         >
                           {profileRole === 'SUPERADMIN' && <option value="SUPERADMIN">SUPERADMIN</option>}
                           {profileRole === 'SUPERADMIN' && <option value="ADMIN">ADMIN</option>}
@@ -263,8 +306,17 @@ export default function AdminUsuarios() {
                           <option value="1">Activo</option>
                           <option value="0">Inactivo</option>
                         </select>
+                        {u.role !== "CLIENTE" && (
+                          <button
+                            onClick={() => openReset(u)}
+                            className="sp-button sp-button-ghost h-9 w-9 !p-0 text-sky-500 hover:text-sky-600"
+                            title="Restablecer contrase??a"
+                          >
+                            <KeyIcon className="w-5 h-5" />
+                          </button>
+                        )}
                         <button 
-                          onClick={() => deleteUser(u.id)}
+                          onClick={() => openDelete(u)}
                           className="sp-button sp-button-ghost h-9 w-9 !p-0 text-rose-500 hover:text-rose-600"
                           title="Eliminar usuario"
                         >
@@ -279,6 +331,72 @@ export default function AdminUsuarios() {
           </div>
         </Card>
       </div>
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Eliminar usuario"
+        size="sm"
+      >
+        <div className="space-y-3 text-sm">
+          <p>
+            Vas a eliminar a {" "}
+            <strong>{deleteTarget?.fullName || deleteTarget?.email}</strong>.
+          </p>
+          <p className="sp-muted">
+            Esta accion es irreversible y eliminara el acceso del usuario al
+            sistema.
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              className="sp-button sp-button-ghost"
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </button>
+            <button
+              className="sp-button sp-button-primary"
+              onClick={deleteUser}
+              disabled={deleting}
+            >
+              {deleting ? "Eliminando..." : "Eliminar usuario"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        title="Restablecer contrase??a"
+        size="sm"
+      >
+        <div className="space-y-3 text-sm">
+          <p>
+            Se enviara un correo de restablecimiento a {" "}
+            <strong>{resetTarget?.email}</strong>.
+          </p>
+          <p className="sp-muted">
+            El usuario debera crear una nueva contrasena desde el enlace
+            recibido.
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              className="sp-button sp-button-ghost"
+              onClick={() => setShowResetModal(false)}
+              disabled={resetting}
+            >
+              Cancelar
+            </button>
+            <button
+              className="sp-button sp-button-primary"
+              onClick={sendReset}
+              disabled={resetting}
+            >
+              {resetting ? "Enviando..." : "Enviar correo"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Protected>
   );
 }

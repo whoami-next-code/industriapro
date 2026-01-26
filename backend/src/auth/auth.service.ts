@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
@@ -264,6 +265,68 @@ export class AuthService {
 
     return { sent: true };
   }
+
+  async adminResetPassword(
+    email: string,
+    requester?: { userId?: number; email?: string; role?: string },
+  ) {
+    const normalized = email.toLowerCase().trim();
+    const user = await this.users.findByEmail(normalized);
+    if (!user) {
+      throw new BadRequestException("Usuario no encontrado");
+    }
+    if (user.role === UserRole.CLIENTE) {
+      throw new ForbiddenException(
+        "Solo se puede restablecer contrase??as del personal",
+      );
+    }
+    if (!user.active || user.status === UserStatus.SUSPENDED) {
+      throw new BadRequestException("Usuario inactivo o suspendido");
+    }
+
+    const token = await this.createUserToken(
+      user,
+      UserTokenType.PASSWORD_RESET,
+      2 * 60 * 60,
+    );
+    const url = `${this.webUrl}/auth/reset/${encodeURIComponent(token)}`;
+
+    await this.users.update(user.id, {
+      mustChangePassword: true,
+      tokenVersion: user.tokenVersion + 1,
+    } as any);
+    await this.invalidateSessions(user.id);
+
+    try {
+      await this.mail.sendPasswordReset({
+        to: user.email,
+        fullName: user.fullName,
+        token,
+        url,
+        expireHours: 2,
+        subject: "Restablecer contrase??a",
+      });
+    } catch (err: any) {
+      await this.systemLog.error("user.password_reset_admin_email_failed", {
+        email: user.email,
+        error: err?.message || "No se pudo enviar el correo",
+      });
+    }
+
+    await this.audit.log("user.password_reset_admin_requested", user.id, {
+      email: user.email,
+      requestedBy: requester?.email,
+      requesterRole: requester?.role,
+    });
+    await this.systemLog.info("user.password_reset_admin_requested", {
+      email: user.email,
+      requestedBy: requester?.email,
+      requesterRole: requester?.role,
+    });
+
+    return { sent: true };
+  }
+
 
   async resetPassword(token: string, newPassword: string) {
     if (!token || token.length < 20) {
