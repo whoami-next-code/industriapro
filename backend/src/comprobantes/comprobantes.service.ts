@@ -225,11 +225,27 @@ export class ComprobantesService {
     orderData: ComprobanteData,
     documentType: 'BOLETA' | 'FACTURA',
   ) {
+    const serie = nubefactData?.serie;
+    const numero = nubefactData?.numero;
+    const id =
+      serie && numero ? `${serie}-${numero}` : nubefactData?.id ?? orderData.orderNumber;
+    const issueDate = nubefactData?.fecha_de_emision
+      ? new Date(nubefactData.fecha_de_emision)
+      : new Date();
+
     return {
-      id: nubefactData?.numero ?? nubefactData?.id ?? orderData.orderNumber,
+      id,
       type: documentType,
       orderNumber: orderData.orderNumber,
-      issueDate: new Date(),
+      issueDate,
+      customerInfo: {
+        name: orderData.customerName,
+        document: orderData.customerDni,
+        documentType: orderData.customerDni.length === 11 ? 'RUC' : 'DNI',
+        email: orderData.customerEmail,
+        phone: orderData.customerPhone,
+      },
+      companyInfo: this.companyInfo,
       items: orderData.items.map((item) => ({
         description: item.name,
         quantity: item.quantity,
@@ -241,6 +257,14 @@ export class ComprobantesService {
         shipping: orderData.shipping,
         total: orderData.total,
       },
+      paymentInfo: {
+        method:
+          orderData.paymentMethod === 'CARD'
+            ? 'Tarjeta de Crédito/Débito'
+            : 'Pago Contra Entrega',
+        status: orderData.paymentStatus,
+      },
+      hash: nubefactData?.hash ?? '',
     };
   }
 

@@ -213,24 +213,20 @@ export class PedidosController {
       ? await this.comprobantes.generateFacturaNubefact(baseDocPayload)
       : null;
 
-    const comprobante = documentType === 'DNI'
-      ? (boletaResult?.ok
-          ? this.comprobantes.normalizeNubefactForEmail(
-              boletaResult.data,
-              baseDocPayload,
-              'BOLETA',
-            )
-          : await this.comprobantes.generateComprobante(baseDocPayload))
+    const comprobante = documentType === 'DNI' && boletaResult?.ok
+      ? this.comprobantes.normalizeNubefactForEmail(
+          boletaResult.data,
+          baseDocPayload,
+          'BOLETA',
+        )
       : null;
 
-    const factura = documentType === 'RUC'
-      ? (facturaResult?.ok
-          ? this.comprobantes.normalizeNubefactForEmail(
-              facturaResult.data,
-              baseDocPayload,
-              'FACTURA',
-            )
-          : { ok: false, error: facturaResult?.error ?? 'Factura no generada' })
+    const factura = documentType === 'RUC' && facturaResult?.ok
+      ? this.comprobantes.normalizeNubefactForEmail(
+          facturaResult.data,
+          baseDocPayload,
+          'FACTURA',
+        )
       : null;
 
     const notes = JSON.stringify({
@@ -289,6 +285,10 @@ export class PedidosController {
       comprobante,
       factura,
       paymentId,
+      nubefact: {
+        boleta: boletaResult?.ok ? { ok: true } : { ok: false, error: boletaResult?.error },
+        factura: facturaResult?.ok ? { ok: true } : { ok: false, error: facturaResult?.error },
+      },
     };
   }
 
