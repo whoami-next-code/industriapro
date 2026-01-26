@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { User, UserRole, UserStatus } from './user.entity';
@@ -64,6 +64,15 @@ export class UsersService {
   async update(id: number, data: Partial<User>) {
     const found = await this.repo.findOneBy({ id });
     if (!found) throw new NotFoundException('Usuario no encontrado');
+    if (
+      data.role &&
+      found.role === UserRole.CLIENTE &&
+      data.role !== UserRole.CLIENTE
+    ) {
+      throw new ForbiddenException(
+        'Las cuentas de cliente no pueden cambiar de rol',
+      );
+    }
     if (data.status === UserStatus.VERIFIED) {
       data.verified = true;
     }

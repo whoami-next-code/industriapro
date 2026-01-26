@@ -178,7 +178,7 @@ function AssignmentModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Asignación Inteligente de Personal">
       <div className="space-y-4">
-        <p className="text-sm sp-muted mb-4">Seleccione un técnico disponible para asignar a esta cotización. El sistema sugiere personal basado en su carga actual.</p>
+        <p className="text-sm sp-muted mb-4">Seleccione un técnico u operario disponible para asignar a esta cotización. El sistema sugiere personal basado en su carga actual.</p>
         {recommended && (
           <div className="sp-panel flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
@@ -196,7 +196,7 @@ function AssignmentModal({
         <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
         {technicians.length === 0 ? (
           <div className="p-4 text-center sp-muted bg-[var(--surface-2)] rounded-xl">
-            No se encontraron técnicos registrados con el rol TECNICO.
+            No se encontraron técnicos u operarios registrados.
           </div>
         ) : (
           sortedTechs.map(tech => (

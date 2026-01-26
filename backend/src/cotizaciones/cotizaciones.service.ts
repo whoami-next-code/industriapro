@@ -174,7 +174,7 @@ export class CotizacionesService {
 
   async getTechnicianWorkload() {
     const technicians = await this.userRepo.find({
-      where: { role: UserRole.TECNICO },
+      where: { role: In([UserRole.TECNICO, UserRole.OPERARIO]) },
       select: ['id', 'fullName', 'email', 'phone'],
     });
 
