@@ -175,11 +175,22 @@ export class ComprobantesService {
 
     const now = new Date();
     const numberSeed = String(now.getTime()).slice(-6);
+    const numero = (Number(numberSeed) % 200) + 1;
+    const items = this.buildNubefactItems(orderData);
+    const totals = items.reduce(
+      (acc, it) => {
+        acc.subtotal += Number(it.subtotal) || 0;
+        acc.total += Number(it.total) || 0;
+        return acc;
+      },
+      { subtotal: 0, total: 0 },
+    );
+    const totalIgv = totals.total - totals.subtotal;
     const payload = {
       operacion: 'generar_comprobante',
       tipo_de_comprobante: tipoComprobante,
       serie,
-      numero: Number(numberSeed),
+      numero,
       sunat_transaction: 1,
       cliente_tipo_de_documento: clienteTipoDocumento,
       cliente_numero_de_documento: orderData.customerDni,
@@ -190,11 +201,11 @@ export class ComprobantesService {
       fecha_de_emision: now.toISOString().slice(0, 10),
       moneda: '1',
       porcentaje_de_igv: 18,
-      total_igv: Number((orderData.total - orderData.subtotal).toFixed(2)),
-      total_gravada: Number(orderData.subtotal.toFixed(2)),
-      total: Number(orderData.total.toFixed(2)),
+      total_igv: Number(totalIgv.toFixed(2)),
+      total_gravada: Number(totals.subtotal.toFixed(2)),
+      total: Number(totals.total.toFixed(2)),
       enviar_automaticamente_al_cliente: false,
-      items: this.buildNubefactItems(orderData),
+      items,
     };
 
     try {
