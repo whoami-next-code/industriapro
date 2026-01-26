@@ -247,15 +247,24 @@ export class ComprobantesService {
       ? new Date(nubefactData.fecha_de_emision)
       : new Date();
 
+    const pdfUrl = nubefactData?.enlace_del_pdf ?? nubefactData?.enlace_pdf;
+    const xmlUrl = nubefactData?.enlace_del_xml ?? nubefactData?.enlace_xml;
+    const cdrUrl = nubefactData?.enlace_del_cdr ?? nubefactData?.enlace_cdr;
+    const hash =
+      nubefactData?.codigo_hash ??
+      nubefactData?.digest_value ??
+      nubefactData?.hash ??
+      '';
+
     return {
       id,
       type: documentType,
       source: 'NUBEFACT',
       orderNumber: orderData.orderNumber,
       issueDate,
-      pdfUrl: nubefactData?.enlace_pdf,
-      xmlUrl: nubefactData?.enlace_xml,
-      cdrUrl: nubefactData?.enlace_cdr,
+      pdfUrl,
+      xmlUrl,
+      cdrUrl,
       customerInfo: {
         name: orderData.customerName,
         document: orderData.customerDni,
@@ -282,7 +291,7 @@ export class ComprobantesService {
             : 'Pago Contra Entrega',
         status: orderData.paymentStatus,
       },
-      hash: nubefactData?.hash ?? '',
+      hash,
       raw: nubefactData,
     };
   }
