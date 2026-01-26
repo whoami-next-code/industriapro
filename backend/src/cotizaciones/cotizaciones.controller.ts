@@ -184,7 +184,7 @@ export class CotizacionesController {
 
   @Get('workload')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPERADMIN', 'VENDEDOR')
   getWorkload() {
     return this.service.getTechnicianWorkload();
   }
