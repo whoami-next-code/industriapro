@@ -94,9 +94,13 @@ export default function ReportesPage() {
   };
 
   const filterByDateRange = <T extends { fechaCreacion: string }>(items: T[]): T[] => {
+    const start = new Date(dateRange.start);
+    const end = new Date(dateRange.end);
+    end.setHours(23, 59, 59, 999);
     return items.filter(item => {
       const itemDate = new Date(item.fechaCreacion);
-      return itemDate >= new Date(dateRange.start) && itemDate <= new Date(dateRange.end);
+      if (Number.isNaN(itemDate.getTime())) return false;
+      return itemDate >= start && itemDate <= end;
     });
   };
 
