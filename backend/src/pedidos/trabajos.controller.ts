@@ -1,11 +1,11 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CotizacionesService } from '../cotizaciones/cotizaciones.service';
 
 @ApiTags('trabajos')
 @Controller('api/trabajos')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class TrabajosController {
   constructor(private readonly cotizaciones: CotizacionesService) {}
 

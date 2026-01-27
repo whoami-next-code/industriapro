@@ -134,7 +134,18 @@ export default function ReportesPage() {
       pedidos.filter(p => {
         const estado = String(p.estado ?? '').toUpperCase();
         const payment = String(p.paymentStatus ?? '').toUpperCase();
-        return payment === 'COMPLETED' || estado === 'PAGADO' || estado === 'COMPLETADO';
+        if (payment === 'COMPLETED') return true;
+        if (['CANCELADO', 'CANCELLED', 'FAILED', 'REFUNDED'].includes(estado)) return false;
+        return [
+          'PAGADO',
+          'COMPLETADO',
+          'PENDIENTE',
+          'CONFIRMED',
+          'PROCESSING',
+          'SHIPPED',
+          'DELIVERED',
+          'ENVIADO',
+        ].includes(estado);
       }),
     );
     

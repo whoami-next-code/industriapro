@@ -133,7 +133,7 @@ export class CotizacionesController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEDOR', 'TECNICO')
+  @Roles('ADMIN', 'VENDEDOR', 'TECNICO', 'OPERARIO')
   findAll(
     @Req() req: any,
     @Query('status') status?: string,

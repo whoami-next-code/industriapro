@@ -23,11 +23,18 @@ function VerifyComponent() {
       setMessage('Token de verificación faltante');
       return;
     }
-    apiFetch<{ access_token?: string; user?: unknown }>(
-      `/auth/verify?token=${encodeURIComponent(token)}`,
-      { method: 'GET' },
-    )
-      .then((data) => {
+    const verify = async () => {
+      try {
+        let data = await apiFetch<{ access_token?: string; user?: unknown }>(
+          `/auth/verify?token=${encodeURIComponent(token)}`,
+          { method: 'GET' },
+        );
+        if (!data?.access_token) {
+          data = await apiFetch<{ access_token?: string; user?: unknown }>(
+            '/auth/verify',
+            { method: 'POST', body: JSON.stringify({ token }) },
+          );
+        }
         if (data.access_token) {
           localStorage.setItem('token', data.access_token);
           document.cookie = `auth_token=${data.access_token}; path=/; max-age=604800`;
@@ -39,11 +46,12 @@ function VerifyComponent() {
         setStatus('ok');
         setMessage('Tu correo ha sido verificado. Iniciando sesión...');
         setTimeout(() => router.push('/dashboard'), 1000);
-      })
-      .catch(() => {
+      } catch {
         setStatus('error');
         setMessage('El enlace de verificación no es válido o ha expirado.');
-      });
+      }
+    };
+    verify();
   }, [params, router]);
 
   const handleResend = async (e: React.FormEvent) => {

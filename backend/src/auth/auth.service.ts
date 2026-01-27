@@ -22,7 +22,11 @@ import { SystemLogService } from '../system-log/system-log.service';
 export class AuthService {
   private readonly logger = new Logger('AuthService');
   private readonly webUrl =
-    process.env.WEB_URL || process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
+    process.env.WEB_URL ||
+    process.env.NEXT_PUBLIC_WEB_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.NEXT_PUBLIC_FRONTEND_URL ||
+    'http://localhost:3000';
 
   constructor(
     private users: UsersService,
@@ -273,15 +277,15 @@ export class AuthService {
     const normalized = email.toLowerCase().trim();
     const user = await this.users.findByEmail(normalized);
     if (!user) {
-      throw new BadRequestException("Usuario no encontrado");
+      throw new BadRequestException('Usuario no encontrado');
     }
     if (user.role === UserRole.CLIENTE) {
       throw new ForbiddenException(
-        "Solo se puede restablecer contrase??as del personal",
+        'Solo se puede restablecer contraseñas del personal',
       );
     }
     if (!user.active || user.status === UserStatus.SUSPENDED) {
-      throw new BadRequestException("Usuario inactivo o suspendido");
+      throw new BadRequestException('Usuario inactivo o suspendido');
     }
 
     const token = await this.createUserToken(
@@ -304,21 +308,20 @@ export class AuthService {
         token,
         url,
         expireHours: 2,
-        subject: "Restablecer contrase??a",
       });
     } catch (err: any) {
-      await this.systemLog.error("user.password_reset_admin_email_failed", {
+      await this.systemLog.error('user.password_reset_admin_email_failed', {
         email: user.email,
-        error: err?.message || "No se pudo enviar el correo",
+        error: err?.message || 'No se pudo enviar el correo',
       });
     }
 
-    await this.audit.log("user.password_reset_admin_requested", user.id, {
+    await this.audit.log('user.password_reset_admin_requested', user.id, {
       email: user.email,
       requestedBy: requester?.email,
       requesterRole: requester?.role,
     });
-    await this.systemLog.info("user.password_reset_admin_requested", {
+    await this.systemLog.info('user.password_reset_admin_requested', {
       email: user.email,
       requestedBy: requester?.email,
       requesterRole: requester?.role,
@@ -326,7 +329,6 @@ export class AuthService {
 
     return { sent: true };
   }
-
 
   async resetPassword(token: string, newPassword: string) {
     if (!token || token.length < 20) {

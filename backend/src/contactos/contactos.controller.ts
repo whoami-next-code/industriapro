@@ -71,7 +71,7 @@ export class ContactosController {
 
   @Get('asignados')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('TECNICO', 'ADMIN')
+  @Roles('TECNICO', 'OPERARIO', 'ADMIN')
   listarAsignados(@Req() req: any) {
     const technicianId = Number(req.user?.userId);
     const technicianEmail = req.user?.email;
@@ -93,7 +93,7 @@ export class ContactosController {
 
   @Post(':id/reportes')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('TECNICO', 'ADMIN')
+  @Roles('TECNICO', 'OPERARIO', 'ADMIN')
   agregarReporte(
     @Param('id') id: string,
     @Body() body: ReporteTecnicoDto,
@@ -133,7 +133,7 @@ export class ContactosController {
 
   @Post('adjuntos')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('TECNICO', 'ADMIN')
+  @Roles('TECNICO', 'OPERARIO', 'ADMIN')
   @UseInterceptors(
     FilesInterceptor('files', 5, {
       storage: diskStorage({

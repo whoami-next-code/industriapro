@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getImageUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePublicSocket } from "@/lib/PublicSocketProvider";
 
@@ -21,7 +21,14 @@ function formatMoney(n: number) {
   }
 }
 
-type OrderItem = { productId: number; name: string; price: number; quantity: number };
+type OrderItem = {
+  productId?: number;
+  name: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+};
 type Order = {
   id: number;
   userId?: number;
@@ -30,6 +37,7 @@ type Order = {
   status: "PENDIENTE" | "PAGADO" | "ENVIADO" | "CANCELADO";
   shippingAddress?: string;
   createdAt: string | Date;
+  comprobante?: any;
 };
 
 type QuoteItem = { productId: number; quantity: number };
@@ -72,7 +80,7 @@ type ContactMessage = {
   estado: "nuevo" | "en_proceso" | "atendido" | "cancelado";
   creadoEn: string;
 };
-type Product = { id: number; name: string; price: number };
+type Product = { id: number; name: string; price: number; imageUrl?: string; thumbnailUrl?: string };
 
 function statusBadgeClass(status: Quote["status"]) {
   // Normalizar estado: 'NUEVA' del backend = 'PENDIENTE' en el frontend
@@ -184,6 +192,18 @@ export default function MisPedidosPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedQuoteId, setExpandedQuoteId] = useState<number | null>(null);
 
+  const productsById = useMemo(
+    () => new Map(products.map((p) => [p.id, p])),
+    [products],
+  );
+
+  const resolveComprobantePdf = (doc: any) =>
+    doc?.pdfUrl ||
+    doc?.enlace_pdf ||
+    doc?.raw?.enlace_del_pdf ||
+    doc?.raw?.enlace_pdf ||
+    null;
+
   useEffect(() => {
     if (lastEvent && (lastEvent.name === "cotizaciones.updated" || lastEvent.name === "pedidos.updated")) {
       setRefreshKey((k) => k + 1);
@@ -236,10 +256,39 @@ export default function MisPedidosPage() {
           }
           return [];
         };
+        const normalizeItem = (it: any): OrderItem => {
+          const price = Number(
+            it?.price ??
+              it?.precioUnitario ??
+              it?.precio ??
+              it?.unitPrice ??
+              0,
+          );
+          const quantity = Number(it?.quantity ?? it?.cantidad ?? it?.qty ?? 0);
+          return {
+            productId: Number(it?.productId ?? it?.id ?? 0) || undefined,
+            name: String(it?.name ?? it?.nombre ?? it?.producto ?? "Producto"),
+            price,
+            quantity,
+            imageUrl: it?.imageUrl ?? it?.imagen ?? it?.image,
+            thumbnailUrl: it?.thumbnailUrl ?? it?.thumb,
+          };
+        };
+        const resolveComprobante = (notesRaw: any) => {
+          if (!notesRaw) return null;
+          try {
+            const parsed =
+              typeof notesRaw === "string" ? JSON.parse(notesRaw) : notesRaw;
+            return parsed?.factura ?? parsed?.comprobante ?? null;
+          } catch {
+            return null;
+          }
+        };
         const normalizedOrders = Array.isArray(ordersData)
           ? ordersData.map((o: any) => ({
               ...o,
-              items: normalizeOrderItems(o.items),
+              items: normalizeOrderItems(o.items).map(normalizeItem),
+              comprobante: resolveComprobante(o.notes),
             }))
           : [];
         setOrders(normalizedOrders);
@@ -658,14 +707,52 @@ export default function MisPedidosPage() {
                   <div className="mb-4">
                     <p className="text-sm font-medium mb-2">Productos ({o.items.length}):</p>
                     <ul className="space-y-2">
-                      {o.items.map((it, idx) => (
-                        <li key={`${o.id}-${it.productId}-${idx}`} className="flex justify-between text-sm py-1 border-b border-slate-100 last:border-0">
-                          <span>{it.name} × {it.quantity}</span>
-                          <span className="font-medium">S/ {formatMoney(Number(it.price) || 0)}</span>
-                        </li>
-                      ))}
+                      {o.items.map((it, idx) => {
+                        const product = it.productId ? productsById.get(it.productId) : undefined;
+                        const img = getImageUrl(
+                          it.imageUrl ||
+                            it.thumbnailUrl ||
+                            product?.imageUrl ||
+                            product?.thumbnailUrl,
+                        );
+                        return (
+                          <li
+                            key={`${o.id}-${it.productId ?? "item"}-${idx}`}
+                            className="flex items-center justify-between gap-3 text-sm py-2 border-b border-slate-100 last:border-0"
+                          >
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={img}
+                                alt={it.name}
+                                className="h-12 w-12 rounded-lg object-cover border border-slate-200 bg-white"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = "/vercel.svg";
+                                }}
+                              />
+                              <div className="text-slate-700">
+                                <div className="font-medium">{it.name}</div>
+                                <div className="text-xs text-slate-500">Cantidad: {it.quantity}</div>
+                              </div>
+                            </div>
+                            <span className="font-medium">S/ {formatMoney(Number(it.price) || 0)}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
+
+                  {resolveComprobantePdf(o.comprobante) && (
+                    <div className="mt-3 text-xs">
+                      <a
+                        href={resolveComprobantePdf(o.comprobante)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline text-blue-700"
+                      >
+                        Ver comprobante Nubefact (PDF)
+                      </a>
+                    </div>
+                  )}
                 </div>
               );
             })}

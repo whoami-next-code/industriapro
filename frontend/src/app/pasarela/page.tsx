@@ -18,6 +18,7 @@ import {
 import DocumentInput from '@/components/DocumentInput';
 import OwnerAutocomplete from '@/components/OwnerAutocomplete';
 import { apiFetchAuth, requireAuthOrRedirect, getImageUrl, API_URL } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE = API_URL;
 // Marca visual para confirmar que el deploy trae los últimos cambios
@@ -228,6 +229,7 @@ function CheckoutForm() {
   const { items, total, isHydrated, clear } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   
   // Estados principales
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash_on_delivery');
@@ -304,12 +306,28 @@ function CheckoutForm() {
     }
   }, []);
 
-  const itemsPayload = useMemo(() => items.map(it => ({
-    productId: it.productId,
-    nombre: it.name,
-    precioUnitario: it.price,
-    cantidad: it.quantity,
-  })), [items]);
+  useEffect(() => {
+    if (!customerEmail && user?.email) {
+      setCustomerEmail(user.email);
+    }
+  }, [customerEmail, user?.email]);
+
+  const itemsPayload = useMemo(
+    () =>
+      items.map((it) => ({
+        productId: it.productId,
+        name: it.name,
+        price: it.price,
+        quantity: it.quantity,
+        imageUrl: it.imageUrl,
+        thumbnailUrl: it.thumbnailUrl,
+        // Compatibilidad con payloads anteriores
+        nombre: it.name,
+        precioUnitario: it.price,
+        cantidad: it.quantity,
+      })),
+    [items],
+  );
 
   // Validaciones
   const validateDocument = () => {
@@ -571,7 +589,7 @@ function CheckoutForm() {
 
     try {
       if (paymentMethod === 'cash_on_delivery') {
-        const response = await apiFetchAuth<{ orderId: string }>(`pedidos/contra-entrega`, {
+        const response = await apiFetchAuth<{ orderId: string; comprobante?: any; factura?: any }>(`pedidos/contra-entrega`, {
           method: 'POST',
           body: JSON.stringify({
         customerData: {
@@ -588,24 +606,10 @@ function CheckoutForm() {
         });
         const orderId = response.orderId;
         setResult({ orderId, message: "Pedido registrado. Pagarás al recibir." });
-      
-        // Generar comprobante
-        try {
-          const comprobanteResponse = await apiFetchAuth<{ data: any }>('comprobantes/generar', {
-            method: 'POST',
-            body: JSON.stringify({
-              orderId: orderId,
-              documentType: docType === 'RUC' ? 'factura' : 'boleta'
-            }),
-          });
-
-          if (docType === 'RUC') {
-            setFacturaDoc(comprobanteResponse.data);
-          } else {
-            setComprobanteDoc(comprobanteResponse.data);
-    }
-        } catch (compErr) {
-          console.warn('No se pudo generar comprobante:', compErr);
+        if (docType === 'RUC' && response.factura) {
+          setFacturaDoc(response.factura);
+        } else if (docType !== 'RUC' && response.comprobante) {
+          setComprobanteDoc(response.comprobante);
         }
       } else if (paymentMethod === 'fake') {
         // Pago ficticio - crea pedido y comprobante automáticamente

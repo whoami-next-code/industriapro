@@ -15,6 +15,48 @@ export class PedidosService {
     private readonly productosService?: ProductosService,
   ) {}
 
+  private normalizeItems(raw: any): Array<{
+    productId?: number;
+    name: string;
+    price: number;
+    quantity: number;
+    total: number;
+    imageUrl?: string;
+    thumbnailUrl?: string;
+  }> {
+    const items = Array.isArray(raw)
+      ? raw
+      : typeof raw === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(raw);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+    return items.map((it: any) => {
+      const price = Number(
+        it?.price ??
+          it?.precioUnitario ??
+          it?.precio ??
+          it?.unitPrice ??
+          0,
+      );
+      const quantity = Number(it?.quantity ?? it?.cantidad ?? it?.qty ?? 0);
+      return {
+        productId: Number(it?.productId ?? it?.id ?? 0) || undefined,
+        name: String(it?.name ?? it?.nombre ?? it?.producto ?? 'Producto'),
+        price,
+        quantity,
+        total: price * quantity,
+        imageUrl: it?.imageUrl ?? it?.imagen ?? it?.image,
+        thumbnailUrl: it?.thumbnailUrl ?? it?.thumb,
+      };
+    });
+  }
+
   async create(data: Partial<Pedido>) {
     // Generar orderNumber si no viene en los datos
     if (!data.orderNumber) {
@@ -24,12 +66,12 @@ export class PedidosService {
     // Validar y restar stock antes de crear el pedido
     if (data.items) {
       try {
-        const items = typeof data.items === 'string' ? JSON.parse(data.items) : data.items;
+        const items = this.normalizeItems(data.items);
         if (Array.isArray(items)) {
           // Validar stock disponible para cada producto
           for (const item of items) {
-            const productId = item.productId || item.id;
-            const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+            const productId = item.productId;
+            const quantity = Number(item.quantity || 1);
             
             if (productId && this.productosService) {
               const product = await this.productosService.findOne(productId);
@@ -47,8 +89,8 @@ export class PedidosService {
           
           // Restar stock de cada producto
           for (const item of items) {
-            const productId = item.productId || item.id;
-            const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+            const productId = item.productId;
+            const quantity = Number(item.quantity || 1);
             
             if (productId && this.productosService) {
               const product = await this.productosService.findOne(productId);
@@ -70,7 +112,11 @@ export class PedidosService {
         console.warn('[PedidosService] Error procesando items para restar stock:', error.message);
       }
     }
-    
+    const normalizedItems = data.items ? this.normalizeItems(data.items) : [];
+    if (normalizedItems.length) {
+      data.items = JSON.stringify(normalizedItems);
+    }
+
     const entity = this.repo.create(data);
     const saved = await this.repo.save(entity);
     
@@ -134,11 +180,12 @@ export class PedidosService {
 
   // Nuevos métodos para el sistema de ventas
   async createCashOnDeliveryOrder(orderData: any) {
+    const normalizedItems = this.normalizeItems(orderData.items);
     // Validar y restar stock antes de crear el pedido
-    if (orderData.items && Array.isArray(orderData.items)) {
-      for (const item of orderData.items) {
-        const productId = item.productId || item.id;
-        const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+    if (normalizedItems.length) {
+      for (const item of normalizedItems) {
+        const productId = item.productId;
+        const quantity = Number(item.quantity || 1);
         
         if (productId && this.productosService) {
           const product = await this.productosService.findOne(productId);
@@ -155,9 +202,9 @@ export class PedidosService {
       }
       
       // Restar stock
-      for (const item of orderData.items) {
-        const productId = item.productId || item.id;
-        const quantity = Number(item.quantity || item.qty || item.cantidad || 1);
+      for (const item of normalizedItems) {
+        const productId = item.productId;
+        const quantity = Number(item.quantity || 1);
         
         if (productId && this.productosService) {
           const product = await this.productosService.findOne(productId);
@@ -181,7 +228,7 @@ export class PedidosService {
       customerEmail: orderData.customerEmail,
       customerPhone: orderData.customerPhone,
       shippingAddress: orderData.shippingAddress,
-      items: JSON.stringify(orderData.items),
+      items: JSON.stringify(normalizedItems),
       subtotal: orderData.subtotal,
       shipping: orderData.shipping || 0,
       total: orderData.total,

@@ -160,7 +160,6 @@ export default function AdminUsuarios() {
     }
   }
 
-  }
 
   return (
     <Protected>

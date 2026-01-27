@@ -43,6 +43,40 @@ export class PedidosController {
     private readonly comprobantes: ComprobantesService,
   ) {}
 
+  private normalizeItems(raw: any) {
+    const items = Array.isArray(raw)
+      ? raw
+      : typeof raw === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(raw);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+    return items.map((it: any) => {
+      const price = Number(
+        it?.price ??
+          it?.precioUnitario ??
+          it?.precio ??
+          it?.unitPrice ??
+          0,
+      );
+      const quantity = Number(it?.quantity ?? it?.cantidad ?? it?.qty ?? 0);
+      return {
+        productId: Number(it?.productId ?? it?.id ?? 0) || undefined,
+        name: String(it?.name ?? it?.nombre ?? it?.producto ?? 'Producto'),
+        price,
+        quantity,
+        total: price * quantity,
+        imageUrl: it?.imageUrl ?? it?.imagen ?? it?.image,
+        thumbnailUrl: it?.thumbnailUrl ?? it?.thumb,
+      };
+    });
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Req() req: any, @Body() body: any) {
@@ -127,14 +161,104 @@ export class PedidosController {
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
   async createCashOnDeliveryOrder(@Body() createOrderDto: any) {
     try {
+      const customerData = createOrderDto?.customerData || createOrderDto?.customer || {};
+      const rawDocument = String(customerData?.document ?? '').trim();
+      const documentType =
+        customerData?.documentType === 'ruc' || rawDocument.length === 11
+          ? 'RUC'
+          : 'DNI';
+      const normalizedItems = this.normalizeItems(createOrderDto?.items);
+      const subtotal = normalizedItems.reduce(
+        (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 0),
+        0,
+      );
+      const shipping = 0;
+      const total = Number(createOrderDto?.total ?? subtotal + shipping);
+      const payload = {
+        customerName: String(customerData?.name ?? '').trim(),
+        customerDni: rawDocument,
+        customerEmail: String(customerData?.email ?? '').trim() || undefined,
+        customerPhone: String(customerData?.phone ?? '').trim(),
+        shippingAddress: String(customerData?.address ?? createOrderDto?.shippingAddress ?? '').trim(),
+        items: normalizedItems,
+        subtotal,
+        shipping,
+        total,
+      };
       const order =
-        await this.service.createCashOnDeliveryOrder(createOrderDto);
+        await this.service.createCashOnDeliveryOrder(payload);
+
+      const baseDocPayload = {
+        orderNumber: order.orderNumber,
+        customerName: payload.customerName,
+        customerDni: rawDocument,
+        customerEmail: payload.customerEmail,
+        customerPhone: payload.customerPhone,
+        shippingAddress: payload.shippingAddress,
+        items: normalizedItems.map((it) => ({
+          productId: Number(it.productId ?? 0),
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          total: it.total,
+        })),
+        subtotal,
+        shipping,
+        total,
+        paymentMethod: 'CASH_ON_DELIVERY' as const,
+        paymentStatus: 'PENDING',
+        orderDate: new Date(),
+        notes: 'Pago contra entrega',
+      };
+
+      let comprobante: any = null;
+      let factura: any = null;
+      try {
+        const boletaResult =
+          documentType === 'DNI'
+            ? await this.comprobantes.generateBoletaNubefact(baseDocPayload)
+            : null;
+        const facturaResult =
+          documentType === 'RUC'
+            ? await this.comprobantes.generateFacturaNubefact(baseDocPayload)
+            : null;
+        comprobante =
+          documentType === 'DNI' && boletaResult?.ok
+            ? this.comprobantes.normalizeNubefactForEmail(
+                boletaResult.data,
+                baseDocPayload,
+                'BOLETA',
+              )
+            : null;
+        factura =
+          documentType === 'RUC' && facturaResult?.ok
+            ? this.comprobantes.normalizeNubefactForEmail(
+                facturaResult.data,
+                baseDocPayload,
+                'FACTURA',
+              )
+            : null;
+        const notes = JSON.stringify({
+          comprobante,
+          factura,
+          nubefact: {
+            boleta: boletaResult,
+            factura: facturaResult,
+          },
+          payment: { method: 'CASH_ON_DELIVERY', status: 'PENDING' },
+        });
+        await this.service.update(order.id, { notes } as any);
+      } catch (err) {
+        // No bloquear pedido si Nubefact falla en contra entrega
+      }
       return {
         ok: true,
         message: 'Pedido creado exitosamente',
         orderId: order.id,
         orderNumber: order.orderNumber,
         order,
+        comprobante,
+        factura,
       };
     } catch (error) {
       throw new HttpException(
@@ -153,6 +277,7 @@ export class PedidosController {
   async createFakePayment(@Req() req: any, @Body() body: any) {
     const userId = req.user?.userId;
     const items = Array.isArray(body?.items) ? body.items : [];
+    const normalizedItems = this.normalizeItems(items);
     const customerData = body?.customerData || {};
     const rawDocument = String(customerData?.document ?? '').trim();
     const documentType =
@@ -164,16 +289,16 @@ export class PedidosController {
     const customerEmail = String(customerData?.email ?? '').trim() || undefined;
     const shippingAddress = String(customerData?.address ?? body?.shippingAddress ?? '').trim();
 
-    if (!items.length) {
+    if (!normalizedItems.length) {
       throw new HttpException({ ok: false, error: 'Items inválidos' }, HttpStatus.BAD_REQUEST);
     }
     if (!rawDocument || !customerName || !shippingAddress) {
       throw new HttpException({ ok: false, error: 'Datos de cliente incompletos' }, HttpStatus.BAD_REQUEST);
     }
 
-    const subtotal = items.reduce(
+    const subtotal = normalizedItems.reduce(
       (sum: number, it: any) =>
-        sum + Number(it?.price ?? it?.precioUnitario ?? 0) * Number(it?.quantity ?? it?.cantidad ?? 0),
+        sum + Number(it?.price ?? 0) * Number(it?.quantity ?? 0),
       0,
     );
     const shipping = 0;
@@ -181,12 +306,12 @@ export class PedidosController {
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const paymentId = `FAKE-${Date.now()}`;
 
-    const comprobanteItems = items.map((it: any) => ({
+    const comprobanteItems = normalizedItems.map((it: any) => ({
       productId: Number(it?.productId ?? 0),
-      name: String(it?.name ?? it?.nombre ?? 'Producto'),
-      price: Number(it?.price ?? it?.precioUnitario ?? 0),
-      quantity: Number(it?.quantity ?? it?.cantidad ?? 0),
-      total: Number(it?.price ?? it?.precioUnitario ?? 0) * Number(it?.quantity ?? it?.cantidad ?? 0),
+      name: String(it?.name ?? 'Producto'),
+      price: Number(it?.price ?? 0),
+      quantity: Number(it?.quantity ?? 0),
+      total: Number(it?.price ?? 0) * Number(it?.quantity ?? 0),
     }));
 
     const baseDocPayload = {
@@ -266,7 +391,7 @@ export class PedidosController {
       customerEmail,
       customerPhone,
       shippingAddress,
-      items: JSON.stringify(items),
+      items: JSON.stringify(normalizedItems),
       subtotal,
       shipping,
       total,
