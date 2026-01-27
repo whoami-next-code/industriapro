@@ -51,6 +51,11 @@ type Pedido = {
   fechaCreacion: string;
   cliente?: { nombre: string };
   paymentStatus?: string;
+  items?: Array<{
+    productId?: number;
+    name?: string;
+    quantity?: number;
+  }>;
 };
 
 type Cotizacion = {
@@ -176,6 +181,20 @@ export default function AdminDashboard() {
     return Number.isFinite(n) ? n : 0;
   };
 
+  const normalizeOrderItems = (raw: any) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const normalizePedido = (p: any): Pedido => ({
     id: Number(p?.id ?? 0),
     total: num(p?.total),
@@ -183,6 +202,7 @@ export default function AdminDashboard() {
     fechaCreacion: String(p?.fechaCreacion ?? p?.createdAt ?? new Date().toISOString()),
     cliente: p?.cliente ?? (p?.customerName ? { nombre: p.customerName } : undefined),
     paymentStatus: String(p?.paymentStatus ?? ''),
+    items: normalizeOrderItems(p?.items),
   });
 
   const normalizeCotizacion = (c: any): Cotizacion => ({
@@ -269,21 +289,29 @@ export default function AdminDashboard() {
   };
 
   const getProductosMasVendidos = () => {
-    const productCounts = [...productos]
-      .sort((a, b) => (b.stock || 0) - (a.stock || 0))
+    const salesMap = new Map<string, number>();
+    pedidos.forEach((pedido) => {
+      (pedido.items ?? []).forEach((it: any) => {
+        const name = String(it?.name ?? it?.nombre ?? it?.producto ?? '').trim();
+        const key = name || (it?.productId ? `#${it.productId}` : 'Producto');
+        const qty = Number(it?.quantity ?? it?.cantidad ?? it?.qty ?? 0);
+        salesMap.set(key, (salesMap.get(key) || 0) + (Number.isFinite(qty) ? qty : 0));
+      });
+    });
+
+    const sorted = [...salesMap.entries()]
+      .filter(([, qty]) => qty > 0)
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    const categories = productCounts.map((p) => {
-      const rec = p as unknown as Record<string, unknown>;
-      const raw = (rec['nombre'] as string | undefined) ?? (rec['name'] as string | undefined) ?? '';
-      const name = typeof raw === 'string' ? raw.trim() : '';
-      const safe = name || `#${p.id}`;
-      return safe.length > 15 ? safe.substring(0, 15) + '...' : safe;
-    });
+    const categories = sorted.length
+      ? sorted.map(([name]) => (name.length > 15 ? `${name.slice(0, 15)}...` : name))
+      : ['Sin ventas'];
+    const data = sorted.length ? sorted.map(([, qty]) => qty) : [0];
 
     return {
       categories,
-      data: [{ name: 'Stock', data: productCounts.map(p => Number(p.stock) || 0) }],
+      data: [{ name: 'Unidades vendidas', data }],
     };
   };
 
@@ -538,7 +566,7 @@ export default function AdminDashboard() {
           />
           
           <BarChart
-            title="Top 5 Productos por Stock"
+            title="Top 5 Productos más vendidos"
             data={getProductosMasVendidos().data}
             categories={getProductosMasVendidos().categories}
             horizontal={true}
