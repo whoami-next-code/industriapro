@@ -293,9 +293,50 @@ export class CotizacionesService {
     
     const saved = await this.repo.save(quote);
     this.events.cotizacionesUpdated(saved);
-    // Notify technician? For now just save
+    const technicianEmail = update.technicianEmail || quote.technicianEmail;
+    const adminRecipients = this.getAdminRecipients();
+    const message = `Avance rechazado: ${reason}`;
+    if (technicianEmail) {
+      this.mail.sendQuotationUpdate({
+        to: technicianEmail,
+        fullName: update.technician || quote.technicianName || 'Técnico',
+        quotationId: quote.id,
+        status: 'RECHAZADO',
+        message,
+      }).catch(() => {});
+    }
+    if (adminRecipients.length > 0) {
+      await Promise.allSettled(
+        adminRecipients.map((to) =>
+          this.mail.sendQuotationUpdate({
+            to,
+            fullName: 'Administrador',
+            quotationId: quote.id,
+            status: 'RECHAZADO',
+            message,
+          }),
+        ),
+      );
+    }
     
     return saved;
+  }
+
+  private getAdminRecipients(): string[] {
+    const raw = [
+      process.env.ADMIN_EMAIL,
+      process.env.ADMIN_EMAILS,
+      process.env.ADMIN_ALERT_EMAIL,
+      process.env.SUPPORT_EMAIL,
+      process.env.QUOTES_NOTIFY_EMAIL,
+    ]
+      .filter(Boolean)
+      .join(',');
+    const list = raw
+      .split(/[;,]/)
+      .map((v) => v.trim())
+      .filter((v) => v && v.includes('@'));
+    return Array.from(new Set(list.map((v) => v.toLowerCase())));
   }
 
   private generateCode() {

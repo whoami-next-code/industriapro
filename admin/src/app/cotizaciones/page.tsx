@@ -1137,6 +1137,7 @@ export default function AdminCotizaciones() {
                         const signature = p.technicianSignature
                           ? normalizeAttachmentUrl(p.technicianSignature)
                           : null;
+                        const isRejected = p.approvalStatus === "REJECTED";
                         return (
                           <div key={index} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
                             <div className="flex flex-wrap items-center gap-2">
@@ -1146,10 +1147,20 @@ export default function AdminCotizaciones() {
                                   {p.status}
                                 </span>
                               )}
+                              {isRejected && (
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                                  Rechazado
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs sp-muted">
                               {formatDate(p.createdAt)} por {p.author || "Sistema"}
                             </p>
+                            {isRejected && p.rejectionReason && (
+                              <div className="mt-2 text-xs text-rose-700">
+                                Motivo: {p.rejectionReason}
+                              </div>
+                            )}
 
                             {p.materialList && p.materialList.length > 0 && (
                               <div className="mt-3">
