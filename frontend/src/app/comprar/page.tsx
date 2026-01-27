@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, API_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 type Resultado = {
@@ -25,7 +25,7 @@ export default function Comprar() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileIncomplete, setProfileIncomplete] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  const API_BASE = API_URL;
 
   useEffect(() => {
     const token = requireAuthOrRedirect("/comprar");

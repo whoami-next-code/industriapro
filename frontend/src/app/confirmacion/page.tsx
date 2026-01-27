@@ -22,8 +22,9 @@ import {
   Shield,
   QrCode
 } from "lucide-react";
+import { API_URL } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
+const API_BASE = API_URL;
 
 interface OrderData {
   id: string;

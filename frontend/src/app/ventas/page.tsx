@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useCart } from "@/components/cart/CartContext";
-import { apiFetchAuth, requireAuthOrRedirect, getToken } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getToken, API_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import CartView from "@/components/cart/CartView";
 import DocumentInput from "@/components/DocumentInput";
@@ -30,7 +30,7 @@ function VentasPage() {
   const [resultadoCompra, setResultadoCompra] = useState<any>(null);
   const [currentStep, setCurrentStep] = useState<'cart' | 'checkout' | 'payment'>('cart');
   const router = useRouter();
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  const API_BASE = API_URL;
   const stripe = useStripe();
   const elements = useElements();
 

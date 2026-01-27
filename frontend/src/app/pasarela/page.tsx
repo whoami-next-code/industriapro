@@ -17,9 +17,9 @@ import {
 } from "lucide-react";
 import DocumentInput from '@/components/DocumentInput';
 import OwnerAutocomplete from '@/components/OwnerAutocomplete';
-import { apiFetchAuth, requireAuthOrRedirect, getImageUrl } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getImageUrl, API_URL } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
+const API_BASE = API_URL;
 // Marca visual para confirmar que el deploy trae los últimos cambios
 const PASARELA_BUILD_TAG = "2026-01-23-phone9-autocomplete-v2";
 

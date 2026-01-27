@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 export default function Mantenimiento() {
   const [loading, setLoading] = useState(false);
@@ -17,13 +18,10 @@ export default function Mantenimiento() {
       notes: `MANTENIMIENTO | Equipo: ${String(form.get('equipo') || '')} | Detalle: ${String(form.get('desc') || '')}`,
     };
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-      const res = await fetch(`${API_BASE}/cotizaciones`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      await apiFetch("/cotizaciones", {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Error');
       setOk('Solicitud enviada. Nuestro equipo técnico lo contactará.');
       (e.currentTarget as HTMLFormElement).reset();
     } catch {

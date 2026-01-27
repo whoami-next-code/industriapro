@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 type Punto = { t: string; v: number };
 
@@ -12,9 +13,7 @@ export default function ReportesPage() {
   const cargar = async () => {
     setError(null);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-      const res = await fetch(`${API_BASE}/reportes/muestreo`);
-      const data = await res.json();
+      const data = await apiFetch<{ puntos?: Punto[] }>("/reportes/muestreo");
       setPuntos(data.puntos || []);
     } catch (err: any) {
       setError(err.message || "Error cargando datos de muestreo");
@@ -42,13 +41,10 @@ export default function ReportesPage() {
     setGuardando(true);
     setExito(null);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-      const res = await fetch(`${API_BASE}/reportes/guardar`, {
+      await apiFetch("/reportes/guardar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nombre: "Reporte de muestreo", datos: { puntos } }),
       });
-      if (!res.ok) throw new Error("No se pudo guardar el reporte");
       setExito("Reporte guardado correctamente");
     } catch (err: any) {
       setError(err.message || "Error al guardar");

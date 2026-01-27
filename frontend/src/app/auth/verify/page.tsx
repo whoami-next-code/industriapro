@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
 
 function VerifyComponent() {
   const params = useSearchParams();
@@ -22,12 +23,10 @@ function VerifyComponent() {
       setMessage('Token de verificación faltante');
       return;
     }
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-    fetch(`${API_BASE}/auth/verify?token=${encodeURIComponent(token)}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      })
+    apiFetch<{ access_token?: string; user?: unknown }>(
+      `/auth/verify?token=${encodeURIComponent(token)}`,
+      { method: 'GET' },
+    )
       .then((data) => {
         if (data.access_token) {
           localStorage.setItem('token', data.access_token);
@@ -53,20 +52,17 @@ function VerifyComponent() {
     setResending(true);
     setResendMessage('');
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-      const res = await fetch(`${API_BASE}/auth/resend-verification`, {
+      await apiFetch('/auth/resend-verification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resendEmail })
+        body: JSON.stringify({ email: resendEmail }),
       });
-      if (res.ok) {
-        setResendMessage('Correo de verificación reenviado. Revisa tu bandeja de entrada.');
-      } else {
-        const data = await res.json();
-        setResendMessage(data.message || 'Error al reenviar correo.');
-      }
-    } catch {
-      setResendMessage('Error de conexión.');
+      setResendMessage(
+        'Correo de verificación reenviado. Revisa tu bandeja de entrada.',
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : 'Error de conexión.';
+      setResendMessage(message);
     } finally {
       setResending(false);
     }
