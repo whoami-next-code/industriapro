@@ -14,7 +14,7 @@ export function middleware(request: NextRequest) {
   // Redirect authenticated users away from auth pages (login, register, forgot-password)
   // But allow access to update-password, confirm, callback
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
-  const isExcluded = ['/auth/update-password', '/auth/confirm', '/auth/callback'].some(path => 
+  const isExcluded = ['/auth/update-password', '/auth/confirm', '/auth/callback', '/auth/reset'].some(path => 
     request.nextUrl.pathname.startsWith(path)
   );
 
