@@ -443,7 +443,8 @@ export class MailService {
     const expireHours = params.expireHours ?? 24;
     // Usar URL proporcionada o construirla
     const resetUrl =
-      params.url || `${this.webUrl}/auth/reset?token=${params.token}`;
+      params.url ||
+      `${this.webUrl}/auth/reset/${encodeURIComponent(params.token)}`;
     const htmlTpl = passwordResetTemplate();
     const html = this.render(htmlTpl, {
       user_full_name: params.fullName ?? 'Usuario',

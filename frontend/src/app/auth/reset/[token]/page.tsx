@@ -18,6 +18,11 @@ export default function ResetPasswordTokenPage() {
     setLoading(true);
     setMessage(null);
     setError(null);
+    if (!token) {
+      setError('Token inválido');
+      setLoading(false);
+      return;
+    }
     if (pw !== pw2) {
       setError('Las contraseñas no coinciden');
       setLoading(false);
@@ -33,10 +38,13 @@ export default function ResetPasswordTokenPage() {
         method: 'POST',
         body: JSON.stringify({ token, newPassword: pw })
       });
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      document.cookie = 'auth_token=; path=/; max-age=0';
       setMessage('Contraseña restablecida. Ahora puedes iniciar sesión.');
       setTimeout(() => router.push('/auth/login'), 1200);
     } catch (err: any) {
-      setError('No se pudo restablecer la contraseña.');
+      setError(err?.message || 'No se pudo restablecer la contraseña.');
     } finally {
       setLoading(false);
     }
