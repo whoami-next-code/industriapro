@@ -56,4 +56,11 @@ export class EventsService {
   cotizacionesUpdated(payload: any) {
     this.emit('cotizaciones.updated', payload);
   }
+
+  /**
+   * Notifica actualización de contactos vía Socket.IO
+   */
+  contactosUpdated(payload: any) {
+    this.emit('contactos.updated', payload);
+  }
 }

@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contacto } from './contacto.entity';
 import { User } from '../users/user.entity';
 import { MailService } from '../mail/mail.service';
+import { EventsService } from '../realtime/events.service';
 
 export interface CrearContactoDto {
   nombre: string;
@@ -37,11 +38,14 @@ export class ContactosService {
     @InjectRepository(User)
     private readonly users: Repository<User>,
     private readonly mail: MailService,
+    @Optional() private readonly events?: EventsService,
   ) {}
 
   async crear(dto: CrearContactoDto): Promise<Contacto> {
     const entity = this.repo.create({ ...dto, estado: 'nuevo' });
-    return await this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    this.events?.contactosUpdated({ id: saved.id, action: 'create' });
+    return saved;
   }
 
   async listar(): Promise<Contacto[]> {
@@ -72,7 +76,9 @@ export class ContactosService {
     const contacto = await this.repo.findOne({ where: { id } });
     if (!contacto) return null;
     contacto.estado = dto.estado;
-    return await this.repo.save(contacto);
+    const saved = await this.repo.save(contacto);
+    this.events?.contactosUpdated({ id: saved.id, action: 'update' });
+    return saved;
   }
 
   async responder(
@@ -87,13 +93,16 @@ export class ContactosService {
     if (contacto.estado === 'nuevo' || contacto.estado === 'en_proceso') {
       contacto.estado = 'atendido';
     }
-    return await this.repo.save(contacto);
+    const saved = await this.repo.save(contacto);
+    this.events?.contactosUpdated({ id: saved.id, action: 'update' });
+    return saved;
   }
 
   async eliminar(id: number): Promise<{ ok: true }> {
     const contacto = await this.repo.findOne({ where: { id } });
     if (!contacto) throw new NotFoundException('Contacto no encontrado');
     await this.repo.remove(contacto);
+    this.events?.contactosUpdated({ id, action: 'delete' });
     return { ok: true };
   }
 
@@ -110,7 +119,9 @@ export class ContactosService {
     if (contacto.estado === 'nuevo') {
       contacto.estado = 'en_proceso';
     }
-    return this.repo.save(contacto);
+    const saved = await this.repo.save(contacto);
+    this.events?.contactosUpdated({ id: saved.id, action: 'assign' });
+    return saved;
   }
 
   async agregarReporte(id: number, dto: ReporteTecnicoDto, technicianName?: string) {
@@ -129,6 +140,7 @@ export class ContactosService {
     contacto.reportes = reportes;
     contacto.estado = 'atendido';
     const saved = await this.repo.save(contacto);
+    this.events?.contactosUpdated({ id: saved.id, action: 'report' });
 
     if (contacto.email) {
       await this.mail.sendContactoReporteTecnico({
@@ -154,6 +166,8 @@ export class ContactosService {
     }
     reportes.splice(index, 1);
     contacto.reportes = reportes;
-    return this.repo.save(contacto);
+    const saved = await this.repo.save(contacto);
+    this.events?.contactosUpdated({ id: saved.id, action: 'report.delete' });
+    return saved;
   }
 }

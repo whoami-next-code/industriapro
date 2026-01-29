@@ -30,8 +30,14 @@ export class AdminGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
       
-      // Permitir CLIENTE también, para recibir actualizaciones de sus pedidos/cotizaciones
-      if (role !== 'ADMIN' && role !== 'VENDEDOR' && role !== 'CLIENTE') {
+      // Permitir CLIENTE y roles operativos para recibir actualizaciones
+      if (
+        role !== 'ADMIN' &&
+        role !== 'VENDEDOR' &&
+        role !== 'CLIENTE' &&
+        role !== 'TECNICO' &&
+        role !== 'OPERARIO'
+      ) {
          client.disconnect(true);
          return;
       }
