@@ -126,12 +126,26 @@ export default function AdminUsuarios() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await apiFetch(`/users/${deleteTarget.id}`, { method: "DELETE" });
-      setItems(prev => prev.filter(u => u.id !== deleteTarget.id));
+      const result = await apiFetch<{ deleted?: boolean; deactivated?: boolean }>(
+        `/users/${deleteTarget.id}`,
+        { method: 'DELETE' },
+      );
+      if (result?.deactivated) {
+        setItems(prev =>
+          prev.map(u =>
+            u.id === deleteTarget.id
+              ? { ...u, active: false, status: 'SUSPENDED' }
+              : u,
+          ),
+        );
+        alert('El usuario tiene registros asociados. Se desactivó en lugar de eliminarlo.');
+      } else {
+        setItems(prev => prev.filter(u => u.id !== deleteTarget.id));
+      }
       setShowDeleteModal(false);
       setDeleteTarget(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Error al eliminar usuario");
+      alert(err instanceof Error ? err.message : 'Error al eliminar usuario');
     } finally {
       setDeleting(false);
     }
@@ -146,20 +160,43 @@ export default function AdminUsuarios() {
     if (!resetTarget) return;
     setResetting(true);
     try {
-      await apiFetch("/auth/admin/reset-password", {
-        method: "POST",
+      await apiFetch('/auth/admin/reset-password', {
+        method: 'POST',
         body: JSON.stringify({ email: resetTarget.email }),
       });
-      alert(`Se envio el correo de restablecimiento a ${resetTarget.email}`);
+      alert(`Se envió el correo de restablecimiento a ${resetTarget.email}`);
       setShowResetModal(false);
       setResetTarget(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "No se pudo enviar el correo");
+      const message = err instanceof Error ? err.message : 'No se pudo enviar el correo';
+      const isMissingRoute =
+        /Cannot POST \/api\/auth\/admin\/reset-password/i.test(message) ||
+        /404\b/.test(message);
+      if (isMissingRoute) {
+        try {
+          await apiFetch('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email: resetTarget.email }),
+          });
+          alert(
+            `Se envió el correo de restablecimiento a ${resetTarget.email} (modo compatibilidad).`,
+          );
+          setShowResetModal(false);
+          setResetTarget(null);
+        } catch (fallbackErr: unknown) {
+          alert(
+            fallbackErr instanceof Error
+              ? fallbackErr.message
+              : 'No se pudo enviar el correo',
+          );
+        }
+      } else {
+        alert(message);
+      }
     } finally {
       setResetting(false);
     }
   }
-
 
   return (
     <Protected>
@@ -288,7 +325,7 @@ export default function AdminUsuarios() {
                           className="sp-select text-sm" 
                           value={u.role} 
                           onChange={(e) => changeRole(u.id, e.target.value)}
-                          disabled={u.role === "CLIENTE"}
+                          disabled={u.role === 'CLIENTE'}
                         >
                           {profileRole === 'SUPERADMIN' && <option value="SUPERADMIN">SUPERADMIN</option>}
                           {profileRole === 'SUPERADMIN' && <option value="ADMIN">ADMIN</option>}
@@ -305,11 +342,11 @@ export default function AdminUsuarios() {
                           <option value="1">Activo</option>
                           <option value="0">Inactivo</option>
                         </select>
-                        {u.role !== "CLIENTE" && (
+                        {u.role !== 'CLIENTE' && (
                           <button
                             onClick={() => openReset(u)}
                             className="sp-button sp-button-ghost h-9 w-9 !p-0 text-sky-500 hover:text-sky-600"
-                            title="Restablecer contrase??a"
+                            title="Restablecer contraseña"
                           >
                             <KeyIcon className="w-5 h-5" />
                           </button>
@@ -338,11 +375,11 @@ export default function AdminUsuarios() {
       >
         <div className="space-y-3 text-sm">
           <p>
-            Vas a eliminar a {" "}
+            Vas a eliminar a{" "}
             <strong>{deleteTarget?.fullName || deleteTarget?.email}</strong>.
           </p>
           <p className="sp-muted">
-            Esta accion es irreversible y eliminara el acceso del usuario al
+            Esta acción es irreversible y eliminará el acceso del usuario al
             sistema.
           </p>
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -366,16 +403,16 @@ export default function AdminUsuarios() {
       <Modal
         isOpen={showResetModal}
         onClose={() => setShowResetModal(false)}
-        title="Restablecer contrase??a"
+        title="Restablecer contraseña"
         size="sm"
       >
         <div className="space-y-3 text-sm">
           <p>
-            Se enviara un correo de restablecimiento a {" "}
+            Se enviará un correo de restablecimiento a{" "}
             <strong>{resetTarget?.email}</strong>.
           </p>
           <p className="sp-muted">
-            El usuario debera crear una nueva contrasena desde el enlace
+            El usuario deberá crear una nueva contraseña desde el enlace
             recibido.
           </p>
           <div className="flex items-center justify-end gap-2 pt-2">

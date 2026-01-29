@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, QueryFailedError } from 'typeorm';
 import { User, UserRole, UserStatus } from './user.entity';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
@@ -91,9 +91,28 @@ export class UsersService {
   }
 
   async remove(id: number) {
-    const res = await this.repo.delete(id);
-    if (!res.affected) throw new NotFoundException('Usuario no encontrado');
-    return { deleted: true };
+    try {
+      const res = await this.repo.delete(id);
+      if (!res.affected) throw new NotFoundException('Usuario no encontrado');
+      return { deleted: true };
+    } catch (err: unknown) {
+      if (err instanceof QueryFailedError) {
+        const code = (err as any)?.code;
+        // 23503: foreign_key_violation en Postgres
+        if (code === '23503') {
+          const existing = await this.repo.findOneBy({ id });
+          if (!existing) {
+            throw new NotFoundException('Usuario no encontrado');
+          }
+          await this.update(id, {
+            active: false,
+            status: UserStatus.SUSPENDED,
+          });
+          return { deleted: false, deactivated: true };
+        }
+      }
+      throw err;
+    }
   }
 
   async findUnverifiedOlderThan(days: number) {
