@@ -293,7 +293,7 @@ export class CotizacionesService {
     
     const saved = await this.repo.save(quote);
     this.events.cotizacionesUpdated(saved);
-    const technicianEmail = update.technicianEmail || quote.technicianEmail;
+    const technicianEmail = quote.technicianEmail;
     const adminRecipients = this.getAdminRecipients();
     const message = `Avance rechazado: ${reason}`;
     if (technicianEmail) {
