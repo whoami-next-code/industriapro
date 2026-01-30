@@ -7,7 +7,30 @@ export const BACKEND_URL = API_URL.replace(/\/api\/?$/, '');
 
 export function getImageUrl(path?: string): string {
   if (!path) return "/vercel.svg";
-  if (path.startsWith("http")) return path;
+  if (path.startsWith("http")) {
+    try {
+      const url = new URL(path);
+      const base = new URL(BACKEND_URL);
+      const isPrivateHost =
+        url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname.startsWith("10.") ||
+        url.hostname.startsWith("192.168.") ||
+        /^172\.(1[6-9]|2\d|3[0-1])\./.test(url.hostname);
+      const isLocal =
+        url.hostname === "localhost" || url.hostname === "127.0.0.1";
+      const sameHost = url.hostname === base.hostname;
+      if (isPrivateHost || isLocal || sameHost || url.protocol !== base.protocol) {
+        url.protocol = base.protocol;
+        url.hostname = base.hostname;
+        url.port = base.port;
+      }
+      return url.toString();
+    } catch {
+      // ignore invalid URLs
+    }
+    return path;
+  }
   const normalizedPath = path.replace(/\\/g, '/').trim();
   return `${BACKEND_URL}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
 }
