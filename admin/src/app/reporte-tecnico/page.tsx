@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Protected from "@/lib/Protected";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getImageUrl } from "@/lib/api";
 import Modal from "@/components/modals/Modal";
 
 type Contacto = {
@@ -71,6 +71,8 @@ export default function ReporteTecnicoPage() {
     const clean = url.split("?")[0].split("#")[0];
     return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(clean);
   };
+
+  const normalizeEvidenceUrl = (url: string) => getImageUrl(url);
 
   const openReports = (contacto: Contacto) => {
     setSelected(contacto);
@@ -223,15 +225,17 @@ export default function ReporteTecnicoPage() {
                     <div className="mt-2 text-sm">
                       <div className="font-medium">Evidencias</div>
                       <div className="grid grid-cols-2 gap-2 mt-2">
-                        {r.evidenceUrls.map((u, i) => (
-                          <a key={i} href={u} target="_blank" rel="noreferrer" className="block">
-                            {isImageUrl(u) ? (
-                              <img src={u} alt="evidencia" className="h-24 w-full object-cover rounded border" />
+                        {r.evidenceUrls.map((u, i) => {
+                          const normalized = normalizeEvidenceUrl(u);
+                          return (
+                          <a key={i} href={normalized} target="_blank" rel="noreferrer" className="block">
+                            {isImageUrl(normalized) ? (
+                              <img src={normalized} alt="evidencia" className="h-24 w-full object-cover rounded border" />
                             ) : (
-                              <div className="text-xs underline break-all">{u}</div>
+                              <div className="text-xs underline break-all">{normalized}</div>
                             )}
                           </a>
-                        ))}
+                        )})}
                       </div>
                     </div>
                   )}

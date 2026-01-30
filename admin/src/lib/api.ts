@@ -3,6 +3,14 @@ export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.NEXT_PUBLIC_API_BASE ??
   FALLBACK_API_URL;
+export const BACKEND_URL = API_URL.replace(/\/api\/?$/, '');
+
+export function getImageUrl(path?: string): string {
+  if (!path) return "/vercel.svg";
+  if (path.startsWith("http")) return path;
+  const normalizedPath = path.replace(/\\/g, '/').trim();
+  return `${BACKEND_URL}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+}
 
 function getToken() {
   if (typeof window === 'undefined') return null;

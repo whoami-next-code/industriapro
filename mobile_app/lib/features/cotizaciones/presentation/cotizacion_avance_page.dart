@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -184,7 +185,12 @@ class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
       };
 
       // Enviar avance
-      await repo.agregarAvance(widget.id, avanceData);
+      final response = await repo.agregarAvance(widget.id, avanceData);
+      String? approvalStatus;
+      final updates = response['progressUpdates'];
+      if (updates is List && updates.isNotEmpty && updates.first is Map) {
+        approvalStatus = (updates.first as Map)['approvalStatus']?.toString();
+      }
 
       if (mounted) {
         // Refrescar el detalle
@@ -192,21 +198,47 @@ class _CotizacionAvancePageState extends ConsumerState<CotizacionAvancePage> {
         // Refrescar la lista general
         ref.invalidate(cotizacionesProvider);
         
+        final isPending = approvalStatus == 'PENDING';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Avance enviado exitosamente'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              isPending
+                  ? 'Avance enviado. Queda pendiente de aprobación.'
+                  : 'Avance enviado exitosamente',
+            ),
+            backgroundColor: isPending ? Colors.orange : Colors.green,
           ),
         );
         
         context.pop();
       }
     } catch (e) {
+      String message = 'Error al enviar avance';
+      bool isWarning = false;
+
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data['message'] != null) {
+          message = data['message'].toString();
+        } else if (data is String && data.isNotEmpty) {
+          message = data;
+        } else if (e.message != null && e.message!.isNotEmpty) {
+          message = e.message!;
+        }
+
+        if (e.response?.statusCode == 400 || e.response?.statusCode == 422) {
+          isWarning = true;
+          message = 'Aviso: $message';
+        }
+      } else if (e.toString().isNotEmpty) {
+        message = 'Error al enviar avance: $e';
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar avance: $e'),
-            backgroundColor: Colors.red,
+            content: Text(message),
+            backgroundColor: isWarning ? Colors.orange : Colors.red,
           ),
         );
       }

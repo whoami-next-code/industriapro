@@ -187,9 +187,14 @@ class CotizacionesRepository {
     return List<String>.from(data['urls']);
   }
 
-  Future<void> agregarAvance(String id, Map<String, dynamic> data) async {
-    await _api.post('cotizaciones/$id/avances', data: data);
+  Future<Map<String, dynamic>> agregarAvance(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _api.post('cotizaciones/$id/avances', data: data);
     await _cache.save('cotizacion_detail_$id', null, expiration: Duration.zero);
+    final raw = response.data;
+    return raw is Map<String, dynamic> ? raw : <String, dynamic>{};
   }
 
   Future<CotizacionesStats> obtenerEstadisticas() async {

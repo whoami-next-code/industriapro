@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetchAuth, requireAuthOrRedirect } from "@/lib/api";
+import { apiFetchAuth, requireAuthOrRedirect, getImageUrl } from "@/lib/api";
 import { usePublicSocket } from "@/lib/PublicSocketProvider";
 
 type ProgressUpdate = {
   message: string;
   status?: string;
   estimatedDate?: string;
+  attachmentUrls?: string[];
   createdAt: string;
   author?: string;
   progressPercent?: number;
@@ -75,6 +76,13 @@ export default function QuoteStatusPage() {
     const parsed = new Date(d);
     return isNaN(parsed.getTime()) ? "No definido" : parsed.toLocaleString("es-PE");
   };
+
+  const isImageUrl = (url: string) => {
+    const clean = url.split("?")[0].split("#")[0];
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(clean);
+  };
+
+  const normalizeAttachmentUrl = (url: string) => getImageUrl(url);
 
   const progress = item?.progressPercent ?? (currentIndex >= 0 ? (currentIndex / (statusList.length - 1)) * 100 : 0);
   const amount = item?.totalAmount ?? (typeof item?.budget === "string" ? Number(item.budget) : item?.budget);
@@ -166,6 +174,35 @@ export default function QuoteStatusPage() {
                       {p.estimatedDate && <span className="mr-2">Entrega estimada: {fmtDate(p.estimatedDate)}</span>}
                       {p.author && <span>Autor: {p.author}</span>}
                     </div>
+                    {p.attachmentUrls && p.attachmentUrls.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-xs font-semibold text-zinc-600 mb-2">Evidencias</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {p.attachmentUrls.map((u, i) => {
+                            const normalized = normalizeAttachmentUrl(u);
+                            return (
+                              <a
+                                key={i}
+                                href={normalized}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block"
+                              >
+                                {isImageUrl(normalized) ? (
+                                  <img
+                                    src={normalized}
+                                    alt="evidencia"
+                                    className="h-24 w-full object-cover rounded border"
+                                  />
+                                ) : (
+                                  <div className="text-xs underline break-all">{normalized}</div>
+                                )}
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -86,6 +86,9 @@ class ReportesTecnicosPage extends ConsumerWidget {
                   )
                 else
                   ...items.map((item) {
+                    final reportes = item.reportes;
+                    final lastReport =
+                        reportes.isNotEmpty ? reportes.last : null;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
@@ -137,6 +140,27 @@ class ReportesTecnicosPage extends ConsumerWidget {
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                           color: const Color(0xFF7C8CA3),
                                         ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      Chip(
+                                        label: Text(
+                                          reportes.isEmpty
+                                              ? 'Sin reportes'
+                                              : '${reportes.length} reporte(s)',
+                                        ),
+                                      ),
+                                      if (lastReport != null)
+                                        Chip(
+                                          label: Text(
+                                            'Último: ${lastReport.message}',
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),

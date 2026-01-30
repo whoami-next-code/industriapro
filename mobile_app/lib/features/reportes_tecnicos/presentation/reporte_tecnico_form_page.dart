@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../data/repositories/contactos_tecnicos_repository.dart';
+import '../../../core/config/app_config.dart';
+import '../../../domain/entities/contacto_tecnico.dart';
+import '../providers/contactos_tecnicos_providers.dart';
 
 class ReporteTecnicoFormPage extends ConsumerStatefulWidget {
   const ReporteTecnicoFormPage({super.key, required this.id});
@@ -106,6 +109,7 @@ class _ReporteTecnicoFormPageState
 
   @override
   Widget build(BuildContext context) {
+    final asyncContactos = ref.watch(contactosTecnicosProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nuevo reporte técnico'),
@@ -115,6 +119,105 @@ class _ReporteTecnicoFormPageState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            asyncContactos.when(
+              data: (items) {
+                final contacto = items.firstWhere(
+                  (c) => c.id == (int.tryParse(widget.id) ?? -1),
+                  orElse: () => ContactoTecnico(
+                    id: 0,
+                    nombre: '',
+                    email: '',
+                    telefono: '',
+                    mensaje: '',
+                    estado: '',
+                    creadoEn: DateTime.fromMillisecondsSinceEpoch(0),
+                  ),
+                );
+                final reportes = contacto.id == 0 ? const <ReporteTecnico>[] : contacto.reportes;
+                if (reportes.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionCard(
+                      title: 'Reportes anteriores',
+                      subtitle: '${reportes.length} registrado(s)',
+                      child: Column(
+                        children: reportes.map((r) {
+                          return Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  r.message,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  r.createdAt.toLocal().toString(),
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                ),
+                                if (r.found != null && r.found!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text('Cómo se encontró: ${r.found}'),
+                                  ),
+                                if (r.resolved != null && r.resolved!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text('Cómo quedó: ${r.resolved}'),
+                                  ),
+                                if (r.evidenceUrls.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 80,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: r.evidenceUrls.length,
+                                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                      itemBuilder: (context, index) {
+                                        final url = AppConfig.buildImageUrl(r.evidenceUrls[index]);
+                                        return ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            url,
+                                            width: 80,
+                                            height: 80,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              width: 80,
+                                              height: 80,
+                                              color: Colors.grey.shade200,
+                                              child: const Icon(Icons.broken_image, color: Colors.grey),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
