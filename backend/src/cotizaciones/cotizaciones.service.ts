@@ -44,6 +44,47 @@ const STATUS_FLOW = [
 @Injectable()
 export class CotizacionesService {
   private supabase: SupabaseClient;
+  private readonly publicBaseUrl =
+    process.env.PUBLIC_BASE_URL ||
+    process.env.BACKEND_URL ||
+    process.env.WEB_URL ||
+    process.env.NEXT_PUBLIC_WEB_URL ||
+    '';
+
+  private normalizePublicUrl(url: string): string {
+    if (!url) return url;
+    const base = this.publicBaseUrl;
+    if (!base) return url;
+
+    const isPrivateHost = (host: string) =>
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+
+    if (url.startsWith('http')) {
+      try {
+        const parsed = new URL(url);
+        const baseUrl = new URL(base);
+        if (
+          isPrivateHost(parsed.hostname) ||
+          parsed.hostname === baseUrl.hostname ||
+          parsed.protocol !== baseUrl.protocol
+        ) {
+          parsed.protocol = baseUrl.protocol;
+          parsed.hostname = baseUrl.hostname;
+          parsed.port = baseUrl.port;
+        }
+        return parsed.toString();
+      } catch {
+        return url;
+      }
+    }
+
+    const clean = url.replace(/\\/g, '/').trim();
+    return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
+  }
 
   constructor(
     @InjectRepository(Cotizacion)
@@ -652,10 +693,15 @@ export class CotizacionesService {
       found.progressUpdates && Array.isArray(found.progressUpdates)
         ? found.progressUpdates
         : [];
-    
+
+    const normalizedAttachments = Array.isArray(progress.attachmentUrls)
+      ? progress.attachmentUrls.map((u) => this.normalizePublicUrl(String(u)))
+      : [];
+
     const entry: ProgressUpdate = {
       createdAt: new Date().toISOString(),
       ...progress,
+      attachmentUrls: normalizedAttachments,
       approvalStatus,
       author: progress.author || (userId ? `User-${userId}` : 'Sistema'),
     };
