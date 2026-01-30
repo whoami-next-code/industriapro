@@ -156,6 +156,37 @@ export class CotizacionesService {
     return saved;
   }
 
+  async uploadAttachments(files: Express.Multer.File[], folder = 'attachments') {
+    const uploaded: string[] = [];
+    for (const file of files || []) {
+      const fileExt = file.originalname.split('.').pop();
+      const fileName = `${folder}/${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}.${fileExt}`;
+
+      const { error } = await this.supabase.storage
+        .from('quotation_images')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) {
+        throw new BadRequestException(
+          `Supabase Storage Error: ${error.message}`,
+        );
+      }
+
+      const {
+        data: { publicUrl },
+      } = this.supabase.storage.from('quotation_images').getPublicUrl(fileName);
+
+      uploaded.push(publicUrl);
+    }
+
+    return uploaded;
+  }
+
   async approveImage(id: string) {
     const image = await this.imageRepo.findOne({ where: { id } });
     if (!image) throw new NotFoundException('Image not found');

@@ -19,9 +19,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { join } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import { MailService } from '../mail/mail.service';
 import { WhatsappService } from './whatsapp.service';
 import { CreateCotizacionDto } from './dto/create-cotizacion.dto';
@@ -281,44 +279,17 @@ export class CotizacionesController {
   @Roles('ADMIN', 'VENDEDOR', 'CLIENTE', 'TECNICO')
   @UseInterceptors(
     FilesInterceptor('files', 5, {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          const dest = join(process.cwd(), 'public', 'uploads', 'cotizaciones');
-          try {
-            fs.mkdirSync(dest, { recursive: true });
-          } catch (e) {
-            return cb(e as Error, dest);
-          }
-          cb(null, dest);
-        },
-        filename: (_req, file, cb) =>
-          cb(
-            null,
-            `${Date.now()}-${Math.random().toString(16).slice(2)}-${file.originalname.replace(
-              /\s+/g,
-              '_',
-            )}`,
-          ),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   upload(
     @UploadedFiles()
     files: Express.Multer.File[],
-    @Req() req: any,
   ) {
-    const forwardedProto =
-      (req.headers['x-forwarded-proto'] as string) || req.protocol;
-    const host = req.get('host');
-    const baseUrl =
-      process.env.PUBLIC_BASE_URL ||
-      process.env.WEB_URL ||
-      `${forwardedProto}://${host}`;
-    const urls = (files || []).map(
-      (f) => `${baseUrl}/uploads/cotizaciones/${f.filename}`,
-    );
-    return { ok: true, urls };
+    return this.service
+      .uploadAttachments(files, 'cotizaciones')
+      .then((urls) => ({ ok: true, urls }));
   }
 
   @Post(':id/avances')
