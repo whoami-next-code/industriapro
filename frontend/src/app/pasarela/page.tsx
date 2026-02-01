@@ -267,6 +267,16 @@ function CheckoutForm() {
   const [phoneError, setPhoneError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [addressError, setAddressError] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardErrors, setCardErrors] = useState({
+    number: "",
+    name: "",
+    expiry: "",
+    cvc: "",
+  });
 
   // Autocompletado: estado, carga, cache
   const [autoLoading, setAutoLoading] = useState(false);
@@ -387,14 +397,122 @@ function CheckoutForm() {
     return true;
   };
 
+  const getCardDigits = (value: string) => value.replace(/\D/g, '').slice(0, 19);
+
+  const detectCardBrand = (digits: string) => {
+    if (/^3[47]/.test(digits)) return 'American Express';
+    if (/^4/.test(digits)) return 'Visa';
+    if (/^(5[1-5]|2[2-7])/.test(digits)) return 'Mastercard';
+    if (/^(6011|65|64[4-9]|622)/.test(digits)) return 'Discover';
+    return 'Tarjeta';
+  };
+
+  const formatCardNumber = (digits: string) => {
+    const isAmex = /^3[47]/.test(digits);
+    if (isAmex) {
+      const p1 = digits.slice(0, 4);
+      const p2 = digits.slice(4, 10);
+      const p3 = digits.slice(10, 15);
+      return [p1, p2, p3].filter(Boolean).join(' ');
+    }
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
+
+  const formatExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  };
+
+  const luhnCheck = (digits: string) => {
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = digits.length - 1; i >= 0; i -= 1) {
+      let n = Number(digits[i]);
+      if (Number.isNaN(n)) return false;
+      if (shouldDouble) {
+        n *= 2;
+        if (n > 9) n -= 9;
+      }
+      sum += n;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  };
+
+  const validateCardNumber = () => {
+    const digits = getCardDigits(cardNumber);
+    if (digits.length < 13) {
+      setCardErrors((prev) => ({ ...prev, number: "Número de tarjeta incompleto" }));
+      return false;
+    }
+    if (!luhnCheck(digits)) {
+      setCardErrors((prev) => ({ ...prev, number: "Número de tarjeta inválido" }));
+      return false;
+    }
+    setCardErrors((prev) => ({ ...prev, number: "" }));
+    return true;
+  };
+
+  const validateCardName = () => {
+    if (!cardName.trim() || cardName.trim().length < 3) {
+      setCardErrors((prev) => ({ ...prev, name: "Nombre del titular es requerido" }));
+      return false;
+    }
+    setCardErrors((prev) => ({ ...prev, name: "" }));
+    return true;
+  };
+
+  const validateCardExpiry = () => {
+    const match = cardExpiry.match(/^(\d{2})\/(\d{2})$/);
+    if (!match) {
+      setCardErrors((prev) => ({ ...prev, expiry: "Fecha inválida (MM/YY)" }));
+      return false;
+    }
+    const month = Number(match[1]);
+    const year = Number(match[2]) + 2000;
+    if (month < 1 || month > 12) {
+      setCardErrors((prev) => ({ ...prev, expiry: "Mes inválido" }));
+      return false;
+    }
+    const expiryDate = new Date(year, month, 0, 23, 59, 59);
+    if (expiryDate < new Date()) {
+      setCardErrors((prev) => ({ ...prev, expiry: "Tarjeta vencida" }));
+      return false;
+    }
+    setCardErrors((prev) => ({ ...prev, expiry: "" }));
+    return true;
+  };
+
+  const validateCardCvc = () => {
+    const digits = cardCvc.replace(/\D/g, '');
+    const brand = detectCardBrand(getCardDigits(cardNumber));
+    const expected = brand === 'American Express' ? 4 : 3;
+    if (digits.length !== expected) {
+      setCardErrors((prev) => ({ ...prev, cvc: `CVC debe tener ${expected} dígitos` }));
+      return false;
+    }
+    setCardErrors((prev) => ({ ...prev, cvc: "" }));
+    return true;
+  };
+
+  const validateFakePayment = () => {
+    const isNumberValid = validateCardNumber();
+    const isNameValid = validateCardName();
+    const isExpiryValid = validateCardExpiry();
+    const isCvcValid = validateCardCvc();
+    return isNumberValid && isNameValid && isExpiryValid && isCvcValid;
+  };
+
   const validateForm = () => {
     const isDocumentValid = validateDocument();
     const isNameValid = validateName();
     const isPhoneValid = validatePhone();
     const isEmailValid = validateEmail();
     const isAddressValid = validateAddress();
+    const isFakeValid = paymentMethod === 'fake' ? validateFakePayment() : true;
     
-    return isDocumentValid && isNameValid && isPhoneValid && isEmailValid && isAddressValid;
+    return isDocumentValid && isNameValid && isPhoneValid && isEmailValid && isAddressValid && isFakeValid;
   };
 
   // Debounced autocompletado desde API interna protegida
@@ -666,6 +784,10 @@ function CheckoutForm() {
       setLoading(false);
     }
   };
+
+  const cardDigits = getCardDigits(cardNumber);
+  const cardBrand = detectCardBrand(cardDigits);
+  const cardLast4 = cardDigits.slice(-4);
 
   if (!isHydrated) {
     return (
@@ -952,6 +1074,85 @@ function CheckoutForm() {
                     </label>
                     </div>
                   </div>
+
+                {paymentMethod === 'fake' && (
+                  <div className="mt-4 rounded-md border border-green-200 bg-green-50/40 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-800">Datos de tarjeta (ficticios)</div>
+                        <div className="text-xs text-gray-600">No se realizará ningún cobro real.</div>
+                      </div>
+                      <div className="text-xs text-gray-500">{cardBrand}{cardLast4 ? ` •••• ${cardLast4}` : ""}</div>
+                    </div>
+                    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Número de tarjeta</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="cc-number"
+                          placeholder="1234 5678 9012 3456"
+                          value={cardNumber}
+                          onChange={(e) => {
+                            const digits = getCardDigits(e.target.value);
+                            setCardNumber(formatCardNumber(digits));
+                          }}
+                          onBlur={validateCardNumber}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          required
+                        />
+                        {cardErrors.number && <p className="text-red-500 text-xs mt-1">{cardErrors.number}</p>}
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del titular</label>
+                        <input
+                          type="text"
+                          autoComplete="cc-name"
+                          placeholder="NOMBRE APELLIDO"
+                          value={cardName}
+                          onChange={(e) => setCardName(e.target.value)}
+                          onBlur={validateCardName}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          required
+                        />
+                        {cardErrors.name && <p className="text-red-500 text-xs mt-1">{cardErrors.name}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vencimiento</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="cc-exp"
+                          placeholder="MM/YY"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                          onBlur={validateCardExpiry}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          required
+                        />
+                        {cardErrors.expiry && <p className="text-red-500 text-xs mt-1">{cardErrors.expiry}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">CVC</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="cc-csc"
+                          placeholder={cardBrand === 'American Express' ? '1234' : '123'}
+                          value={cardCvc}
+                          onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          onBlur={validateCardCvc}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          required
+                        />
+                        {cardErrors.cvc && <p className="text-red-500 text-xs mt-1">{cardErrors.cvc}</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
                   
                 {error && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
