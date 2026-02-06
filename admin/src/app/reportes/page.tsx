@@ -136,15 +136,19 @@ export default function ReportesPage() {
   };
 
   const exportVentasTemplate = () => {
-    const template = [
-      {
-        ID: '',
-        Cliente: '',
-        Total: '',
-        Fecha: '',
-      },
+    const rows = [
+      ['PLANTILLA DE DETALLE DE VENTAS'],
+      [],
+      ['ID', 'Cliente', 'Total', 'Fecha (DD/MM/AAAA)'],
+      ['1', 'Cliente Ejemplo', '1200.00', '05/02/2026'],
     ];
-    exportToExcel('Plantilla_Ventas', template);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 8 }, { wch: 32 }, { wch: 12 }, { wch: 18 }];
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
+    XLSX.writeFile(wb, 'Plantilla_Ventas.xlsx');
+    toast.success('Plantilla generada exitosamente');
   };
 
   const getVentasData = () => {
