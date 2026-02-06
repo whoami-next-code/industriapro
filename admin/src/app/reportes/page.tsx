@@ -263,6 +263,10 @@ export default function ReportesPage() {
     toast.success('Formato generado exitosamente');
   };
 
+  const exportVentasExcel = () => {
+    exportVentasTemplate();
+  };
+
   const getVentasData = () => {
     const filteredPedidos = filterByDateRange(
       pedidos.filter(p => {
@@ -507,25 +511,11 @@ export default function ReportesPage() {
             <Card title="Detalle de Ventas">
               <div className="flex justify-end gap-2 mb-4">
                 <button
-                  onClick={exportVentasTemplate}
-                  className="sp-button sp-button-outline"
-                >
-                  <DocumentArrowDownIcon className="h-5 w-5" />
-                  Formato
-                </button>
-                <button
-                  onClick={() => exportToExcel('Reporte_Ventas', ventasData.table)}
+                  onClick={exportVentasExcel}
                   className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
                   Excel
-                </button>
-                <button
-                  onClick={() => exportToPDF('Reporte de Ventas', ventasData.table)}
-                  className="sp-button sp-button-outline"
-                >
-                  <DocumentArrowDownIcon className="h-5 w-5" />
-                  PDF
                 </button>
               </div>
               <div className="overflow-x-auto">
