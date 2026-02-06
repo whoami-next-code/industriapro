@@ -48,6 +48,8 @@ export default function ReportesPage() {
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ReportType>('ventas');
+  const [ventasPage, setVentasPage] = useState(1);
+  const ventasPageSize = 8;
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0],
@@ -131,6 +133,18 @@ export default function ReportesPage() {
     XLSX.utils.book_append_sheet(wb, ws, title);
     XLSX.writeFile(wb, `${title.replace(/ /g, '_')}.xlsx`);
     toast.success('Excel generado exitosamente');
+  };
+
+  const exportVentasTemplate = () => {
+    const template = [
+      {
+        ID: '',
+        Cliente: '',
+        Total: '',
+        Fecha: '',
+      },
+    ];
+    exportToExcel('Plantilla_Ventas', template);
   };
 
   const getVentasData = () => {
@@ -276,6 +290,12 @@ export default function ReportesPage() {
   const ventasData = getVentasData();
   const productosData = getProductosData();
   const cotizacionesData = getCotizacionesData();
+  const totalVentasRows = ventasData.table.length;
+  const totalVentasPages = Math.max(Math.ceil(totalVentasRows / ventasPageSize), 1);
+  const ventasPageSafe = Math.min(Math.max(ventasPage, 1), totalVentasPages);
+  const ventasStart = (ventasPageSafe - 1) * ventasPageSize;
+  const ventasEnd = ventasStart + ventasPageSize;
+  const ventasTablePage = ventasData.table.slice(ventasStart, ventasEnd);
 
   return (
     <Protected>
@@ -371,6 +391,13 @@ export default function ReportesPage() {
             <Card title="Detalle de Ventas">
               <div className="flex justify-end gap-2 mb-4">
                 <button
+                  onClick={exportVentasTemplate}
+                  className="sp-button sp-button-outline"
+                >
+                  <DocumentArrowDownIcon className="h-5 w-5" />
+                  Plantilla
+                </button>
+                <button
                   onClick={() => exportToExcel('Reporte_Ventas', ventasData.table)}
                   className="sp-button sp-button-outline"
                 >
@@ -397,7 +424,7 @@ export default function ReportesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ventasData.table.map((row, index) => (
+                    {ventasTablePage.map((row, index) => (
                       <tr key={index}>
                         {Object.values(row).map((value, i) => (
                           <td key={i} className="text-sm">
@@ -408,6 +435,31 @@ export default function ReportesPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between mt-4 text-sm">
+                <span className="sp-muted">
+                  Mostrando {totalVentasRows === 0 ? 0 : ventasStart + 1}-
+                  {Math.min(ventasEnd, totalVentasRows)} de {totalVentasRows}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setVentasPage((p) => Math.max(p - 1, 1))}
+                    className="sp-button sp-button-outline"
+                    disabled={ventasPageSafe <= 1}
+                  >
+                    Anterior
+                  </button>
+                  <span className="sp-muted">
+                    Página {ventasPageSafe} de {totalVentasPages}
+                  </span>
+                  <button
+                    onClick={() => setVentasPage((p) => Math.min(p + 1, totalVentasPages))}
+                    className="sp-button sp-button-outline"
+                    disabled={ventasPageSafe >= totalVentasPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
             </Card>
           </div>
