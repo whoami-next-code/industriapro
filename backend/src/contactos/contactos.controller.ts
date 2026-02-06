@@ -23,9 +23,7 @@ import type {
   ReporteTecnicoDto,
 } from './contactos.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { join } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 
 @Controller('api/contactos')
 export class ContactosController {
@@ -136,43 +134,17 @@ export class ContactosController {
   @Roles('TECNICO', 'OPERARIO', 'ADMIN')
   @UseInterceptors(
     FilesInterceptor('files', 5, {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          const dest = join(process.cwd(), 'public', 'uploads', 'contactos');
-          try {
-            fs.mkdirSync(dest, { recursive: true });
-          } catch (e) {
-            return cb(e as Error, dest);
-          }
-          cb(null, dest);
-        },
-        filename: (_req, file, cb) =>
-          cb(
-            null,
-            `${Date.now()}-${Math.random().toString(16).slice(2)}-${file.originalname.replace(
-              /\s+/g,
-              '_',
-            )}`,
-          ),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   uploadAdjuntos(
     @UploadedFiles() files: Express.Multer.File[],
-    @Req() req: any,
   ) {
-    const forwardedProto =
-      (req.headers['x-forwarded-proto'] as string) || req.protocol;
-    const host = req.get('host');
-    const baseUrl =
-      process.env.PUBLIC_BASE_URL ||
-      process.env.WEB_URL ||
-      `${forwardedProto}://${host}`;
-    const urls = (files || []).map(
-      (f) => `${baseUrl}/uploads/contactos/${f.filename}`,
-    );
-    return { ok: true, urls };
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No se enviaron archivos');
+    }
+    return this.service.uploadAdjuntos(files);
   }
 
 }

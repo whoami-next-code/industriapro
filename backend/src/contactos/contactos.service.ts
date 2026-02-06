@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contacto } from './contacto.entity';
 import { User } from '../users/user.entity';
 import { MailService } from '../mail/mail.service';
 import { EventsService } from '../realtime/events.service';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface CrearContactoDto {
   nombre: string;
@@ -32,6 +38,9 @@ export interface ReporteTecnicoDto {
 
 @Injectable()
 export class ContactosService {
+  private supabase: SupabaseClient;
+  private readonly contactsBucket =
+    process.env.SUPABASE_CONTACTOS_BUCKET || 'contactos_evidencias';
   private readonly publicBaseUrl =
     process.env.PUBLIC_BASE_URL ||
     process.env.BACKEND_URL ||
@@ -80,7 +89,18 @@ export class ContactosService {
     private readonly users: Repository<User>,
     private readonly mail: MailService,
     @Optional() private readonly events?: EventsService,
-  ) {}
+  ) {
+    this.supabase = createClient(
+      process.env.SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_KEY || '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
+  }
 
   async crear(dto: CrearContactoDto): Promise<Contacto> {
     const entity = this.repo.create({ ...dto, estado: 'nuevo' });
@@ -214,5 +234,43 @@ export class ContactosService {
     const saved = await this.repo.save(contacto);
     this.events?.contactosUpdated({ id: saved.id, action: 'report.delete' });
     return saved;
+  }
+
+  async uploadAdjuntos(files: Express.Multer.File[]) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+      throw new BadRequestException('Supabase no está configurado');
+    }
+    if (!files || files.length === 0) {
+      return { ok: true, urls: [] as string[] };
+    }
+
+    const urls: string[] = [];
+    for (const file of files) {
+      const fileExt = file.originalname.split('.').pop() || 'bin';
+      const fileName = `contactos/${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}.${fileExt}`;
+
+      const { error } = await this.supabase.storage
+        .from(this.contactsBucket)
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) {
+        throw new BadRequestException(
+          `Supabase Storage Error: ${error.message}`,
+        );
+      }
+
+      const {
+        data: { publicUrl },
+      } = this.supabase.storage.from(this.contactsBucket).getPublicUrl(fileName);
+
+      urls.push(publicUrl);
+    }
+
+    return { ok: true, urls };
   }
 }
