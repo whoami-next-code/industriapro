@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { DocumentArrowDownIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 
 type Producto = {
   id: number;
@@ -137,18 +137,75 @@ export default function ReportesPage() {
 
   const exportVentasTemplate = () => {
     const rows = [
-      ['PLANTILLA DE DETALLE DE VENTAS'],
+      ['DETALLE DE VENTAS - FORMATO'],
+      ['Generado:', new Date().toLocaleDateString('es-PE'), '', ''],
       [],
       ['ID', 'Cliente', 'Total', 'Fecha (DD/MM/AAAA)'],
       ['1', 'Cliente Ejemplo', '1200.00', '05/02/2026'],
+      ['2', 'Cliente Ejemplo 2', '850.00', '01/02/2026'],
     ];
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 8 }, { wch: 32 }, { wch: 12 }, { wch: 18 }];
+    ws['!cols'] = [{ wch: 8 }, { wch: 36 }, { wch: 14 }, { wch: 20 }];
+    ws['!rows'] = [{ hpt: 24 }, { hpt: 18 }, { hpt: 10 }, { hpt: 20 }];
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+    const titleCell = ws['A1'];
+    if (titleCell) {
+      titleCell.s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
+        fill: { fgColor: { rgb: '0F3D4C' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+    }
+
+    const labelCell = ws['A2'];
+    const valueCell = ws['B2'];
+    if (labelCell) {
+      labelCell.s = {
+        font: { bold: true, color: { rgb: '0F3D4C' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      };
+    }
+    if (valueCell) {
+      valueCell.s = {
+        font: { color: { rgb: '0F3D4C' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      };
+    }
+
+    const headerStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '2F6F7E' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D0D7DE' } },
+        bottom: { style: 'thin', color: { rgb: 'D0D7DE' } },
+        left: { style: 'thin', color: { rgb: 'D0D7DE' } },
+        right: { style: 'thin', color: { rgb: 'D0D7DE' } },
+      },
+    };
+
+    ['A4', 'B4', 'C4', 'D4'].forEach((cell) => {
+      if (ws[cell]) ws[cell].s = headerStyle;
+    });
+
+    const bodyStyle = {
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+        bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+        left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+        right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      },
+    };
+    ['A5', 'B5', 'C5', 'D5', 'A6', 'B6', 'C6', 'D6'].forEach((cell) => {
+      if (ws[cell]) ws[cell].s = bodyStyle;
+    });
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
-    XLSX.writeFile(wb, 'Plantilla_Ventas.xlsx');
-    toast.success('Plantilla generada exitosamente');
+    XLSX.writeFile(wb, 'Formato_Ventas.xlsx');
+    toast.success('Formato generado exitosamente');
   };
 
   const getVentasData = () => {
@@ -399,7 +456,7 @@ export default function ReportesPage() {
                   className="sp-button sp-button-outline"
                 >
                   <DocumentArrowDownIcon className="h-5 w-5" />
-                  Plantilla
+                  Formato
                 </button>
                 <button
                   onClick={() => exportToExcel('Reporte_Ventas', ventasData.table)}
