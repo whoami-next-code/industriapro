@@ -137,45 +137,54 @@ export default function ReportesPage() {
 
   const exportVentasTemplate = () => {
     const rows = [
-      ['DETALLE DE VENTAS - FORMATO'],
+      ['INDUSTRIAS SP'],
+      ['Reporte de Ventas'],
+      [`Periodo: ${dateRange.start} al ${dateRange.end}`],
       ['Generado:', new Date().toLocaleDateString('es-PE'), '', ''],
       [],
-      ['ID', 'Cliente', 'Total', 'Fecha (DD/MM/AAAA)'],
-      ['1', 'Cliente Ejemplo', '1200.00', '05/02/2026'],
-      ['2', 'Cliente Ejemplo 2', '850.00', '01/02/2026'],
+      ['ID', 'Cliente', 'Total (S/)', 'Fecha (DD/MM/AAAA)'],
+      ['1', 'Cliente Ejemplo', 1200.0, '05/02/2026'],
+      ['2', 'Cliente Ejemplo 2', 850.0, '01/02/2026'],
+      ['3', 'Cliente Ejemplo 3', 2400.0, '27/01/2026'],
+      [],
+      ['', 'TOTAL', { f: 'SUM(C7:C9)' }, ''],
     ];
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 8 }, { wch: 36 }, { wch: 14 }, { wch: 20 }];
-    ws['!rows'] = [{ hpt: 24 }, { hpt: 18 }, { hpt: 10 }, { hpt: 20 }];
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+    ws['!cols'] = [{ wch: 8 }, { wch: 38 }, { wch: 16 }, { wch: 20 }];
+    ws['!rows'] = [
+      { hpt: 22 },
+      { hpt: 20 },
+      { hpt: 18 },
+      { hpt: 18 },
+      { hpt: 8 },
+      { hpt: 20 },
+    ];
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
+    ];
 
-    const titleCell = ws['A1'];
-    if (titleCell) {
-      titleCell.s = {
-        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
-        fill: { fgColor: { rgb: '0F3D4C' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-    }
-
-    const labelCell = ws['A2'];
-    const valueCell = ws['B2'];
-    if (labelCell) {
-      labelCell.s = {
-        font: { bold: true, color: { rgb: '0F3D4C' } },
-        alignment: { horizontal: 'left', vertical: 'center' },
-      };
-    }
-    if (valueCell) {
-      valueCell.s = {
-        font: { color: { rgb: '0F3D4C' } },
-        alignment: { horizontal: 'left', vertical: 'center' },
-      };
-    }
-
+    const titleStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 13 },
+      fill: { fgColor: { rgb: '0B3A4A' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+    const subtitleStyle = {
+      font: { bold: true, color: { rgb: '0B3A4A' }, sz: 12 },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+    const metaStyle = {
+      font: { color: { rgb: '334155' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+    };
+    const metaLabelStyle = {
+      font: { bold: true, color: { rgb: '0B3A4A' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+    };
     const headerStyle = {
       font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '2F6F7E' } },
+      fill: { fgColor: { rgb: '1F6F8B' } },
       alignment: { horizontal: 'center', vertical: 'center' },
       border: {
         top: { style: 'thin', color: { rgb: 'D0D7DE' } },
@@ -184,11 +193,6 @@ export default function ReportesPage() {
         right: { style: 'thin', color: { rgb: 'D0D7DE' } },
       },
     };
-
-    ['A4', 'B4', 'C4', 'D4'].forEach((cell) => {
-      if (ws[cell]) ws[cell].s = headerStyle;
-    });
-
     const bodyStyle = {
       alignment: { horizontal: 'left', vertical: 'center' },
       border: {
@@ -198,9 +202,60 @@ export default function ReportesPage() {
         right: { style: 'thin', color: { rgb: 'E5E7EB' } },
       },
     };
-    ['A5', 'B5', 'C5', 'D5', 'A6', 'B6', 'C6', 'D6'].forEach((cell) => {
+    const zebraStyle = {
+      ...bodyStyle,
+      fill: { fgColor: { rgb: 'F8FAFC' } },
+    };
+    const totalLabelStyle = {
+      font: { bold: true, color: { rgb: '0B3A4A' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      fill: { fgColor: { rgb: 'E2E8F0' } },
+      border: {
+        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+      },
+    };
+    const totalValueStyle = {
+      font: { bold: true, color: { rgb: '0B3A4A' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      fill: { fgColor: { rgb: 'E2E8F0' } },
+      border: {
+        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+      },
+      numFmt: '"S/ "#,##0.00',
+    };
+
+    if (ws['A1']) ws['A1'].s = titleStyle;
+    if (ws['A2']) ws['A2'].s = subtitleStyle;
+    if (ws['A3']) ws['A3'].s = metaStyle;
+    if (ws['A4']) ws['A4'].s = metaLabelStyle;
+    if (ws['B4']) ws['B4'].s = metaStyle;
+
+    ['A6', 'B6', 'C6', 'D6'].forEach((cell) => {
+      if (ws[cell]) ws[cell].s = headerStyle;
+    });
+
+    ['A7', 'B7', 'C7', 'D7'].forEach((cell) => {
       if (ws[cell]) ws[cell].s = bodyStyle;
     });
+    ['A8', 'B8', 'C8', 'D8'].forEach((cell) => {
+      if (ws[cell]) ws[cell].s = zebraStyle;
+    });
+    ['A9', 'B9', 'C9', 'D9'].forEach((cell) => {
+      if (ws[cell]) ws[cell].s = bodyStyle;
+    });
+
+    if (ws['C7']) ws['C7'].z = '"S/ "#,##0.00';
+    if (ws['C8']) ws['C8'].z = '"S/ "#,##0.00';
+    if (ws['C9']) ws['C9'].z = '"S/ "#,##0.00';
+
+    if (ws['B11']) ws['B11'].s = totalLabelStyle;
+    if (ws['C11']) ws['C11'].s = totalValueStyle;
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
