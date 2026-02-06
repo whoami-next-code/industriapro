@@ -30,6 +30,8 @@ export default function AdminUsuarios() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -198,6 +200,13 @@ export default function AdminUsuarios() {
     }
   }
 
+  const totalRows = items.length;
+  const totalPages = Math.max(Math.ceil(totalRows / pageSize), 1);
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const end = start + pageSize;
+  const pagedItems = items.slice(start, end);
+
   return (
     <Protected>
       <div className="space-y-4">
@@ -289,7 +298,7 @@ export default function AdminUsuarios() {
                   <tr><Td className="p-3 text-red-600" colSpan={7}>{error}</Td></tr>
                 ) : items.length === 0 ? (
                   <tr><Td className="p-3" colSpan={7}>No hay usuarios</Td></tr>
-                ) : items.map(u => (
+                ) : pagedItems.map(u => (
                   <tr key={u.id}>
                     <Td>{u.id}</Td>
                     <Td>{u.fullName || '-'}</Td>
@@ -365,6 +374,32 @@ export default function AdminUsuarios() {
               </tbody>
             </Table>
           </div>
+          {!loading && !error && totalRows > 0 && (
+            <div className="flex items-center justify-between mt-4 text-sm">
+              <span className="sp-muted">
+                Mostrando {totalRows === 0 ? 0 : start + 1}-{Math.min(end, totalRows)} de {totalRows}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                  className="sp-button sp-button-outline"
+                  disabled={safePage <= 1}
+                >
+                  Anterior
+                </button>
+                <span className="sp-muted">
+                  Página {safePage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                  className="sp-button sp-button-outline"
+                  disabled={safePage >= totalPages}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
       <Modal

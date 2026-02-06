@@ -34,6 +34,8 @@ export default function ReporteTecnicoPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Contacto | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const cargar = async () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -59,6 +61,13 @@ export default function ReporteTecnicoPage() {
     () => items.filter((c) => Boolean(c.technicianId || c.technicianEmail || c.technicianName)),
     [items],
   );
+
+  const totalRows = tareasAsignadas.length;
+  const totalPages = Math.max(Math.ceil(totalRows / pageSize), 1);
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const end = start + pageSize;
+  const pagedItems = tareasAsignadas.slice(start, end);
 
   const progressFor = (c: Contacto) => {
     if (c.estado === "atendido") return 100;
@@ -139,7 +148,7 @@ export default function ReporteTecnicoPage() {
                 </tr>
               </thead>
               <tbody>
-                {tareasAsignadas.map((c) => (
+                {pagedItems.map((c) => (
                   <tr key={c.id} className="align-top">
                     <td className="text-sm">
                       <div className="font-medium">{c.nombre}</div>
@@ -200,6 +209,32 @@ export default function ReporteTecnicoPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && !error && totalRows > 0 && (
+          <div className="flex items-center justify-between mt-4 text-sm">
+            <span className="sp-muted">
+              Mostrando {totalRows === 0 ? 0 : start + 1}-{Math.min(end, totalRows)} de {totalRows}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                className="sp-button sp-button-outline"
+                disabled={safePage <= 1}
+              >
+                Anterior
+              </button>
+              <span className="sp-muted">
+                Página {safePage} de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                className="sp-button sp-button-outline"
+                disabled={safePage >= totalPages}
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
         )}
       </div>

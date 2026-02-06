@@ -51,6 +51,8 @@ export default function AdminPedidos() {
   const [comprobante, setComprobante] = useState<any | null>(null);
   const [factura, setFactura] = useState<any | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<{ method?: string; id?: string } | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const parseItems = (raw: Order['items'] | string | null | undefined) => {
     if (!raw) return [];
@@ -162,6 +164,13 @@ export default function AdminPedidos() {
     }).format(amount);
   }
 
+  const totalRows = items.length;
+  const totalPages = Math.max(Math.ceil(totalRows / pageSize), 1);
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const end = start + pageSize;
+  const pagedItems = items.slice(start, end);
+
   return (
     <Protected>
       <div className="space-y-4">
@@ -186,7 +195,7 @@ export default function AdminPedidos() {
                   <tr><Td className="p-3 text-red-600" colSpan={6}>{error}</Td></tr>
                 ) : items.length === 0 ? (
                   <tr><Td className="p-3" colSpan={6}>No hay pedidos</Td></tr>
-                ) : items.map(o => (
+                ) : pagedItems.map(o => (
                   <tr key={o.id}>
                     <Td>#{o.id}</Td>
                     <Td>{o.cliente?.nombre || o.customerName || 'N/A'}</Td>
@@ -231,6 +240,32 @@ export default function AdminPedidos() {
               </tbody>
             </Table>
           </div>
+          {!loading && !error && totalRows > 0 && (
+            <div className="flex items-center justify-between mt-4 text-sm">
+              <span className="sp-muted">
+                Mostrando {totalRows === 0 ? 0 : start + 1}-{Math.min(end, totalRows)} de {totalRows}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                  className="sp-button sp-button-outline"
+                  disabled={safePage <= 1}
+                >
+                  Anterior
+                </button>
+                <span className="sp-muted">
+                  Página {safePage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                  className="sp-button sp-button-outline"
+                  disabled={safePage >= totalPages}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
 
         <Modal 
