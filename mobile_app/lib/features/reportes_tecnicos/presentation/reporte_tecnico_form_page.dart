@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,6 +27,29 @@ class _ReporteTecnicoFormPageState
   bool _sending = false;
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _evidencias = [];
+
+  String _formatError(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final message = data['message'];
+        if (message is List) {
+          return message.map((m) => m.toString()).join(', ');
+        }
+        if (message != null) {
+          return message.toString();
+        }
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return data;
+      }
+      final status = error.response?.statusCode;
+      if (status != null) {
+        return 'Error $status al enviar reporte';
+      }
+    }
+    return error.toString();
+  }
 
   @override
   void dispose() {
@@ -97,7 +121,7 @@ class _ReporteTecnicoFormPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar reporte: $e'),
+            content: Text('Error al enviar reporte: ${_formatError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

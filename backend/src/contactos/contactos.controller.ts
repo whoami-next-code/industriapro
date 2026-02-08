@@ -98,10 +98,29 @@ export class ContactosController {
     @Req() req: any,
   ) {
     const technicianName = req.user?.fullName || req.user?.email;
-    if (!body?.message) {
+    const payload =
+      typeof body === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(body);
+            } catch {
+              return {};
+            }
+          })()
+        : body ?? {};
+    const message = (payload as any)?.message ?? (payload as any)?.mensaje ?? (payload as any)?.resumen;
+    if (!message || String(message).trim().length === 0) {
       throw new BadRequestException('El reporte requiere un mensaje');
     }
-    return this.service.agregarReporte(Number(id), body, technicianName);
+    const normalizedBody: ReporteTecnicoDto = {
+      message: String(message).trim(),
+      found: (payload as any)?.found ?? (payload as any)?.encontrado ?? undefined,
+      resolved: (payload as any)?.resolved ?? (payload as any)?.resultado ?? undefined,
+      evidenceUrls: Array.isArray((payload as any)?.evidenceUrls)
+        ? (payload as any)?.evidenceUrls
+        : [],
+    };
+    return this.service.agregarReporte(Number(id), normalizedBody, technicianName);
   }
 
   @Delete(':id/reportes/:index')
