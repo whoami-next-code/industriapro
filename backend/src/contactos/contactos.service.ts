@@ -65,6 +65,19 @@ export class ContactosService {
       try {
         const parsed = new URL(url);
         const baseUrl = new URL(base);
+        const supabaseUrl =
+          this.supabaseBaseUrl && this.supabaseBaseUrl.startsWith('http')
+            ? new URL(this.supabaseBaseUrl)
+            : null;
+        const isSupabaseStoragePath = parsed.pathname.startsWith(
+          '/storage/v1/',
+        );
+        if (supabaseUrl && isSupabaseStoragePath) {
+          parsed.protocol = supabaseUrl.protocol;
+          parsed.hostname = supabaseUrl.hostname;
+          parsed.port = supabaseUrl.port;
+          return parsed.toString();
+        }
         if (
           isPrivateHost(parsed.hostname) ||
           parsed.hostname === baseUrl.hostname ||
