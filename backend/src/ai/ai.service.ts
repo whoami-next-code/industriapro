@@ -5,6 +5,20 @@ import { AnalizarContactoDto } from './dto/analizar-contacto.dto';
 export class AiService {
   private apiKey = process.env.OPENAI_API_KEY;
   private readonly logger = new Logger(AiService.name);
+  private readonly companyName =
+    process.env.COMPANY_NAME || 'IndustriaSP';
+  private readonly companyDescription =
+    process.env.COMPANY_DESCRIPTION ||
+    'Empresa industrial enfocada en soluciones y servicios para clientes B2B.';
+  private readonly companyServices =
+    process.env.COMPANY_SERVICES ||
+    'Venta de productos industriales, soporte técnico, mantenimiento y postventa.';
+  private readonly companyTone =
+    process.env.COMPANY_TONE ||
+    'Profesional, claro y orientado a resolver.';
+  private readonly companyContact =
+    process.env.COMPANY_CONTACT ||
+    'Puedes responder por este mismo canal o dejar un número de contacto.';
 
   async analizarContacto(dto: AnalizarContactoDto) {
     if (!dto?.nombre || !dto?.mensaje) {
@@ -33,6 +47,13 @@ export class AiService {
   }
 
   private async callOpenAI(dto: AnalizarContactoDto) {
+    const companyContext = [
+      `Nombre de la empresa: ${this.companyName}`,
+      `Descripción: ${this.companyDescription}`,
+      `Servicios/Productos: ${this.companyServices}`,
+      `Tono de respuesta: ${this.companyTone}`,
+      `Contacto sugerido: ${this.companyContact}`,
+    ].join('\n');
     const systemPrompt =
       'Eres un asistente para un CRM industrial. Tienes que analizar mensajes de contacto ' +
       'de clientes y responder SIEMPRE en JSON con esta forma exacta: ' +
@@ -40,10 +61,14 @@ export class AiService {
       'No incluyas nada fuera del JSON. ' +
       'Las categorías típicas pueden ser: "Ventas / Cotización", "Soporte Técnico", "Logística / Envíos", "Facturación", "Postventa / Reclamo", "Consulta General". ' +
       'La prioridad puede ser "Alta", "Media" o "Baja". ' +
-      'La respuesta sugerida debe ser coherente con el mensaje y el servicio de interés. ' +
+      'La respuesta sugerida debe ser coherente con el mensaje, mencionar detalles del cliente y alinearse con lo que la empresa ofrece. ' +
+      'Incluye 1 a 3 preguntas concretas para completar información. ' +
       'Si el mensaje es de soporte técnico, sugiere de forma natural coordinar una visita técnica si aplica.';
 
     const userPrompt = [
+      'Contexto de la empresa:',
+      companyContext,
+      '',
       `Nombre: ${dto.nombre}`,
       dto.email ? `Email: ${dto.email}` : '',
       '',
@@ -121,6 +146,10 @@ export class AiService {
     const msgRaw = dto.mensaje ?? '';
     const msg = msgRaw.toLowerCase();
     const seed = this.hashSeed(`${dto.nombre}|${dto.email ?? ''}|${msgRaw}`);
+    const keywords = this.extractKeywords(msgRaw);
+    const keywordsText = keywords.length
+      ? `Detectamos estos temas: ${keywords.join(', ')}.`
+      : 'Detectamos una consulta general.';
 
     const flags = {
       ventas: this.hasAny(msg, ['precio', 'costo', 'cotizacion', 'cotización', 'proforma', 'comprar', 'adquirir', 'presupuesto']),
@@ -150,31 +179,31 @@ export class AiService {
 
     const templates: Record<string, string[]> = {
       'Ventas / Cotización': [
-        `Hola ${dto.nombre},\n\nGracias por tu interés. Para cotizarte con precisión, ¿podrías indicarnos cantidades, medidas y uso previsto?\n\nQuedamos atentos,\nEquipo Comercial`,
-        `Hola ${dto.nombre},\n\nCon gusto te ayudamos con la cotización. ¿Tienes ficha técnica o especificaciones? También indícanos cantidades y fecha estimada.\n\nSaludos,`,
-        `Hola ${dto.nombre},\n\nPara avanzar con el presupuesto necesito: producto(s), cantidades y lugar de entrega.\n\nQuedo atento,`,
+        `Hola ${dto.nombre},\n\nGracias por contactar a ${this.companyName}. ${keywordsText}\nPara cotizarte con precisión, ¿podrías indicarnos cantidades, medidas y uso previsto? También si tienes ficha técnica o especificaciones, sería ideal.\n\nQuedamos atentos,\nEquipo Comercial`,
+        `Hola ${dto.nombre},\n\nEn ${this.companyName} te ayudamos con la cotización. ${keywordsText}\n¿Tienes cantidades, medidas y fecha estimada de compra? Si hay especificaciones técnicas, por favor compártelas.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\nGracias por escribir. ${keywordsText}\nPara avanzar con el presupuesto necesito: producto(s), cantidades y lugar de entrega. Si aplica, indica el uso o proceso donde se instalará.\n\nQuedo atento,`,
       ],
       'Soporte Técnico': [
-        `Hola ${dto.nombre},\n\nLamentamos el inconveniente. ¿Puedes describir el error, cuándo ocurre y adjuntar fotos o video? Si es necesario, podemos coordinar una visita técnica para revisarlo en sitio.\n\nRevisaremos tu caso con prioridad.\n\nSaludos,`,
-        `Hola ${dto.nombre},\n\nPara ayudarte mejor, indícanos modelo, fecha de compra y el síntoma exacto. Con esa info podemos diagnosticar rápido y, si aplica, programar una visita técnica.\n\nGracias,`,
-        `Hola ${dto.nombre},\n\nEstamos para ayudarte. ¿El equipo muestra algún código de error o sonido inusual? Envíanos detalles y coordinamos una visita técnica si se requiere.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\nLamentamos el inconveniente. ${keywordsText}\n¿Puedes describir el error, cuándo ocurre y adjuntar fotos o video? Si es necesario, podemos coordinar una visita técnica para revisarlo en sitio.\n\nRevisaremos tu caso con prioridad.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\nPara ayudarte mejor, indícanos modelo, fecha de compra y el síntoma exacto. ${keywordsText}\nCon esa info podemos diagnosticar rápido y, si aplica, programar una visita técnica.\n\nGracias,`,
+        `Hola ${dto.nombre},\n\nEstamos para ayudarte. ${keywordsText}\n¿El equipo muestra algún código de error o sonido inusual? Envíanos detalles y coordinamos una visita técnica si se requiere.\n\nSaludos,`,
       ],
       'Logística / Envíos': [
-        `Hola ${dto.nombre},\n\nVerificaremos el estado de tu envío y te compartiremos el tracking actualizado.\n\nSaludos cordiales,`,
-        `Hola ${dto.nombre},\n\nGracias por escribirnos. ¿Podrías confirmar tu número de pedido para revisar la entrega?\n\nSaludos,`,
-        `Hola ${dto.nombre},\n\nEstamos revisando tu despacho. En breve te informamos el avance y la fecha estimada.\n\nGracias,`,
+        `Hola ${dto.nombre},\n\nGracias por escribir a ${this.companyName}. ${keywordsText}\nVerificaremos el estado de tu envío y te compartiremos el tracking actualizado.\n\nSaludos cordiales,`,
+        `Hola ${dto.nombre},\n\n${keywordsText}\n¿Podrías confirmar tu número de pedido y destino para revisar la entrega?\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\n${keywordsText}\nEstamos revisando tu despacho. En breve te informamos el avance y la fecha estimada.\n\nGracias,`,
       ],
       'Facturación': [
-        `Hola ${dto.nombre},\n\nPodemos ayudarte con el comprobante. Envíanos RUC, razón social y el número de pedido.\n\nSaludos,`,
-        `Hola ${dto.nombre},\n\nPara emitir o corregir tu factura necesito: RUC, dirección fiscal y detalle del pedido.\n\nQuedo atento,`,
+        `Hola ${dto.nombre},\n\nGracias por escribir a ${this.companyName}. ${keywordsText}\nPodemos ayudarte con el comprobante. Envíanos RUC, razón social y el número de pedido.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\n${keywordsText}\nPara emitir o corregir tu factura necesito: RUC, dirección fiscal y detalle del pedido.\n\nQuedo atento,`,
       ],
       'Postventa / Reclamo': [
-        `Hola ${dto.nombre},\n\nLamentamos lo ocurrido. Para atender el reclamo, cuéntanos qué sucedió y adjunta evidencias si es posible.\n\nEstamos atentos,`,
-        `Hola ${dto.nombre},\n\nQueremos resolverlo cuanto antes. ¿Podrías indicar fecha de compra y descripción del problema?\n\nGracias,`,
+        `Hola ${dto.nombre},\n\nLamentamos lo ocurrido. ${keywordsText}\nPara atender el reclamo, cuéntanos qué sucedió y adjunta evidencias si es posible.\n\nEstamos atentos,`,
+        `Hola ${dto.nombre},\n\nQueremos resolverlo cuanto antes. ${keywordsText}\n¿Podrías indicar fecha de compra y descripción del problema?\n\nGracias,`,
       ],
       'Consulta General': [
-        `Hola ${dto.nombre},\n\nGracias por contactarnos. Cuéntanos un poco más para orientarte correctamente.\n\nSaludos,`,
-        `Hola ${dto.nombre},\n\nRecibimos tu mensaje. ¿Podrías ampliar la información para ayudarte mejor?\n\nSaludos cordiales,`,
+        `Hola ${dto.nombre},\n\nGracias por contactar a ${this.companyName}. ${keywordsText}\nCuéntanos un poco más para orientarte correctamente.\n\nSaludos,`,
+        `Hola ${dto.nombre},\n\nRecibimos tu mensaje en ${this.companyName}. ${keywordsText}\n¿Podrías ampliar la información para ayudarte mejor?\n\nSaludos cordiales,`,
       ],
     };
 
@@ -212,5 +241,33 @@ export class AiService {
   private pickTemplate(list: string[], seed: number) {
     if (!list.length) return '';
     return list[seed % list.length];
+  }
+
+  private extractKeywords(text: string, limit = 5) {
+    const normalized = text
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!normalized) return [];
+    const stopwords = new Set([
+      'hola', 'buenos', 'dias', 'buenas', 'tardes', 'noches', 'gracias',
+      'por', 'para', 'con', 'sin', 'que', 'una', 'un', 'unos', 'unas',
+      'el', 'la', 'los', 'las', 'de', 'del', 'al', 'en', 'y', 'o', 'u',
+      'a', 'mi', 'tu', 'su', 'sus', 'nuestro', 'nuestra', 'me', 'te', 'se',
+      'es', 'son', 'ser', 'estar', 'estamos', 'esta', 'este', 'esto', 'eso',
+      'nos', 'les', 'lo', 'ya', 'tambien', 'también', 'porque', 'cuando',
+      'como', 'donde', 'dónde', 'cual', 'cuál', 'cuales', 'cuáles', 'mas',
+      'más', 'menos', 'muy', 'favor', 'ayuda', 'consulta', 'mensaje',
+      'equipo', 'producto', 'servicio',
+    ]);
+    const tokens = normalized.split(' ').filter((t) => t.length > 3);
+    const unique: string[] = [];
+    for (const t of tokens) {
+      if (stopwords.has(t)) continue;
+      if (!unique.includes(t)) unique.push(t);
+      if (unique.length >= limit) break;
+    }
+    return unique;
   }
 }
