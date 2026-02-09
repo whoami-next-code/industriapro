@@ -41,6 +41,7 @@ export class ContactosService {
   private supabase: SupabaseClient;
   private readonly contactsBucket =
     process.env.SUPABASE_CONTACTOS_BUCKET || 'contactos_evidencias';
+  private readonly supabaseBaseUrl = process.env.SUPABASE_URL || '';
   private readonly publicBaseUrl =
     process.env.PUBLIC_BASE_URL ||
     process.env.BACKEND_URL ||
@@ -80,7 +81,26 @@ export class ContactosService {
     }
 
     const clean = url.replace(/\\/g, '/').trim();
+    if (
+      this.supabaseBaseUrl &&
+      /^(\/)?storage\/v1\//i.test(clean)
+    ) {
+      return `${this.supabaseBaseUrl}${clean.startsWith('/') ? '' : '/'}${clean}`;
+    }
     return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
+  }
+
+  private normalizeContactoReportes(contacto: Contacto): Contacto {
+    if (!contacto) return contacto;
+    const reportes = Array.isArray(contacto.reportes) ? contacto.reportes : [];
+    if (reportes.length === 0) return contacto;
+    contacto.reportes = reportes.map((r) => ({
+      ...r,
+      evidenceUrls: Array.isArray(r.evidenceUrls)
+        ? r.evidenceUrls.map((u) => this.normalizePublicUrl(String(u)))
+        : [],
+    }));
+    return contacto;
   }
   constructor(
     @InjectRepository(Contacto)
@@ -110,24 +130,27 @@ export class ContactosService {
   }
 
   async listar(): Promise<Contacto[]> {
-    return await this.repo.find({ order: { creadoEn: 'DESC' } });
+    const items = await this.repo.find({ order: { creadoEn: 'DESC' } });
+    return items.map((c) => this.normalizeContactoReportes(c));
   }
 
   async listarPorEmail(email: string): Promise<Contacto[]> {
-    return await this.repo.find({
+    const items = await this.repo.find({
       where: { email },
       order: { creadoEn: 'DESC' },
     });
+    return items.map((c) => this.normalizeContactoReportes(c));
   }
 
   async listarAsignados(technicianId: number, technicianEmail?: string): Promise<Contacto[]> {
     const where = technicianEmail
       ? [{ technicianId }, { technicianEmail }]
       : [{ technicianId }];
-    return this.repo.find({
+    const items = await this.repo.find({
       where,
       order: { creadoEn: 'DESC' },
     });
+    return items.map((c) => this.normalizeContactoReportes(c));
   }
 
   async actualizarEstado(
@@ -139,7 +162,7 @@ export class ContactosService {
     contacto.estado = dto.estado;
     const saved = await this.repo.save(contacto);
     this.events?.contactosUpdated({ id: saved.id, action: 'update' });
-    return saved;
+    return this.normalizeContactoReportes(saved);
   }
 
   async responder(
@@ -156,7 +179,7 @@ export class ContactosService {
     }
     const saved = await this.repo.save(contacto);
     this.events?.contactosUpdated({ id: saved.id, action: 'update' });
-    return saved;
+    return this.normalizeContactoReportes(saved);
   }
 
   async eliminar(id: number): Promise<{ ok: true }> {
@@ -182,7 +205,7 @@ export class ContactosService {
     }
     const saved = await this.repo.save(contacto);
     this.events?.contactosUpdated({ id: saved.id, action: 'assign' });
-    return saved;
+    return this.normalizeContactoReportes(saved);
   }
 
   async agregarReporte(id: number, dto: ReporteTecnicoDto, technicianName?: string) {
@@ -214,12 +237,12 @@ export class ContactosService {
         message: dto.message,
         found: dto.found,
         resolved: dto.resolved,
-        evidenceUrls: dto.evidenceUrls ?? [],
+        evidenceUrls: normalizedEvidence,
         contactoId: contacto.id,
       }).catch(() => {});
     }
 
-    return saved;
+    return this.normalizeContactoReportes(saved);
   }
 
   async eliminarReporte(id: number, index: number) {
@@ -268,7 +291,13 @@ export class ContactosService {
         data: { publicUrl },
       } = this.supabase.storage.from(this.contactsBucket).getPublicUrl(fileName);
 
-      urls.push(publicUrl);
+      if (publicUrl) {
+        urls.push(publicUrl);
+      } else if (this.supabaseBaseUrl) {
+        urls.push(
+          `${this.supabaseBaseUrl}/storage/v1/object/public/${this.contactsBucket}/${fileName}`,
+        );
+      }
     }
 
     return { ok: true, urls };
