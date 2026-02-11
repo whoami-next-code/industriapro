@@ -1,5 +1,6 @@
 import { API_URL } from "@/lib/api";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import ProductDetailClient from "./ProductDetailClient";
 
 type Product = {
@@ -55,14 +56,7 @@ export default async function ProductDetail({
   const product = await getProduct(params.id);
 
   if (!product) {
-    return (
-      <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10">
-        <h1 className="text-2xl font-bold mb-4">Producto no encontrado</h1>
-        <Link href="/catalogo" className="text-sm underline">
-          Volver al catálogo
-        </Link>
-      </section>
-    );
+    redirect("/catalogo");
   }
 
   return <ProductDetailClient product={product} />;
