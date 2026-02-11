@@ -23,9 +23,15 @@ async function getProduct(id: string): Promise<Product | null> {
       fetch(`${API_URL}/productos/${id}`, { cache: 'no-store' }),
       fetch(`${API_URL}/productos`, { cache: 'no-store' }),
     ]);
-    if (!productRes.ok) return null;
-    const product = await productRes.json();
     const all = allRes.ok ? await allRes.json() : [];
+    let product = null;
+    if (productRes.ok) {
+      product = await productRes.json();
+    }
+    if (!product && Array.isArray(all)) {
+      product = all.find((p: Product) => p.id === Number(id)) ?? null;
+    }
+    if (!product) return null;
     const related = Array.isArray(all)
       ? all
           .filter((p: Product) => p.id !== Number(id))

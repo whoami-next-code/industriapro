@@ -49,11 +49,6 @@ function ProductCard({
   onToggleFavorite: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/638fba18-ebc9-4dbf-9020-8d680af003ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'catalogo/page.tsx:ProductCard',message:'render product card',data:{id:product.id,name:product.name},timestamp:Date.now()})}).catch(()=>{});
-  }, [product.id]);
-  // #endregion
   return (
     <div className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden flex flex-col h-full">
       <Link href={`/catalogo/${product.id}`} className="relative aspect-square overflow-hidden block">
