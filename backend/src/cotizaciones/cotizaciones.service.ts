@@ -288,12 +288,19 @@ export class CotizacionesService {
 
     const saved = await this.repo.save(quote);
     
-    // Log assignment
-    await this.addProgress(id, {
-      message: `Técnico asignado: ${tech.fullName}`,
-      status: quote.status,
-      technician: tech.fullName,
-    });
+    // Log assignment (no debe bloquear la asignación)
+    try {
+      await this.addProgress(id, {
+        message: `Técnico asignado: ${tech.fullName}`,
+        status: quote.status,
+        technician: tech.fullName,
+      });
+    } catch (err) {
+      console.error(
+        'Error registrando avance de asignación',
+        err?.message || err,
+      );
+    }
 
     if (tech.email) {
       try {
